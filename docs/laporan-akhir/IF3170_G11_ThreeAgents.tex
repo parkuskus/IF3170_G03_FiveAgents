@@ -1,0 +1,182 @@
+\documentclass[10pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[indonesian]{babel}
+\usepackage{lipsum}
+
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{pdfpages}
+\usepackage{caption}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{subcaption}
+\usepackage{float}
+\bibliographystyle{IEEEtran}
+\usepackage[most]{tcolorbox}
+\tcbuselibrary{listings}
+\usepackage{listings}
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  columns=fullflexible,
+  keepspaces=true,
+  breaklines=true,
+  frame=single,
+  framerule=0.5pt,
+  framesep=5pt,
+  rulecolor=\color{black},
+  keywordstyle=\color{blue}\bfseries,
+  stringstyle=\color{red},
+  commentstyle=\color{gray}\itshape,
+  emph={self},
+  emphstyle=\color{red},
+  literate={-}{{-}}1
+}
+\renewcommand{\lstlistingname}{Kode}
+\usepackage{forest}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{2ex}{1ex}
+\titlespacing*{\subsection}{0pt}{1.5ex}{0.75ex}
+
+\usepackage{titlesec}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage[table]{xcolor}
+\renewcommand{\algorithmicrequire}{\textbf{Data}}
+\renewcommand{\algorithmicensure}{\textbf{Result}}
+\usepackage{tocloft}
+\setlength{\cftbeforechapskip}{4pt}
+\setlength{\cftbeforesecskip}{1pt}
+
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc, backgrounds}
+
+
+
+\setlength{\headsep}{30pt}
+\setlength{\footskip}{20pt}
+\usepackage[a4paper,top=2.5cm,bottom=2cm,left=2cm,right=2cm,includefoot]{geometry}
+\setlength{\headheight}{50pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+\graphicspath{{public/}{public/01-pendahuluan/}{public/02-dasar-teori/}{public/03-implementasi/}}
+
+\pagestyle{fancy}
+\fancyhf{}
+
+\fancypagestyle{plain}{%
+	\fancyhf{}%
+	\fancyhead[L]{%
+		\includegraphics[height=1.1cm]{logo-itb}\hspace{0.3cm}%
+		\includegraphics[height=1.1cm]{logo-stei}\hspace{0.3cm}%
+	}%
+	\fancyhead[R]{%
+		\begin{minipage}{9cm}
+			\raggedleft\bfseries IF3170 Intelegensi Artifisial\\
+			\normalsize Tugas Besar 1\\
+			Semester 1 2026/2027
+		\end{minipage}
+	}%
+	\renewcommand{\headrulewidth}{0.4pt}%
+	\fancyfoot[L]{\small v1.0}%
+	\fancyfoot[C]{\small Halaman \thepage}%
+	\fancyfoot[R]{\small }%
+	\renewcommand{\footrulewidth}{0.4pt}%
+}
+
+
+\fancyhead[L]{%
+	\includegraphics[height=1.1cm]{logo-itb}\hspace{0.3cm}%
+	\includegraphics[height=1.1cm]{logo-stei}\hspace{0.3cm}%
+}
+
+\fancyhead[R]{%
+	\begin{minipage}{9cm}
+		\raggedleft\bfseries IF3170 Intelegensi Artifisial\\
+			\normalsize Tugas Besar 1\\
+			Semester 1 2026/2027
+	\end{minipage}
+}
+
+\renewcommand{\headrulewidth}{0.4pt}
+
+\fancyfoot[L]{\small v1.0}
+\fancyfoot[C]{\small Halaman \thepage}
+\fancyfoot[R]{\small }
+\renewcommand{\footrulewidth}{0.4pt}
+
+\begin{document}
+
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+	\thispagestyle{empty}
+	\centering
+
+	{\huge \textbf{Tugas Besar 1}\par}
+	\vspace{0.1cm}
+	{\huge \textbf{Penerapan Algoritma \textit{Local Search} untuk Optimasi Pemilihan dan Penataan Paket dalam Peti Kemas}\par}
+	\vspace{0.4cm}
+	{\Large IF3170 Intelegensi Artifisial \par}
+	\vspace{0.1cm}
+	{\Large Semester 1 Tahun 2026/2027\par}
+
+	\vspace{0.6cm}
+	\includegraphics[width=0.50\textwidth]{cover.png}\par
+
+	\vspace{0.6cm}
+	{\Large\bfseries Disusun oleh\par}
+	\vspace{0.2cm}
+	\textbf{\large Three Agents} \\
+	\vspace{0.3cm}
+	{\large
+		\begin{tabular}{@{}p{6cm}r@{}}
+			Muhammad Aufar Rizqi Kusuma & (13524061) \\
+			Arina Azka                  & (13524049) \\
+			Michael James Liman         & (13524106)
+		\end{tabular}\par}
+
+	\vspace{2.3cm}
+	\large Laboratorium Intelegensi Buatan\\
+	Program Studi Teknik Informatika\\
+	Sekolah Teknik Elektro dan Informatika\\
+	Institut Teknologi Bandung\\
+
+\end{titlepage}
+
+\hypersetup{pageanchor=true}
+\clearpage
+\pagestyle{fancy}
+
+\tableofcontents
+\clearpage
+
+\chapter{Pendahuluan}
+\input{sections/01-pendahuluan}
+
+\chapter{Landasan Teori}
+\input{sections/02-landasan-teori.tex}
+
+\chapter{Implementasi Algoritma}
+\input{sections/03-implementasi-algoritma.tex}
+
+\chapter{Hasil Eksperimen dan Analisis}
+\input{sections/04-hasil-eksperimen-dan-analisis.tex}
+
+\chapter{Kesimpulan dan Saran}
+\input{sections/05-kesimpulan-dan-saran.tex}
+
+\chapter{Lampiran}
+\input{sections/06-lampiran.tex}
+
+
+\nocite{*}
+\bibliography{dafpus}
+\end{document}
