@@ -243,3 +243,6 @@ __marimo__/
 
 docs/laporan-akhir/*.pdf
 /extra/
+
+# Local KNN development planning notes
+docs/KNN_DEVELOPMENT_PLAN.md

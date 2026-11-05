@@ -1,0 +1,5 @@
+ronde,variabel,terpilih,baseline_f1,best_f1,delta,keputusan,alasan
+k-grid,k,21,0.831783150074745,0.831783150074745,0.0,TOLAK,kenaikan di bawah 0.005
+threshold,threshold,0.5000000000000002,0.831783150074745,0.831783150074745,0.0,TOLAK,kenaikan di bawah 0.005
+metric,metric,manhattan,0.831783150074745,0.8416888217899057,0.009906,ADOPSI,naik >= 0.005
+cat_weight,cat_weight,0.5,0.8416888217899057,0.843449552006233,0.001761,TOLAK,kenaikan di bawah 0.005

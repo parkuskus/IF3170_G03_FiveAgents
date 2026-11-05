@@ -7,7 +7,9 @@ MISSING_TOKEN = "__MISSING__"
 
 class KNNPreprocessor:
 
-    def __init__(self, binarize_cols=("prior_cancellations", "prior_completed_bookings")):
+    def __init__(self, binarize_cols=("prior_cancellations", "prior_completed_bookings"), cat_weight=1.0):
+        if cat_weight <= 0: raise ValueError("cat_weight harus > 0")
+        self.cat_weight = float(cat_weight)
         self.binarize_cols = tuple(binarize_cols)
         self.num_cols: list[str] = []
         self.cat_cols: list[str] = []
@@ -66,6 +68,8 @@ class KNNPreprocessor:
             for i, v in enumerate(col):
                 j = index.get(v)
                 block[i, j if j is not None else len(cats)] = 1.0
+            if self.cat_weight != 1.0:
+                block *= self.cat_weight
             parts.append(block)
         out = np.hstack(parts)
         if not np.isfinite(out).all():
@@ -78,6 +82,7 @@ class KNNPreprocessor:
     def to_dict(self) -> dict:
         return {
             "version": 1,
+            "cat_weight": self.cat_weight,
             "binarize_cols": list(self.binarize_cols),
             "num_cols": self.num_cols,
             "cat_cols": self.cat_cols,
@@ -92,7 +97,8 @@ class KNNPreprocessor:
 
     @classmethod
     def from_dict(cls, d: dict) -> "KNNPreprocessor":
-        obj = cls(binarize_cols=tuple(d.get("binarize_cols", ())))
+        obj = cls(binarize_cols=tuple(d.get("binarize_cols", ())),
+                  cat_weight=float(d.get("cat_weight", 1.0)))
         obj.num_cols = list(d["num_cols"])
         obj.cat_cols = list(d["cat_cols"])
         obj.medians = {k: float(v) for k, v in d["medians"].items()}
