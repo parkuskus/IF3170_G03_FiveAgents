@@ -1,0 +1,11 @@
+{
+  "algorithm": "KNN from scratch",
+  "n_neighbors": 21,
+  "weights": "distance",
+  "metric": "manhattan",
+  "p": 3,
+  "seed": 42,
+  "macro_f1_validasi": 0.841689,
+  "previous_metric": "euclidean",
+  "previous_macro_f1_validasi": 0.831783
+}
