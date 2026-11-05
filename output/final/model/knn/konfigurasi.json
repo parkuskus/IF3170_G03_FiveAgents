@@ -1,0 +1,8 @@
+{
+  "algorithm": "KNN from scratch",
+  "n_neighbors": 21,
+  "weights": "distance",
+  "metric": "euclidean",
+  "seed": 42,
+  "macro_f1_validasi": 0.831783
+}
