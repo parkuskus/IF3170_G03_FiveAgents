@@ -1,19 +1,19 @@
 \section{\textit{Backstory}}
 
-Keluarga Mejiro sedang berencana mengekspansi bisnisnya ke bidang logistik darat dan ingin melakukan uji coba berskala kecil terlebih dahulu untuk torasen. Sebagai teman yang baik, Mejiro McQueen menawarkan posisi driver truk uji coba kepada Special Week, karena sudah sering menyetir truk di kampung halamannya di Hokkaido. Usaha baru ini bernama Mejiro Express dengan slogan “Lebih kilat dari Umamusume”.
+Cristiano Ronaldo dos Santos Aveiro sedang berencana mengekspansi bisnisnya ke bidang hospitalitas dan ingin membuat sebuah penginapan. Sebagai salah satu pendukung dan penggemar terbesar Lab AI ‘ (eMudhra$^2$ + CR$\bigcirc$) STEI ITB, Cristiano Ronaldo meminta tolong kepada kami, para asisten, untuk membantunya membuat sistem cerdas untuk dapat mengestimasi pengunjung yang akan membatalkan pesanannya agar penginapannya dapat memiliki gambaran yang lebih akurat. Ronaldo Hotel\textsuperscript{TM} akan menggunakan sistem dengan pembelajaran mesin klasik untuk mendapatkan kinerja yang baik tanpa sumber daya komputasi yang besar seperti \textit{Deep Learning}.
 
-Karena Special Week sibuk berlatih untuk memenangkan lomba-lombanya, dia tidak bisa membuang waktu berlama-lama untuk menentukan pengaturan pengiriman yang optimal. Oleh karena itu, dia meminta kalian, toreena-toreena yang pintar dalam keinformatikawan, untuk membuat suatu program yang cerdas untuk menolongnya.
+Karena Lab AI 23 sedang sibuk menyelamatkan dunia dari bahaya intergalaktik dan harus bekerja dalam bayang-bayang, kami akan menyerahkan tugas ini ke member akademi La Fabrica (kalian). Oleh karena itu, bantulah “GOAT no debat \#earnednotgiven”, para asisten Lab AI, untuk mengerjakan permintaan Ronaldo dengan baik.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.5\textwidth]{backstory.png}
-    \caption{Special Week, pengemudi truk andal. Ilustrasi oleh Manatsu no Gin Hourui Uma C108 Doyoubi Higashi Chiku Ho-10a di X}
+    \caption{Ilustrasi Cristiano Ronaldo pada spesifikasi Tugas Besar II IF3170.}
 \end{figure}
 
 \section{\textit{Overview} Permasalahan}
 
-Tugas Besar 1 mata kuliah IF3170 Inteligensi Artifisial menugaskan mahasiswa untuk mencari konfigurasi pemuatan paket yang optimal pada sebuah truk peti kemas. Secara umum, paket memiliki ukuran, berat, dan nilai yang beragam, sedangkan ruang serta kapasitas angkut truk terbatas. Tujuan optimasi adalah memilih dan menata paket agar nilai total paket yang berhasil dimuat menjadi sebesar mungkin.
+Tugas Besar II mata kuliah IF3170 Inteligensi Buatan mengangkat permasalahan prediksi pembatalan pemesanan pada penginapan. Pembatalan yang diketahui lebih awal dapat membantu pengelola memperkirakan ketersediaan kamar dan merencanakan tindakan seperti pengingat kepada tamu, kebijakan pembatalan, atau strategi pemesanan kamar. Dalam studi kasus ini, sistem yang dikembangkan ditujukan untuk membantu Ronaldo Hotel memperkirakan apakah suatu pemesanan akan dibatalkan.
 
-Permasalahan ini mencakup pemilihan paket bernilai tinggi sekaligus penataannya di dalam ruang tiga dimensi. Susunan paket harus tetap layak untuk diangkut dengan memperhatikan keterbatasan ruang, kestabilan tumpukan, kondisi barang pecah-belah, dan kapasitas truk. Banyaknya kombinasi paket dan posisi membuat pencarian konfigurasi terbaik sulit dilakukan secara menyeluruh.
+Data pemesanan memuat beragam karakteristik, antara lain informasi tamu dan lama menginap, paket makanan, kategori kamar, kanal pemesanan, harga, serta riwayat pemesanan. Fitur-fitur tersebut terdiri atas data numerik dan kategorikal sehingga perlu dipahami dan disiapkan agar dapat digunakan oleh algoritma klasifikasi. Target prediksi bersifat biner dengan nilai 1 untuk pemesanan yang dibatalkan dan nilai 0 untuk pemesanan yang tidak dibatalkan.
 
-Untuk mencari solusi, tugas ini meminta implementasi tiga algoritma pencarian, yaitu satu varian Hill Climbing, Simulated Annealing, dan Genetic Algorithm. Algoritma-algoritma tersebut mengeksplorasi konfigurasi secara bertahap dari solusi awal yang dibentuk secara acak, lalu berusaha menemukan konfigurasi dengan nilai objektif yang lebih baik. Kinerja pencarian kemudian dibandingkan melalui kualitas solusi, perubahan nilai objektif selama proses, durasi, dan konsistensi hasil eksperimen.
+Permasalahan ini dirumuskan sebagai klasifikasi terawasi. Tugas meminta implementasi beberapa algoritma pembelajaran mesin klasik dari nol, termasuk K-Nearest Neighbors, Decision Tree Learning, Logistic Regression, Support Vector Machine, dan Naive Bayes, kemudian membandingkan hasilnya dengan implementasi scikit-learn. Evaluasi menggunakan Macro F1 agar kinerja prediksi pada kelas pemesanan batal dan tidak batal diperhitungkan secara seimbang.
