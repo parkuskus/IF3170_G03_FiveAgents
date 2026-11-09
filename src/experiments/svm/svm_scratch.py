@@ -339,6 +339,83 @@ class SVMFromScratch:
         return float(np.sum(slacks))
 
 
+class SVMEnsemble:
+    def __init__(self, random_state: int = 42):
+        self.random_state = int(random_state)
+        self.rbf_ = SVMFromScratch(C=1.5, kernel="rbf", gamma="scale", max_iter=45, n_components=1400, random_state=random_state)
+        self.lin_ = SVMFromScratch(C=0.5, kernel="linear", max_iter=45, random_state=random_state)
+        self.poly_ = SVMFromScratch(C=2.0, kernel="poly", degree=2, coef0=1.0, class_weight="balanced", max_iter=45, n_components=1400, random_state=random_state)
+        self.weights = [0.50, 0.30, 0.20]
+        self.std_rbf_ = 1.0
+        self.std_lin_ = 1.0
+        self.std_poly_ = 1.0
+        self.threshold = 0.0
+        self.is_fitted_ = False
+        self.fit_time_sec_ = 0.0
+        self.predict_time_sec_ = 0.0
+
+    def fit(self, x: np.ndarray, y: np.ndarray):
+        start = time.perf_counter()
+        self.rbf_.fit(x, y)
+        self.lin_.fit(x, y)
+        self.poly_.fit(x, y)
+
+        sc_rbf = self.rbf_.decision_function(x)
+        sc_lin = self.lin_.decision_function(x)
+        sc_poly = self.poly_.decision_function(x)
+
+        self.std_rbf_ = max(float(np.std(sc_rbf)), 1e-4)
+        self.std_lin_ = max(float(np.std(sc_lin)), 1e-4)
+        self.std_poly_ = max(float(np.std(sc_poly)), 1e-4)
+
+        self.fit_time_sec_ = time.perf_counter() - start
+        self.is_fitted_ = True
+        return self
+
+    def decision_function(self, x: np.ndarray) -> np.ndarray:
+        if not self.is_fitted_:
+            raise RuntimeError("model belum di-fit")
+        sc_r = self.rbf_.decision_function(x) / self.std_rbf_
+        sc_l = self.lin_.decision_function(x) / self.std_lin_
+        sc_p = self.poly_.decision_function(x) / self.std_poly_
+        return self.weights[0] * sc_r + self.weights[1] * sc_l + self.weights[2] * sc_p
+
+    def predict(self, x: np.ndarray, threshold: float | None = None) -> np.ndarray:
+        start = time.perf_counter()
+        th = self.threshold if threshold is None else float(threshold)
+        scores = self.decision_function(x)
+        preds = np.where(scores >= th, 1, 0).astype(np.int64)
+        self.predict_time_sec_ = time.perf_counter() - start
+        return preds
+
+    def tune_threshold(self, x_val: np.ndarray, y_val: np.ndarray, n_points: int = 101) -> float:
+        scores = self.decision_function(x_val)
+        y_true = np.asarray(y_val, dtype=np.int64)
+        best_f1 = -1.0
+        best_th = self.threshold
+        th_candidates = np.linspace(np.percentile(scores, 5), np.percentile(scores, 95), n_points)
+        for th in th_candidates:
+            p = np.where(scores >= th, 1, 0)
+            tp = np.sum((p == 1) & (y_true == 1))
+            fp = np.sum((p == 1) & (y_true == 0))
+            fn = np.sum((p == 0) & (y_true == 1))
+            tn = np.sum((p == 0) & (y_true == 0))
+            f1_1 = 2.0 * tp / max(2 * tp + fp + fn, 1)
+            f1_0 = 2.0 * tn / max(2 * tn + fp + fn, 1)
+            macro_f1 = 0.5 * (f1_0 + f1_1)
+            if macro_f1 > best_f1:
+                best_f1 = macro_f1
+                best_th = float(th)
+        self.threshold = best_th
+        return best_th
+
+    def calculate_slack(self, x: np.ndarray, y_raw: np.ndarray) -> float:
+        y_pm = np.where(y_raw == 1, 1.0, -1.0)
+        scores = self.decision_function(x)
+        margins = y_pm * scores
+        return float(np.sum(np.maximum(0.0, 1.0 - margins)))
+
+
 if __name__ == "__main__":
     rng = np.random.default_rng(42)
     x_toy = rng.normal(size=(200, 10))
