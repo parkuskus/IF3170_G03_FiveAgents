@@ -40,28 +40,27 @@ def calculate_svc_slack(svc_model: SVC, x: np.ndarray, y_raw: np.ndarray) -> flo
 
 def get_candidate_configs() -> list[dict]:
     return [
-        # linear kernel
-        {"variant": "linear_c0.1_none", "kernel": "linear", "C": 0.1, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
-        {"variant": "linear_c0.1_bal", "kernel": "linear", "C": 0.1, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        # kernel linear
+        {"variant": "linear_c0.5_none", "kernel": "linear", "C": 0.5, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
         {"variant": "linear_c1.0_none", "kernel": "linear", "C": 1.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
         {"variant": "linear_c1.0_bal", "kernel": "linear", "C": 1.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "linear_c5.0_bal", "kernel": "linear", "C": 5.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        # polynomial kernel
-        {"variant": "poly_d2_c1.0_r1_none", "kernel": "poly", "C": 1.0, "degree": 2, "gamma": "scale", "coef0": 1.0, "class_weight": None},
-        {"variant": "poly_d2_c1.0_r1_bal", "kernel": "poly", "C": 1.0, "degree": 2, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        {"variant": "poly_d3_c0.5_r1_bal", "kernel": "poly", "C": 0.5, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        {"variant": "poly_d3_c1.0_r0_bal", "kernel": "poly", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "linear_c2.0_none", "kernel": "linear", "C": 2.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "linear_c2.0_bal", "kernel": "linear", "C": 2.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "linear_c4.0_bal", "kernel": "linear", "C": 4.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        # kernel polynomial
+        {"variant": "poly_d2_c2.0_r1_bal", "kernel": "poly", "C": 2.0, "degree": 2, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
         {"variant": "poly_d3_c1.0_r1_none", "kernel": "poly", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": None},
         {"variant": "poly_d3_c1.0_r1_bal", "kernel": "poly", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
         {"variant": "poly_d3_c2.0_r1_bal", "kernel": "poly", "C": 2.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        # gaussian / rbf kernel
-        {"variant": "rbf_c0.5_scale_bal", "kernel": "rbf", "C": 0.5, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "poly_d3_c3.0_r1_bal", "kernel": "poly", "C": 3.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
+        {"variant": "poly_d3_c4.0_r1_bal", "kernel": "poly", "C": 4.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
+        # kernel gaussian / rbf
         {"variant": "rbf_c1.0_scale_none", "kernel": "rbf", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": None},
         {"variant": "rbf_c1.0_scale_bal", "kernel": "rbf", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "rbf_c1.0_g0.03_bal", "kernel": "rbf", "C": 1.0, "degree": 3, "gamma": 0.03, "coef0": 0.0, "class_weight": "balanced"},
         {"variant": "rbf_c2.0_scale_bal", "kernel": "rbf", "C": 2.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "rbf_c2.0_g0.03_none", "kernel": "rbf", "C": 2.0, "degree": 3, "gamma": 0.03, "coef0": 0.0, "class_weight": None},
-        {"variant": "rbf_c2.0_g0.03_bal", "kernel": "rbf", "C": 2.0, "degree": 3, "gamma": 0.03, "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "rbf_c3.0_scale_bal", "kernel": "rbf", "C": 3.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "rbf_c4.0_scale_bal", "kernel": "rbf", "C": 4.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "rbf_c4.0_g0.01_bal", "kernel": "rbf", "C": 4.0, "degree": 3, "gamma": 0.01, "coef0": 0.0, "class_weight": "balanced"},
     ]
 
 
@@ -78,7 +77,7 @@ def run_all_experiments():
     candidates = get_candidate_configs()
     rows = []
 
-    print(f"mulai eksperimen {len(candidates)} kandidat svm dari nol...")
+    print(f"menjalankan eksperimen {len(candidates)} kandidat svm dari nol dengan pipeline fitur baru...")
     for cfg in candidates:
         model = SVMFromScratch(
             C=cfg["C"],
@@ -87,15 +86,22 @@ def run_all_experiments():
             gamma=cfg["gamma"],
             coef0=cfg["coef0"],
             class_weight=cfg["class_weight"],
-            max_iter=35,
-            n_components=1000,
+            max_iter=45,
+            n_components=1400,
             random_state=42,
         )
         model.fit(x_train, y_train)
-        y_pred = model.predict(x_valid)
-        metrics = evaluate_predictions(y_valid, y_pred)
-        slack_valid = model.calculate_slack(x_valid, y_valid)
 
+        # evaluasi default threshold 0
+        y_pred_def = model.predict(x_valid, threshold=0.0)
+        metrics_def = evaluate_predictions(y_valid, y_pred_def)
+
+        # evaluasi threshold ter-tune
+        th_tuned = model.tune_threshold(x_valid, y_valid)
+        y_pred_tuned = model.predict(x_valid, threshold=th_tuned)
+        metrics_tuned = evaluate_predictions(y_valid, y_pred_tuned)
+
+        slack_valid = model.calculate_slack(x_valid, y_valid)
         sv_bytes = 0 if model.support_vectors_ is None else model.support_vectors_.nbytes
         mem_mb = (x_train.nbytes + sv_bytes) / (1024 ** 2)
 
@@ -103,7 +109,19 @@ def run_all_experiments():
             **cfg,
             "class_weight": str(cfg["class_weight"]),
             "seed": 42,
-            **metrics,
+            "default_macro_f1": round(metrics_def["macro_f1"], 4),
+            "macro_f1": round(metrics_tuned["macro_f1"], 4),
+            "best_threshold": round(th_tuned, 3),
+            "prec_0": round(metrics_tuned["prec_0"], 4),
+            "rec_0": round(metrics_tuned["rec_0"], 4),
+            "f1_0": round(metrics_tuned["f1_0"], 4),
+            "prec_1": round(metrics_tuned["prec_1"], 4),
+            "rec_1": round(metrics_tuned["rec_1"], 4),
+            "f1_1": round(metrics_tuned["f1_1"], 4),
+            "tn": metrics_tuned["tn"],
+            "fp": metrics_tuned["fp"],
+            "fn": metrics_tuned["fn"],
+            "tp": metrics_tuned["tp"],
             "n_support": model.n_support_,
             "slack_train": round(model.slack_total, 2),
             "slack_valid": round(slack_valid, 2),
@@ -113,16 +131,16 @@ def run_all_experiments():
         }
         rows.append(row)
         print(
-            f"  {cfg['variant']:<22} | macro_f1={metrics['macro_f1']:.4f} "
-            f"(f1_0={metrics['f1_0']:.4f}, f1_1={metrics['f1_1']:.4f}) | "
-            f"fit={model.fit_time_sec_:.2f}s | pred={model.predict_time_sec_:.2f}s | sv={model.n_support_}"
+            f"  {cfg['variant']:<22} | default_f1={metrics_def['macro_f1']:.4f} "
+            f"| tuned_f1={metrics_tuned['macro_f1']:.4f} (th={th_tuned:+.2f}) | "
+            f"fit={model.fit_time_sec_:.2f}s | sv={model.n_support_}"
         )
 
     df_exp = pd.DataFrame(rows)
     df_exp = df_exp.sort_values(by=["macro_f1", "variant"], ascending=[False, True]).reset_index(drop=True)
     df_exp.to_csv(exp_dir / "svm_experiment_results.csv", index=False)
 
-    # pilih terbaik per kernel dan komparasi dengan sklearn.svm.SVC
+    # komparasi konfigurasi terbaik tiap kernel dengan sklearn.svm.SVC
     comp_rows = []
     print("\nkomparasi konfigurasi terbaik tiap kernel dengan sklearn.svm.SVC...")
     for kern in ["linear", "poly", "rbf"]:
@@ -175,9 +193,18 @@ def run_all_experiments():
         fit_t = time.perf_counter() - t0
 
         t1 = time.perf_counter()
-        svc_pred = svc.predict(x_valid)
+        svc_scores = svc.decision_function(x_valid)
         pred_t = time.perf_counter() - t1
 
+        # cari threshold terbaik untuk sklearn svc juga agar adil
+        best_svc_f1, best_svc_th = -1.0, 0.0
+        for th in np.linspace(-1.0, 1.0, 101):
+            f1 = f1_score(y_valid, (svc_scores >= th).astype(int), average="macro", zero_division=0)
+            if f1 > best_svc_f1:
+                best_svc_f1 = f1
+                best_svc_th = th
+
+        svc_pred = (svc_scores >= best_svc_th).astype(int)
         svc_metrics = evaluate_predictions(y_valid, svc_pred)
         svc_slack_tr = calculate_svc_slack(svc, x_train, y_train)
         svc_slack_va = calculate_svc_slack(svc, x_valid, y_valid)

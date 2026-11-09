@@ -23,7 +23,8 @@ class SVMFromScratch:
         class_weight: str | dict | None = None,
         tol: float = 1e-3,
         max_iter: int = 35,
-        n_components: int = 900,
+        n_components: int = 1200,
+        threshold: float = 0.0,
         solver: str = "auto",
         random_state: int = 42,
     ):
@@ -36,6 +37,7 @@ class SVMFromScratch:
         self.tol = float(tol)
         self.max_iter = int(max_iter)
         self.n_components = int(n_components)
+        self.threshold = float(threshold)
         self.solver = solver
         self.random_state = int(random_state)
 
@@ -295,12 +297,39 @@ class SVMFromScratch:
             scores[s : s + batch_size] = np.dot(k_sv, self.dual_coef_) + self.b_
         return scores
 
-    def predict(self, x: np.ndarray) -> np.ndarray:
+    def predict(self, x: np.ndarray, threshold: float | None = None) -> np.ndarray:
         start_time = time.perf_counter()
+        th = self.threshold if threshold is None else float(threshold)
         scores = self.decision_function(x)
-        preds = np.where(scores >= 0.0, 1, 0).astype(np.int64)
+        preds = np.where(scores >= th, 1, 0).astype(np.int64)
         self.predict_time_sec_ = time.perf_counter() - start_time
         return preds
+
+    def tune_threshold(self, x_val: np.ndarray, y_val: np.ndarray, n_points: int = 101) -> float:
+        # cari ambang batas yang memaksimalkan macro f1
+        scores = self.decision_function(x_val)
+        y_true = np.asarray(y_val, dtype=np.int64)
+        best_f1 = -1.0
+        best_th = self.threshold
+
+        th_candidates = np.linspace(np.percentile(scores, 5), np.percentile(scores, 95), n_points)
+        for th in th_candidates:
+            p = np.where(scores >= th, 1, 0)
+            tp = np.sum((p == 1) & (y_true == 1))
+            fp = np.sum((p == 1) & (y_true == 0))
+            fn = np.sum((p == 0) & (y_true == 1))
+            tn = np.sum((p == 0) & (y_true == 0))
+
+            f1_1 = 2.0 * tp / max(2 * tp + fp + fn, 1)
+            f1_0 = 2.0 * tn / max(2 * tn + fp + fn, 1)
+            macro_f1 = 0.5 * (f1_0 + f1_1)
+
+            if macro_f1 > best_f1:
+                best_f1 = macro_f1
+                best_th = float(th)
+
+        self.threshold = best_th
+        return best_th
 
     def calculate_slack(self, x: np.ndarray, y_raw: np.ndarray) -> float:
         y_pm = np.where(y_raw == 1, 1.0, -1.0)
