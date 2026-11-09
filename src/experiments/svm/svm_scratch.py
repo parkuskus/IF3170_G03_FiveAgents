@@ -3,6 +3,11 @@ import time
 from typing import Literal
 import numpy as np
 
+# referensi metode:
+# - cortes & vapnik (1995), support-vector networks
+# - platt (1998), sequential minimal optimization (smo)
+# - hsieh et al. (2008), dual coordinate descent method for large-scale svm
+# - williams & seeger (2001), using the nystrom method to speed up kernel machines
 
 KernelType = Literal["linear", "poly", "rbf"]
 
@@ -14,11 +19,12 @@ class SVMFromScratch:
         kernel: KernelType = "rbf",
         degree: int = 3,
         gamma: str | float = "scale",
-        coef0: float = 1.0,
+        coef0: float = 0.0,
         class_weight: str | dict | None = None,
         tol: float = 1e-3,
-        max_iter: int = 500,
-        solver: str = "smo",
+        max_iter: int = 35,
+        n_components: int = 900,
+        solver: str = "auto",
         random_state: int = 42,
     ):
         self.C = float(C)
@@ -29,6 +35,7 @@ class SVMFromScratch:
         self.class_weight = class_weight
         self.tol = float(tol)
         self.max_iter = int(max_iter)
+        self.n_components = int(n_components)
         self.solver = solver
         self.random_state = int(random_state)
 
@@ -36,10 +43,12 @@ class SVMFromScratch:
         self.alphas_ = None
         self.b_ = 0.0
         self.w_ = None
+        self.dual_coef_ = None
         self.support_indices_ = None
         self.support_vectors_ = None
         self.support_y_ = None
         self.support_alphas_ = None
+        self.n_support_ = 0
         self.classes_ = np.array([0, 1], dtype=np.int64)
         self.fit_time_sec_ = 0.0
         self.predict_time_sec_ = 0.0
@@ -62,7 +71,6 @@ class SVMFromScratch:
             return np.dot(x1, x2.T)
 
         if self.kernel == "poly":
-            # batasi basis agar tidak overflow
             base = self.gamma_val_ * np.dot(x1, x2.T) + self.coef0
             base = np.clip(base, -1e4, 1e4)
             return np.power(base, self.degree)
@@ -106,192 +114,169 @@ class SVMFromScratch:
 
         assert set(np.unique(y_raw)).issubset({0, 1})
         y_pm = np.where(y_raw == 1, 1.0, -1.0)
-        n_samples, n_features = x.shape
 
         self.gamma_val_ = self._resolve_gamma(x)
         c_bounds = self._calculate_sample_weights(y_raw)
 
-        # primal solver cepat khusus linear skala besar
-        if self.kernel == "linear" and (self.solver == "primal" or n_samples > 10000 and self.solver != "smo_exact"):
-            self._fit_linear_primal(x, y_pm, c_bounds)
+        if self.solver == "smo" or (self.solver == "auto" and len(x) <= 1500 and self.kernel != "linear"):
+            self._fit_exact_smo(x, y_pm, c_bounds)
         else:
-            self._fit_dual_smo(x, y_pm, c_bounds)
+            self._fit_rkhs_dcd(x, y_raw, y_pm, c_bounds)
 
         self.is_fitted_ = True
         self.slack_total = float(self.calculate_slack(x, y_raw))
         self.fit_time_sec_ = time.perf_counter() - start_time
         return self
 
-    def _fit_linear_primal(self, x: np.ndarray, y_pm: np.ndarray, c_bounds: np.ndarray):
-        # subgradient descent dengan momentum dan decay
+    def _fit_rkhs_dcd(self, x: np.ndarray, y_raw: np.ndarray, y_pm: np.ndarray, c_bounds: np.ndarray):
+        # dual coordinate descent di ruang rkhs untuk seluruh sampel
         rng = np.random.default_rng(self.random_state)
-        n_samples, n_features = x.shape
-
-        w = np.zeros(n_features, dtype=np.float64)
-        b = 0.0
-
-        batch_size = min(256, n_samples)
-        iters = self.max_iter * 20
-        lr0 = 0.05
-        indices = np.arange(n_samples)
-
-        for step in range(1, iters + 1):
-            lr = lr0 / (1.0 + 0.001 * step)
-            batch_idx = rng.choice(indices, size=batch_size, replace=False)
-            xb = x[batch_idx]
-            yb = y_pm[batch_idx]
-            cb = c_bounds[batch_idx]
-
-            scores = np.dot(xb, w) + b
-            margins = yb * scores
-            mis_mask = margins < 1.0
-
-            grad_w = (1.0 / n_samples) * w
-            grad_b = 0.0
-
-            if np.any(mis_mask):
-                loss_weights = cb[mis_mask] * yb[mis_mask]
-                grad_w -= np.dot(loss_weights, xb[mis_mask]) / batch_size
-                grad_b -= np.sum(loss_weights) / batch_size
-
-            w -= lr * grad_w
-            b -= lr * grad_b
-
-        self.w_ = w
-        self.b_ = float(b)
-
-        # simpan support vector semu untuk representasi dual
-        scores = np.dot(x, w) + b
-        margins = y_pm * scores
-        sv_mask = margins <= 1.0 + self.tol
-        sv_idx = np.flatnonzero(sv_mask)
-        if len(sv_idx) == 0:
-            sv_idx = np.argsort(margins)[:100]
-
-        self.support_indices_ = sv_idx
-        self.support_vectors_ = x[sv_idx]
-        self.support_y_ = y_pm[sv_idx]
-        self.support_alphas_ = np.ones(len(sv_idx), dtype=np.float64)
-
-    def _fit_dual_smo(self, x: np.ndarray, y_pm: np.ndarray, c_bounds: np.ndarray):
-        # koordinat descent dual smo dengan row caching on-the-fly
-        rng = np.random.default_rng(self.random_state)
-        n_samples = x.shape[0]
-
-        alphas = np.zeros(n_samples, dtype=np.float64)
-        b = 0.0
-        k_diag = np.zeros(n_samples, dtype=np.float64)
+        n_samples = len(x)
 
         if self.kernel == "linear":
-            k_diag = np.sum(x ** 2, axis=1)
-        elif self.kernel == "poly":
-            base = self.gamma_val_ * np.sum(x ** 2, axis=1) + self.coef0
-            k_diag = np.power(np.clip(base, -1e4, 1e4), self.degree)
-        elif self.kernel == "rbf":
-            k_diag = np.ones(n_samples, dtype=np.float64)
+            z = np.hstack([x, np.ones((n_samples, 1), dtype=np.float64)])
+            sv_idx = None
+            proj = None
+        else:
+            m = min(self.n_components, n_samples)
+            counts = np.bincount(y_raw, minlength=2)
+            m0 = int(round(m * counts[0] / n_samples))
+            m1 = m - m0
+            idx0 = rng.choice(np.flatnonzero(y_raw == 0), size=min(m0, counts[0]), replace=False)
+            idx1 = rng.choice(np.flatnonzero(y_raw == 1), size=min(m1, counts[1]), replace=False)
+            sv_idx = np.sort(np.concatenate([idx0, idx1]))
+            sv_x = x[sv_idx]
 
-        # buffer f_i = sum(alpha_j * y_j * K_ij) + b
-        f_cache = np.zeros(n_samples, dtype=np.float64)
+            k_mm = self._compute_kernel(sv_x, sv_x)
+            k_nm = self._compute_kernel(x, sv_x)
 
-        for iteration in range(self.max_iter):
+            eigvals, eigvecs = np.linalg.eigh(k_mm + 1e-6 * np.eye(len(sv_idx)))
+            keep = eigvals > 1e-7
+            proj = eigvecs[:, keep] * (1.0 / np.sqrt(eigvals[keep]))
+            z = np.hstack([np.dot(k_nm, proj), np.ones((n_samples, 1), dtype=np.float64)])
+
+        q_diag = np.maximum(np.sum(z ** 2, axis=1), 1e-12)
+        alphas = np.zeros(n_samples, dtype=np.float64)
+        w_z = np.zeros(z.shape[1], dtype=np.float64)
+
+        batch_size = min(64, n_samples)
+        for ep in range(self.max_iter):
+            perm = rng.permutation(n_samples)
+            if ep < 5:
+                step_scale = 0.20
+            elif ep < 15:
+                step_scale = 0.10
+            else:
+                step_scale = 0.05
+
+            max_violation = 0.0
+            for s in range(0, n_samples, batch_size):
+                blk = perm[s : s + batch_size]
+                zb = z[blk]
+                yb = y_pm[blk]
+
+                margins = yb * np.dot(zb, w_z)
+                grad = 1.0 - margins
+
+                a_old = alphas[blk]
+                a_new = np.clip(a_old + step_scale * grad / q_diag[blk], 0.0, c_bounds[blk])
+                diff = a_new - a_old
+
+                if np.any(np.abs(diff) > 1e-9):
+                    alphas[blk] = a_new
+                    w_z += np.dot(diff * yb, zb)
+                    max_violation = max(max_violation, float(np.max(np.abs(diff))))
+
+            if max_violation < self.tol * 1e-2 and ep >= 5:
+                break
+
+        self.alphas_ = alphas
+        active_mask = alphas > 1e-5
+        self.n_support_ = int(np.sum(active_mask))
+
+        if self.kernel == "linear":
+            self.w_ = w_z[:-1]
+            self.b_ = float(w_z[-1])
+            self.support_indices_ = np.flatnonzero(active_mask)
+            self.support_vectors_ = x[self.support_indices_]
+            self.support_y_ = y_pm[self.support_indices_]
+            self.support_alphas_ = alphas[self.support_indices_]
+            self.dual_coef_ = self.support_alphas_ * self.support_y_
+        else:
+            self.w_ = None
+            self.b_ = float(w_z[-1])
+            self.dual_coef_ = np.dot(proj, w_z[:-1])
+            self.support_indices_ = sv_idx
+            self.support_vectors_ = x[sv_idx]
+            self.support_y_ = y_pm[sv_idx]
+            self.support_alphas_ = np.abs(self.dual_coef_)
+
+    def _fit_exact_smo(self, x: np.ndarray, y_pm: np.ndarray, c_bounds: np.ndarray):
+        # smo penuh pada matriks gram untuk data kecil
+        rng = np.random.default_rng(self.random_state)
+        n_samples = len(x)
+        k_mat = self._compute_kernel(x, x)
+        k_diag = np.maximum(np.diag(k_mat), 1e-12)
+
+        alphas = np.zeros(n_samples, dtype=np.float64)
+        u = np.zeros(n_samples, dtype=np.float64)
+        b = 0.0
+
+        for _ in range(self.max_iter):
             num_changed = 0
-
-            # iterasi seluruh sampel atau support vectors aktif
-            active_idx = np.flatnonzero((alphas > 1e-7) & (alphas < c_bounds - 1e-7))
-            target_idx = active_idx if len(active_idx) > 0 and (iteration % 2 == 1) else np.arange(n_samples)
-            if len(target_idx) > 2000:
-                target_idx = rng.choice(target_idx, size=2000, replace=False)
-
-            for i in target_idx:
-                e_i = (f_cache[i] + b) - y_pm[i]
+            for i in range(n_samples):
+                e_i = (u[i] + b) - y_pm[i]
                 r_i = e_i * y_pm[i]
-
-                # cek pelanggaran kkt
                 if (r_i < -self.tol and alphas[i] < c_bounds[i]) or (r_i > self.tol and alphas[i] > 0.0):
-                    # pilih pasangan j
-                    if len(active_idx) > 1:
-                        j = int(rng.choice(active_idx))
-                        if j == i:
-                            j = int(rng.choice(target_idx))
-                    else:
-                        j = int(rng.choice(n_samples))
-                    if i == j:
-                        continue
-
-                    e_j = (f_cache[j] + b) - y_pm[j]
-
-                    alpha_i_old = alphas[i]
-                    alpha_j_old = alphas[j]
+                    j = int(rng.integers(0, n_samples - 1))
+                    if j >= i:
+                        j += 1
+                    e_j = (u[j] + b) - y_pm[j]
+                    ai_old, aj_old = alphas[i], alphas[j]
 
                     if y_pm[i] != y_pm[j]:
-                        low = max(0.0, alpha_j_old - alpha_i_old)
-                        high = min(c_bounds[j], c_bounds[j] + alpha_j_old - alpha_i_old)
+                        low = max(0.0, aj_old - ai_old)
+                        high = min(c_bounds[j], c_bounds[i] + aj_old - ai_old)
                     else:
-                        low = max(0.0, alpha_i_old + alpha_j_old - c_bounds[i])
-                        high = min(c_bounds[j], alpha_i_old + alpha_j_old)
-
+                        low = max(0.0, ai_old + aj_old - c_bounds[i])
+                        high = min(c_bounds[j], ai_old + aj_old)
                     if low >= high:
                         continue
 
-                    # komputasi kernel parsial k_ij
-                    k_ij = float(self._compute_kernel(x[i:i+1], x[j:j+1])[0, 0])
-                    eta = k_diag[i] + k_diag[j] - 2.0 * k_ij
-
-                    # periksa stabilitas kurvatur
+                    eta = k_diag[i] + k_diag[j] - 2.0 * k_mat[i, j]
                     if eta <= 1e-12:
                         continue
 
-                    alpha_j_new = alpha_j_old + (y_pm[j] * (e_i - e_j)) / eta
-                    alpha_j_new = np.clip(alpha_j_new, low, high)
-
-                    if abs(alpha_j_new - alpha_j_old) < 1e-5:
+                    aj_new = float(np.clip(aj_old + y_pm[j] * (e_i - e_j) / eta, low, high))
+                    if abs(aj_new - aj_old) < 1e-6:
                         continue
+                    ai_new = ai_old + y_pm[i] * y_pm[j] * (aj_old - aj_new)
 
-                    alpha_i_new = alpha_i_old + y_pm[i] * y_pm[j] * (alpha_j_old - alpha_j_new)
+                    di = (ai_new - ai_old) * y_pm[i]
+                    dj = (aj_new - aj_old) * y_pm[j]
+                    u += di * k_mat[:, i] + dj * k_mat[:, j]
+                    alphas[i], alphas[j] = ai_new, aj_new
 
-                    # update b
-                    b1 = b - e_i - y_pm[i] * (alpha_i_new - alpha_i_old) * k_diag[i] - y_pm[j] * (alpha_j_new - alpha_j_old) * k_ij
-                    b2 = b - e_j - y_pm[i] * (alpha_i_new - alpha_i_old) * k_ij - y_pm[j] * (alpha_j_new - alpha_j_old) * k_diag[j]
-
-                    if 0.0 < alpha_i_new < c_bounds[i]:
-                        b_new = b1
-                    elif 0.0 < alpha_j_new < c_bounds[j]:
-                        b_new = b2
-                    else:
-                        b_new = 0.5 * (b1 + b2)
-
-                    diff_i = (alpha_i_new - alpha_i_old) * y_pm[i]
-                    diff_j = (alpha_j_new - alpha_j_old) * y_pm[j]
-
-                    # update cache f lokal pada subset
-                    if diff_i != 0.0:
-                        f_cache += diff_i * self._compute_kernel(x[i:i+1], x)[0]
-                    if diff_j != 0.0:
-                        f_cache += diff_j * self._compute_kernel(x[j:j+1], x)[0]
-
-                    alphas[i] = alpha_i_new
-                    alphas[j] = alpha_j_new
-                    b = b_new
+                    free = (alphas > 1e-6) & (alphas < c_bounds - 1e-6)
+                    if np.any(free):
+                        b = float(np.mean(y_pm[free] - u[free]))
                     num_changed += 1
-
-            if num_changed == 0 and len(target_idx) == n_samples:
+            if num_changed == 0:
                 break
 
         self.alphas_ = alphas
         self.b_ = float(b)
-
         sv_mask = alphas > 1e-6
-        sv_idx = np.flatnonzero(sv_mask)
-        if len(sv_idx) == 0:
-            sv_idx = np.argsort(alphas)[-100:]
-
-        self.support_indices_ = sv_idx
-        self.support_vectors_ = x[sv_idx]
-        self.support_y_ = y_pm[sv_idx]
-        self.support_alphas_ = alphas[sv_idx]
-
+        if not np.any(sv_mask):
+            sv_mask[0] = True
+        self.support_indices_ = np.flatnonzero(sv_mask)
+        self.support_vectors_ = x[self.support_indices_]
+        self.support_y_ = y_pm[self.support_indices_]
+        self.support_alphas_ = alphas[self.support_indices_]
+        self.dual_coef_ = self.support_alphas_ * self.support_y_
+        self.n_support_ = len(self.support_indices_)
         if self.kernel == "linear":
-            self.w_ = np.sum((self.support_alphas_ * self.support_y_)[:, None] * self.support_vectors_, axis=0)
+            self.w_ = np.dot(self.dual_coef_, self.support_vectors_)
 
     def decision_function(self, x: np.ndarray) -> np.ndarray:
         if not self.is_fitted_:
@@ -301,10 +286,14 @@ class SVMFromScratch:
         if self.kernel == "linear" and self.w_ is not None:
             return np.dot(x, self.w_) + self.b_
 
-        # inferensi kernel hanya terhadap support vectors
-        k_sv = self._compute_kernel(x, self.support_vectors_)
-        weights = self.support_alphas_ * self.support_y_
-        return np.dot(k_sv, weights) + self.b_
+        # evaluasi kernel dalam batch agar hemat memori
+        batch_size = 2048
+        scores = np.empty(len(x), dtype=np.float64)
+        for s in range(0, len(x), batch_size):
+            xb = x[s : s + batch_size]
+            k_sv = self._compute_kernel(xb, self.support_vectors_)
+            scores[s : s + batch_size] = np.dot(k_sv, self.dual_coef_) + self.b_
+        return scores
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         start_time = time.perf_counter()
@@ -322,16 +311,15 @@ class SVMFromScratch:
 
 
 if __name__ == "__main__":
-    # pengujian unit cepat
     rng = np.random.default_rng(42)
     x_toy = rng.normal(size=(200, 10))
-    y_toy = ((x_toy[:, 0] + x_toy[:, 1] > 0)).astype(np.int64)
+    y_toy = (x_toy[:, 0] + x_toy[:, 1] > 0).astype(np.int64)
 
     for kern in ["linear", "poly", "rbf"]:
-        model = SVMFromScratch(kernel=kern, max_iter=20, random_state=42)
+        model = SVMFromScratch(kernel=kern, max_iter=25, random_state=42)
         model.fit(x_toy, y_toy)
         preds = model.predict(x_toy)
         assert set(np.unique(preds)).issubset({0, 1})
         assert len(preds) == len(y_toy)
         assert model.slack_total >= 0.0
-        print(f"kernel {kern:<6} | acc: {np.mean(preds == y_toy):.3f} | slack: {model.slack_total:.2f} | sv: {len(model.support_indices_)}")
+        print(f"kernel {kern:<6} | acc: {np.mean(preds == y_toy):.3f} | slack: {model.slack_total:.2f} | sv: {model.n_support_}")
