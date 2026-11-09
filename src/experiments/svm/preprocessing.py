@@ -32,7 +32,7 @@ class SVMPreprocessor:
         self.room_rate_median_ = {}
         self.channel_rate_median_ = {}
         self.base_date_ = pd.to_datetime("2023-01-01")
-        self.tree_model_ = None
+        self.tree_models_ = []
         self.scaler_ = StandardScaler()
         self.feature_names_ = []
         self.fitted_prep_steps = {}
@@ -54,16 +54,24 @@ class SVMPreprocessor:
         for c in ["needs_parking", "is_returning_guest", "prior_cancellations", "prior_completed_bookings"]:
             raw[c] = pd.to_numeric(df[c], errors="coerce").fillna(self.modes_[c]).clip(lower=0.0).astype(np.float64)
 
-        # fitur waktu
-        dt = pd.to_datetime(df["arrival_year"].astype(str) + "-" + df["arrival_month"].astype(str) + "-" + df["arrival_day"].astype(str), errors="coerce")
-        raw["days_since_start"] = (dt - self.base_date_).dt.days.fillna(300.0).astype(np.float64)
-        raw["dayofweek"] = dt.dt.dayofweek.fillna(0.0).astype(np.float64)
+        # fitur waktu kedatangan
+        dt_arr = pd.to_datetime(df["arrival_year"].astype(str) + "-" + df["arrival_month"].astype(str) + "-" + df["arrival_day"].astype(str), errors="coerce")
+        raw["days_since_start"] = (dt_arr - self.base_date_).dt.days.fillna(300.0).astype(np.float64)
+        raw["dayofweek"] = dt_arr.dt.dayofweek.fillna(0.0).astype(np.float64)
         raw["is_weekend_arrival"] = (raw["dayofweek"] >= 5.0).astype(np.float64)
-        raw["dayofyear"] = dt.dt.dayofyear.fillna(180.0).astype(np.float64)
-        raw["is_month_end"] = dt.dt.is_month_end.fillna(False).astype(np.float64)
+        raw["dayofyear"] = dt_arr.dt.dayofyear.fillna(180.0).astype(np.float64)
+        raw["is_month_end"] = dt_arr.dt.is_month_end.fillna(False).astype(np.float64)
         m = pd.to_numeric(df["arrival_month"], errors="coerce").fillna(6.0).to_numpy(dtype=np.float64)
         raw["month_sin"] = np.sin(2.0 * np.pi * m / 12.0)
         raw["month_cos"] = np.cos(2.0 * np.pi * m / 12.0)
+
+        # fitur tanggal pemesanan (booking date)
+        dt_book = dt_arr - pd.to_timedelta(raw["days_before_arrival"], unit="D")
+        raw["book_month"] = dt_book.dt.month.fillna(6.0).astype(np.float64)
+        raw["book_month_sin"] = np.sin(2.0 * np.pi * raw["book_month"] / 12.0)
+        raw["book_month_cos"] = np.cos(2.0 * np.pi * raw["book_month"] / 12.0)
+        raw["book_is_early"] = raw["book_month"].isin([1.0, 2.0, 3.0, 4.0]).astype(np.float64)
+        raw["book_is_sep"] = (raw["book_month"] == 9.0).astype(np.float64)
 
         # non linear lead time
         lead = raw["days_before_arrival"]
@@ -194,18 +202,26 @@ class SVMPreprocessor:
 
         full_base_tr = pd.concat([raw_tr, te_train], axis=1)
 
-        # probabilitas non linear dari pohon
-        tree_oof = pd.Series(index=df_train.index, dtype=np.float64)
-        for f_tr_idx, f_va_idx in skf.split(full_base_tr, y_train):
-            hgb_fold = HistGradientBoostingClassifier(max_iter=150, max_leaf_nodes=40, random_state=self.seed)
-            hgb_fold.fit(full_base_tr.iloc[f_tr_idx], y_train[f_tr_idx])
-            tree_oof.iloc[f_va_idx] = hgb_fold.predict_proba(full_base_tr.iloc[f_va_idx])[:, 1]
-
-        self.tree_model_ = HistGradientBoostingClassifier(max_iter=150, max_leaf_nodes=40, random_state=self.seed)
-        self.tree_model_.fit(full_base_tr, y_train)
+        # probabilitas non linear dari pohon multi-head
+        tree_configs = [
+            ("hgb_std", HistGradientBoostingClassifier(max_iter=160, max_leaf_nodes=40, learning_rate=0.08, random_state=self.seed)),
+            ("hgb_deep", HistGradientBoostingClassifier(max_iter=220, max_leaf_nodes=64, min_samples_leaf=15, learning_rate=0.05, random_state=self.seed + 101)),
+        ]
 
         full_feat_tr = full_base_tr.copy()
-        full_feat_tr["tree_prob"] = tree_oof
+        self.tree_models_ = []
+
+        for tag, model in tree_configs:
+            tree_oof = pd.Series(index=df_train.index, dtype=np.float64)
+            for f_tr_idx, f_va_idx in skf.split(full_base_tr, y_train):
+                m_fold = model.__class__(**model.get_params())
+                m_fold.fit(full_base_tr.iloc[f_tr_idx], y_train[f_tr_idx])
+                tree_oof.iloc[f_va_idx] = m_fold.predict_proba(full_base_tr.iloc[f_va_idx])[:, 1]
+
+            m_full = model.__class__(**model.get_params())
+            m_full.fit(full_base_tr, y_train)
+            self.tree_models_.append((tag, m_full))
+            full_feat_tr[f"prob_{tag}"] = tree_oof
 
         self.feature_names_ = full_feat_tr.columns.tolist()
         self.scaler_.fit(full_feat_tr.to_numpy(dtype=np.float64))
@@ -230,13 +246,14 @@ class SVMPreprocessor:
             te_df[f"te_{c}"] = keys[c].map(self.target_maps_[c]).fillna(self.global_mean_).astype(np.float64)
 
         full_base = pd.concat([raw, te_df], axis=1)
-        full_base = full_base[[col for col in self.feature_names_ if col != "tree_prob"]]
+        base_cols = [col for col in self.feature_names_ if not col.startswith("prob_")]
+        full_base = full_base[base_cols]
 
-        tree_prob = self.tree_model_.predict_proba(full_base)[:, 1]
         full_feat = full_base.copy()
-        full_feat["tree_prob"] = tree_prob
-        full_feat = full_feat[self.feature_names_]
+        for tag, m in self.tree_models_:
+            full_feat[f"prob_{tag}"] = m.predict_proba(full_base)[:, 1]
 
+        full_feat = full_feat[self.feature_names_]
         return self.scaler_.transform(full_feat.to_numpy(dtype=np.float64))
 
     def fit_transform(self, df_train: pd.DataFrame) -> np.ndarray:
@@ -287,4 +304,4 @@ if __name__ == "__main__":
     assert not np.isnan(x_tr).any()
     assert not np.isnan(x_va).any()
     assert not np.isnan(x_te).any()
-    print("semua matriks bersih dari nan dan inf")
+    print("pipeline selesai dan bersih")
