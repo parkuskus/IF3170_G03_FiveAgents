@@ -1,14 +1,12 @@
 \section{\textit{Supervised Learning}}
 
-\textit{Supervised learning} atau pembelajaran terawasi mempelajari hubungan antara masukan dan keluaran dari contoh yang telah berlabel. Misalkan data latih dinyatakan sebagai pasangan $\{(x_i,y_i)\}_{i=1}^{n}$, dengan $x_i$ sebagai vektor fitur dan $y_i$ sebagai target. Pelatihan menghasilkan fungsi prediksi $f$ yang memetakan fitur ke target. Untuk data baru $x$, model menghasilkan perkiraan $\hat{y}=f(x)$. Model diharapkan mampu memprediksi pengamatan yang belum pernah dijumpai, bukan sekadar menghafal label data latih \cite{james2021islr,scikitlearn_userguide}.
+\textit{Supervised learning} atau pembelajaran terawasi mempelajari hubungan antara masukan dan keluaran dari contoh yang telah berlabel. Misalkan data latih dinyatakan sebagai pasangan $\{(x_i,y_i)\}_{i=1}^{n}$, dengan $x_i$ sebagai vektor fitur dan $y_i$ sebagai target. Pelatihan menghasilkan fungsi prediksi $f$ yang memetakan fitur ke target. Untuk data baru $x$, model menghasilkan perkiraan $\hat{y}=f(x)$. Model diharapkan dapat memprediksi pengamatan yang belum pernah dijumpai, yakni melakukan generalisasi ke data baru \cite{james2021islr,scikitlearn_userguide}.
 
 Pembelajaran terawasi mencakup regresi dan klasifikasi. Regresi memprediksi target numerik, sedangkan klasifikasi memprediksi kategori. Klasifikasi biner memiliki dua kelas, sementara klasifikasi multikelas memiliki lebih dari dua kelas \cite{james2021islr}.
 
 \section{\textit{Data Preprocessing}}
 
 \textit{Data preprocessing} menyiapkan fitur mentah agar konsisten dan sesuai dengan kebutuhan algoritma. Tahap ini mencakup pemeriksaan kualitas data, transformasi fitur, seleksi fitur, dan pengurangan dimensi. Pilihan tahap bergantung pada karakteristik data dan algoritma karena tidak semua model memerlukan transformasi yang sama \cite{scikitlearn_preprocessing,scikitlearn_imputation}.
-
-Tabel~\ref{tab:data-preprocessing} merangkum empat jenis prapemrosesan beserta tujuan dan contohnya. Tahap-tahap tersebut mencakup perbaikan kualitas data hingga penyederhanaan representasi fitur.
 
 \begin{table}[H]
     \centering
@@ -29,7 +27,7 @@ Tabel~\ref{tab:data-preprocessing} merangkum empat jenis prapemrosesan beserta t
 
 \subsection{\textit{Data Cleaning}}
 
-\textit{Data cleaning} memeriksa dan menangani masalah kualitas data sebelum pemodelan. Pemeriksaan meliputi nilai hilang, format atau tipe yang keliru, nilai di luar rentang yang wajar, dan baris duplikat. Penanganan data tidak selalu berarti menghapusnya. Nilai hilang, misalnya, dapat ditangani dengan menghapus baris atau kolom terkait maupun mengimputasi nilai berdasarkan data yang tersedia. Pemilihan metode perlu mempertimbangkan jumlah nilai hilang dan makna fitur agar informasi berguna tidak terhapus tanpa alasan \cite{scikitlearn_imputation}.
+\textit{Data cleaning} memeriksa dan menangani masalah kualitas data sebelum pemodelan. Pemeriksaan meliputi nilai hilang, format atau tipe yang keliru, nilai di luar rentang yang wajar, dan baris duplikat. Penanganannya dapat berupa penghapusan baris atau kolom maupun imputasi nilai yang hilang berdasarkan data tersedia. Pemilihan metode perlu mempertimbangkan jumlah nilai hilang dan makna fitur agar informasi berguna tidak terhapus tanpa alasan \cite{scikitlearn_imputation}.
 
 Nilai hilang harus ditangani sebelum fitur diberikan kepada algoritma yang tidak mendukungnya. Nilai ekstrem juga perlu diperiksa berdasarkan konteks. Jarak suatu nilai dari mayoritas pengamatan tidak serta-merta menunjukkan kesalahan. Karena itu, sumber dan makna nilai perlu ditinjau sebelum pencilan dihapus.
 
@@ -108,7 +106,7 @@ Gambar~\ref{fig:decision-tree} menampilkan pohon untuk mengelompokkan tingkat ri
     \label{fig:decision-tree}
 \end{figure}
 
-Simpul $m$ merepresentasikan wilayah $R_m\subseteq\mathcal{X}$ dan data $D_m=\{(x_i,y_i):x_i\in R_m\}$. Setiap daun menghasilkan prediksi konstan $\hat{y}_m$. Pohon tersebut dapat dinyatakan sebagai fungsi potongan konstan
+Simpul $m$ merepresentasikan wilayah $R_m\subseteq\mathcal{X}$ dan data $D_m=\{(x_i,y_i):x_i\in R_m\}$. Setiap daun menghasilkan prediksi konstan $\hat{y}_m$. Pohon tersebut dapat dinyatakan sebagai fungsi yang bernilai konstan pada setiap wilayah
 
 \begin{equation}
     f_T(x)=\hat{y}_m\quad\text{jika }x\in R_m,\;m\in\widetilde{T},
@@ -118,7 +116,7 @@ Simpul $m$ merepresentasikan wilayah $R_m\subseteq\mathcal{X}$ dan data $D_m=\{(
 
 dengan $\widetilde{T}$ menyatakan himpunan daun dan $\bigsqcup$ menyatakan gabungan wilayah yang saling lepas. Pada klasifikasi, $\hat{y}_m$ umumnya merupakan kelas mayoritas di $D_m$. Pada regresi, $\hat{y}_m$ umumnya merupakan rata-rata target di $D_m$.
 
-Pohon dibentuk dari akar ke bawah dengan memilih pengujian pada setiap simpul, kemudian membangun subpohon secara rekursif. Strategi rakus memilih pembagian terbaik menurut kriteria lokal tanpa mengevaluasi seluruh struktur pohon. Karena itu, pilihan terbaik pada satu simpul belum tentu menghasilkan pohon terbaik secara global. Pertumbuhan dihentikan ketika simpul murni atau tidak ada pembagian yang cukup memperbaiki model. Kedalaman, jumlah minimum pengamatan per daun, dan pemangkasan dapat membatasi kompleksitas pohon serta mengurangi risiko \textit{overfitting} \cite{quinlan1986id3,quinlan1993c45,breiman1984cart}.
+Pohon dibentuk dari akar ke bawah dengan memilih pengujian pada setiap simpul, kemudian membangun subpohon secara rekursif. Strategi \textit{greedy} memilih pembagian yang terbaik menurut kriteria lokal tanpa mengevaluasi seluruh struktur pohon. Karena itu, pilihan terbaik pada satu simpul belum tentu menghasilkan pohon terbaik secara global. Pertumbuhan dihentikan ketika simpul murni atau tidak ada pembagian yang cukup memperbaiki model. Kedalaman, jumlah minimum pengamatan per daun, dan pemangkasan dapat membatasi kompleksitas pohon serta mengurangi risiko \textit{overfitting} \cite{quinlan1986id3,quinlan1993c45,breiman1984cart}.
 
 Perbedaan utama ID3, C4.5, dan CART terletak pada kriteria pemilihan pembagian, bentuk cabang yang dihasilkan, dukungan terhadap jenis fitur, serta cara mengendalikan ukuran pohon. ID3 dan C4.5 terutama digunakan untuk klasifikasi, sedangkan CART dapat digunakan untuk klasifikasi maupun regresi. Rincian setiap metode dibahas pada subbagian berikut.
 
@@ -174,7 +172,7 @@ Pada pemanggilan awal, $c_0=\hat{c}(D)$ untuk data latih $D$. Pemanggilan rekurs
 
 \subsubsection{\textit{C4.5}}
 
-C4.5 mengembangkan ID3 dengan memperluas penanganan fitur dan data tidak lengkap serta mengurangi bias pemilihan atribut pada \textit{information gain}. Kriteria utamanya, \textit{gain ratio}, menormalkan \textit{information gain} dengan penyebaran data pada cabang. Untuk data berbobot, definisikan $W(D)=\sum_{i\in D}w_i$ dan gunakan proporsi cabang $W(D_v)/W(D)$ dalam perhitungan entropi dan informasi pemisahan. Pada data lengkap, $w_i=1$ sehingga proporsi tersebut sama dengan $|D_v|/|D|$.
+C4.5 mengembangkan ID3 dengan memperluas penanganan fitur dan data tidak lengkap serta mengurangi bias pemilihan atribut pada \textit{information gain}. Kriteria utamanya, \textit{gain ratio}, membagi \textit{information gain} dengan entropi distribusi data ke cabang (\textit{split information}). Untuk data berbobot, definisikan $W(D)=\sum_{i\in D}w_i$ dan gunakan proporsi cabang $W(D_v)/W(D)$ dalam perhitungan entropi. Pada data lengkap, $w_i=1$ sehingga proporsi tersebut sama dengan $|D_v|/|D|$.
 
 \begin{equation}
     GR(D,A)=\frac{IG(D,A)}{SI(D,A)},\qquad
@@ -241,7 +239,7 @@ CART membentuk pohon biner, sehingga setiap pengujian membagi data menjadi dua w
     \label{eq:cart-impurity}
 \end{equation}
 
-Untuk setiap kandidat pembagian biner $s$ yang menghasilkan anak kiri $D_L$ dan anak kanan $D_R$, CART menghitung penurunan ketidakmurnian tertimbang berikut.
+Untuk setiap kandidat pembagian biner $s$ yang menghasilkan simpul anak kiri $D_L$ dan simpul anak kanan $D_R$, CART menghitung penurunan impuritas dengan membandingkan impuritas simpul induk dengan rata-rata berbobot impuritas kedua simpul anak.
 
 \begin{equation}
     \Delta I(s)=I(D)-\left(\frac{|D_L|}{|D|}I(D_L)+\frac{|D_R|}{|D|}I(D_R)\right)
@@ -250,21 +248,21 @@ Untuk setiap kandidat pembagian biner $s$ yang menghasilkan anak kiri $D_L$ dan 
 
 Pada Persamaan~\ref{eq:cart-impurity}, $p_k$ adalah proporsi kelas $k$ dan $\bar{y}_D=|D|^{-1}\sum_{i\in D}y_i$. Fungsi $I$ menggunakan $G$ untuk klasifikasi dan $Q$ untuk regresi. Pembagian terbaik adalah $s^*=\arg\max_{s\in\mathcal{S}(D)}\Delta I(s)$, dengan $\mathcal{S}(D)$ sebagai himpunan pengujian biner yang valid pada $D$. Untuk fitur numerik, $s=(j,t)$ menyatakan pemisahan $x_j\leq t$ dan $x_j>t$. Untuk fitur kategorikal, $s=(j,B)$ membagi kategori fitur $j$ menjadi kelompok $B$ dan $\mathcal{V}_j\setminus B$. Karena setiap simpul dioptimalkan secara lokal, prosedur ini tidak menjamin pohon global yang optimal.
 
-CART menumbuhkan pohon besar untuk menangkap pola data, kemudian memangkasnya dengan pendekatan kompleksitas-biaya. Untuk pohon $T$, fungsi objektif pemangkasan dirumuskan sebagai berikut.
+CART menumbuhkan pohon besar untuk menangkap pola data, lalu memangkasnya dengan kriteria \textit{cost-complexity}. Untuk pohon $T$, fungsi objektif pemangkasan dirumuskan sebagai berikut.
 
 \begin{equation}
     R_{\alpha}(T)=R(T)+\alpha|\widetilde{T}|
     \label{eq:cart-cost-complexity}
 \end{equation}
 
-Pada persamaan tersebut, $R(T)=\sum_{m\in\widetilde{T}}\frac{|D_m|}{|D|}I(D_m)$ adalah galat empiris tertimbang, $|\widetilde{T}|$ adalah jumlah daun, dan $\alpha\geq0$ mengatur penalti kompleksitas. Semakin besar $\alpha$, semakin kuat penalti bagi pohon dengan banyak daun. Jika $T_\alpha$ meminimalkan $R_\alpha$, pemilihan parameter dapat ditulis sebagai
+Pada persamaan tersebut, $R(T)=\sum_{m\in\widetilde{T}}\frac{|D_m|}{|D|}I(D_m)$ adalah galat empiris berbobot, $|\widetilde{T}|$ adalah jumlah daun, dan $\alpha\geq0$ mengatur penalti kompleksitas. Semakin besar $\alpha$, semakin kuat penalti bagi pohon dengan banyak daun. Jika $T_\alpha$ meminimalkan $R_\alpha$, pemilihan parameter dapat ditulis sebagai
 
 \begin{equation}
     \alpha^*=\arg\min_{\alpha\in\Lambda}\operatorname{CV}(T_\alpha),
     \label{eq:cart-alpha}
 \end{equation}
 
-dengan $\Lambda$ sebagai himpunan kandidat parameter dan $\operatorname{CV}$ sebagai estimasi galat melalui validasi silang. Pemangkasan kompleksitas-biaya menghasilkan kandidat subpohon, lalu validasi silang membantu memilih subpohon yang lebih baik dalam menggeneralisasi \cite{breiman1984cart}.
+dengan $\Lambda$ sebagai himpunan kandidat parameter dan $\operatorname{CV}$ sebagai estimasi galat melalui validasi silang. Pemangkasan dengan kriteria \textit{cost-complexity} menghasilkan kandidat subpohon, lalu validasi silang membantu memilih subpohon yang lebih baik dalam menggeneralisasi \cite{breiman1984cart}.
 
 \begin{algorithm}[H]
     \caption{Pembentukan pohon CART}
@@ -297,7 +295,7 @@ dengan $\Lambda$ sebagai himpunan kandidat parameter dan $\operatorname{CV}$ seb
 
 \textit{Logistic Regression} adalah model klasifikasi probabilistik yang memetakan fitur ke peluang kelas. Regresi linear menggunakan nilai linear sebagai prediksi, padahal nilai tersebut dapat berada di luar rentang $[0,1]$. Regresi logistik memetakan kombinasi linear fitur melalui fungsi logistik agar keluarannya dapat ditafsirkan sebagai probabilitas kelas positif \cite{james2021islr}.
 
-Gambar~\ref{fig:logistic-regression} menghubungkan nilai \textit{tutorial score} dengan peluang memperoleh label ``Yes''. Titik merah dan hijau menunjukkan label biner aktual, sedangkan kurva berbentuk S menunjukkan peluang kelas positif menurut model. Peluang tersebut mendekati nol pada skor rendah, meningkat di sekitar batas transisi, lalu mendekati satu pada skor tinggi. Kurva menyatakan probabilitas label 1 untuk setiap nilai fitur, bukan nilai pecahan bagi label aktual.
+Gambar~\ref{fig:logistic-regression} menghubungkan nilai \textit{tutorial score} dengan peluang memperoleh label ``Yes''. Titik merah dan hijau menunjukkan label aktual, sedangkan kurva berbentuk S menunjukkan probabilitas label 1 untuk setiap nilai fitur. Peluang tersebut mendekati nol pada skor rendah, meningkat di sekitar batas transisi, lalu mendekati satu pada skor tinggi.
 
 \begin{figure}[H]
     \centering
@@ -315,7 +313,7 @@ Untuk klasifikasi biner, misalkan $D=\{(x_i,y_i)\}_{i=1}^{n}$, dengan $x_i\in\ma
     \label{eq:logistic-probability}
 \end{equation}
 
-Fungsi sigmoid $\sigma(\cdot)$ memetakan bilangan real ke interval $(0,1)$. Persamaan yang sama dapat ditulis dalam bentuk \textit{logit}, $\log\frac{p_i}{1-p_i}=\theta^{\mathsf{T}}\tilde{x}_i$. Model ini mengasumsikan hubungan linear antara fitur dan logaritma \textit{odds}, bukan antara fitur dan probabilitas secara langsung. Jika fitur lain tetap, kenaikan satu unit pada fitur $j$ mengubah logit sebesar $\beta_j$ dan mengalikan \textit{odds} kelas positif dengan $\exp(\beta_j)$ \cite{james2021islr}.
+Fungsi sigmoid $\sigma(\cdot)$ memetakan bilangan real ke interval $(0,1)$. Persamaan yang sama dapat ditulis dalam bentuk \textit{logit}, $\log\frac{p_i}{1-p_i}=\theta^{\mathsf{T}}\tilde{x}_i$. Linearitas model berlaku pada logaritma \textit{odds}, bukan pada probabilitas. Jika fitur lain tetap, kenaikan satu unit pada fitur $j$ mengubah logit sebesar $\beta_j$ dan mengalikan \textit{odds} kelas positif dengan $\exp(\beta_j)$ \cite{james2021islr}.
 
 Parameter $\theta$ diestimasi dengan memaksimalkan likelihood Bernoulli. Cara yang ekuivalen adalah meminimalkan \textit{binary cross-entropy} berikut.
 
@@ -400,7 +398,7 @@ Pengali Lagrange mengubah masalah tersebut ke bentuk dual. Bentuk dual hanya ber
     \label{eq:svm-dual}
 \end{equation}
 
-Pada SVM linear, $K(x_i,x_j)=x_i^{\mathsf{T}}x_j$. Kernel nonlinear $K(x_i,x_j)=\phi(x_i)^{\mathsf{T}}\phi(x_j)$ menghitung hasil kali dalam pada ruang fitur tertransformasi tanpa membentuk $\phi(x)$ secara eksplisit. Kernel yang umum digunakan mencakup kernel polinomial dan fungsi basis radial $K(x,z)=\exp(-\gamma\|x-z\|_2^2)$, dengan $\gamma>0$. Fungsi keputusan kernel dirumuskan sebagai
+Pada SVM linear, $K(x_i,x_j)=x_i^{\mathsf{T}}x_j$. Kernel nonlinear $K(x_i,x_j)=\phi(x_i)^{\mathsf{T}}\phi(x_j)$ menghitung hasil kali dalam pada ruang fitur hasil transformasi tanpa membentuk $\phi(x)$ secara eksplisit. Kernel yang umum digunakan mencakup kernel polinomial dan fungsi basis radial $K(x,z)=\exp(-\gamma\|x-z\|_2^2)$, dengan $\gamma>0$. Fungsi keputusan kernel dirumuskan sebagai
 
 \begin{equation}
     f(x)=\sum_{i=1}^{n}\alpha_i y_i K(x_i,x)+b,
@@ -461,7 +459,7 @@ Asumsi kebebasan bersyarat menyederhanakan peluang seluruh fitur menjadi hasil k
     \label{eq:nb-independence}
 \end{equation}
 
-Setiap faktor pada perkalian menunjukkan seberapa sesuai satu fitur dengan kelas $c$. Prediksi menggabungkan kontribusi fitur dengan peluang awal kelas. Asumsi independensi bersyarat dapat menyederhanakan estimasi parameter dan prediksi, meskipun tidak selalu sesuai dengan ketergantungan fitur pada data nyata. Perkalian banyak peluang kecil juga rentan terhadap \textit{underflow} numerik, sehingga perhitungan biasanya dilakukan dalam domain logaritma.
+Setiap faktor pada perkalian menunjukkan seberapa sesuai satu fitur dengan kelas $c$. Prediksi menggabungkan kontribusi fitur dengan peluang awal kelas. Asumsi independensi bersyarat dapat menyederhanakan estimasi parameter dan prediksi, meskipun tidak selalu sesuai dengan ketergantungan fitur pada data nyata. Perkalian banyak peluang kecil juga rentan terhadap \textit{underflow} numerik, sehingga perhitungan biasanya dilakukan pada skala logaritmik.
 
 \begin{equation}
     \hat{y}=\arg\max_{c\in\mathcal{C}}\left[\log P(Y=c)+\sum_{j=1}^{p}\log P(X_j=x_j\mid Y=c)\right].
