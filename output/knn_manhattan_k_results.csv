@@ -1,0 +1,11 @@
+config,k,weights,metric,cat_weight,threshold,macro_f1,tn,fp,fn,tp
+k21_distance_manhattan,21,distance,manhattan,1.0,0.5,0.841689,3391,290,455,1339
+k19_distance_manhattan,19,distance,manhattan,1.0,0.5,0.840566,3385,296,455,1339
+k15_distance_manhattan,15,distance,manhattan,1.0,0.5,0.840106,3380,301,453,1341
+k23_distance_manhattan,23,distance,manhattan,1.0,0.5,0.839817,3395,286,466,1328
+k25_distance_manhattan,25,distance,manhattan,1.0,0.5,0.839152,3394,287,468,1326
+k17_distance_manhattan,17,distance,manhattan,1.0,0.5,0.837625,3382,299,465,1329
+k13_distance_manhattan,13,distance,manhattan,1.0,0.5,0.8367,3363,318,454,1340
+k41_distance_manhattan,41,distance,manhattan,1.0,0.5,0.836279,3403,278,487,1307
+k27_distance_manhattan,27,distance,manhattan,1.0,0.5,0.836088,3384,297,473,1321
+k35_distance_manhattan,35,distance,manhattan,1.0,0.5,0.835131,3384,297,477,1317

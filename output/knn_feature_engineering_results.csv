@@ -1,0 +1,6 @@
+feature_set,description,macro_f1,delta_vs_baseline,keputusan
+baseline,fitur baseline,0.841689,0.0,BASELINE
+total_guests,num_adults + num_children,0.839597,-0.002092,TOLAK
+total_nights,weekend_nights + weekday_nights,0.839443,-0.002246,TOLAK
+requests_per_guest,special_requests / total_guests,0.838443,-0.003246,TOLAK
+total_stay_value,total_nights * nightly_rate_idr,0.832653,-0.009036,TOLAK

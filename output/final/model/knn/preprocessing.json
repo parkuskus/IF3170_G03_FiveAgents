@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "cat_weight": 1.0,
   "binarize_cols": [
     "prior_cancellations",
     "prior_completed_bookings"

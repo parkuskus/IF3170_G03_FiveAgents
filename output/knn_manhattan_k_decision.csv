@@ -1,0 +1,2 @@
+baseline_config,baseline_f1,best_candidate,best_candidate_f1,delta,keputusan,k_final,alasan
+k21_distance_manhattan,0.841689,k21_distance_manhattan,0.841689,0.0,TOLAK,21,kenaikan di bawah 0.005; pertahankan k=21
