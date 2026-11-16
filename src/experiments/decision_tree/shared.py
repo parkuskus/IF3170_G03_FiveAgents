@@ -65,6 +65,7 @@ class Node:
     prediction: int
     positive_probability: float
     n_samples: int
+    weight_sum: float
     feature: str | None = None
     kind: str | None = None
     threshold: float | None = None
@@ -83,35 +84,48 @@ class BaselineTree:
         self.min_samples_leaf = min_samples_leaf
         self.min_samples_split = min_samples_split
 
-    def fit(self, X, y):
+    def fit(self, X, y, class_weight=None):
         self.columns = list(X.columns)
         self.numeric = [c for c in self.columns if pd.api.types.is_numeric_dtype(X[c])]
         self.values = {c: X[c].to_numpy() for c in self.columns}
         self.y = np.asarray(y, dtype=np.int8)
         if set(np.unique(self.y)) - {0, 1}:
             raise ValueError("BaselineTree expects binary labels 0/1")
+        class_weight = class_weight or {}
+        if any(label not in {0, 1} or not np.isfinite(weight) or weight <= 0 for label, weight in class_weight.items()):
+            raise ValueError("class_weight must map binary labels to finite positive weights")
+        self.sample_weights = np.asarray([class_weight.get(label, 1.0) for label in self.y], dtype=float)
+        self.total_weight = float(self.sample_weights.sum())
         self.root = self._grow(np.arange(len(self.y)), 0)
         return self
+
+    def _weighted_counts(self, indices):
+        labels = self.y[indices]
+        weights = self.sample_weights[indices]
+        return weights[labels == 0].sum(), weights[labels == 1].sum()
 
     def _impurity(self, zero, one):
         return _gini(zero, one) if self.criterion == "gini" else _entropy(zero, one)
 
-    def _score(self, groups, parent_impurity, parent_size):
+    def _score(self, groups, parent_impurity, parent_weight):
         if len(groups) < 2 or any(len(group) < self.min_samples_leaf for group in groups):
             return None
-        weighted = sum(len(group) * self._impurity(np.sum(self.y[group] == 0), np.sum(self.y[group] == 1)) for group in groups) / parent_size
+        weighted = sum(
+            self.sample_weights[group].sum() * self._impurity(*self._weighted_counts(group))
+            for group in groups
+        ) / parent_weight
         gain = parent_impurity - weighted
         if gain <= 1e-12:
             return None
         if self.criterion != "gain_ratio":
-            return gain
+            return gain, gain
         split_info = _entropy(0, 0)
         for group in groups:
-            p = len(group) / parent_size
+            p = self.sample_weights[group].sum() / parent_weight
             split_info -= p * np.log2(p)
-        return gain / split_info if split_info else None
+        return (gain / split_info, gain) if split_info else None
 
-    def _numeric_candidates(self, indices, col, parent_impurity):
+    def _numeric_candidates(self, indices, col, parent_impurity, parent_weight):
         values = self.values[col][indices].astype(float)
         order = np.argsort(values, kind="stable")
         sorted_values = values[order]
@@ -126,20 +140,22 @@ class BaselineTree:
             threshold = (sorted_values[cut - 1] + sorted_values[cut]) / 2
             left = indices[order[:cut]]
             right = indices[order[cut:]]
-            score = self._score((left, right), parent_impurity, len(indices))
-            if score is not None:
-                yield score, col, "numeric", threshold, None, {"le": left, "gt": right}
+            scores = self._score((left, right), parent_impurity, parent_weight)
+            if scores is not None:
+                score, gain = scores
+                yield score, gain, col, "numeric", threshold, None, {"le": left, "gt": right}
 
-    def _categorical_candidates(self, indices, col, parent_impurity):
+    def _categorical_candidates(self, indices, col, parent_impurity, parent_weight):
         values = self.values[col][indices].astype(str)
         categories = np.unique(values)
         if len(categories) < 2:
             return
         if self.criterion != "gini":
             groups = {category: indices[values == category] for category in categories}
-            score = self._score(tuple(groups.values()), parent_impurity, len(indices))
-            if score is not None:
-                yield score, col, "multiway", None, None, groups
+            scores = self._score(tuple(groups.values()), parent_impurity, parent_weight)
+            if scores is not None:
+                score, gain = scores
+                yield score, gain, col, "multiway", None, None, groups
             return
 
         # CART tests unique binary partitions. Above 10 levels, use one-vs-rest
@@ -159,27 +175,40 @@ class BaselineTree:
             seen.add(key)
             left_mask = np.isin(values, list(left_categories))
             left, right = indices[left_mask], indices[~left_mask]
-            score = self._score((left, right), parent_impurity, len(indices))
-            if score is not None:
-                yield score, col, "binary_category", None, left_categories, {"left": left, "right": right}
+            scores = self._score((left, right), parent_impurity, parent_weight)
+            if scores is not None:
+                score, gain = scores
+                yield score, gain, col, "binary_category", None, left_categories, {"left": left, "right": right}
 
     def _grow(self, indices, depth):
-        positives = int(self.y[indices].sum())
-        negatives = len(indices) - positives
+        negatives, positives = self._weighted_counts(indices)
         majority = int(positives > negatives)
-        node = Node(majority, positives / len(indices), len(indices))
+        weight_sum = negatives + positives
+        node = Node(majority, positives / weight_sum, len(indices), weight_sum)
         if (self.max_depth is not None and depth >= self.max_depth) or len(indices) < self.min_samples_split or positives == 0 or negatives == 0:
             return node
         parent_impurity = self._impurity(negatives, positives)
-        best = None
-        for col in self.columns:
-            candidates = self._numeric_candidates(indices, col, parent_impurity) if col in self.numeric else self._categorical_candidates(indices, col, parent_impurity)
-            for candidate in candidates:
-                if best is None or candidate[0] > best[0]:
-                    best = candidate
+        candidates = (
+            candidate
+            for col in self.columns
+            for candidate in (
+                self._numeric_candidates(indices, col, parent_impurity, weight_sum)
+                if col in self.numeric
+                else self._categorical_candidates(indices, col, parent_impurity, weight_sum)
+            )
+        )
+        if self.criterion == "gain_ratio":
+            candidates = list(candidates)
+        if self.criterion == "gain_ratio" and candidates:
+            best_gain_by_feature = {}
+            for _, gain, col, *_ in candidates:
+                best_gain_by_feature[col] = max(best_gain_by_feature.get(col, 0.0), gain)
+            mean_gain = np.mean(list(best_gain_by_feature.values()))
+            candidates = [candidate for candidate in candidates if candidate[1] >= mean_gain]
+        best = max(candidates, key=lambda candidate: candidate[0], default=None)
         if best is None:
             return node
-        _, node.feature, node.kind, node.threshold, node.categories, groups = best
+        _, _, node.feature, node.kind, node.threshold, node.categories, groups = best
         node.branches = {key: self._grow(group, depth + 1) for key, group in groups.items()}
         return node
 
@@ -225,15 +254,15 @@ class BaselineTree:
         ])
         return np.column_stack((1.0 - positive, positive))
 
-    def _prune_node(self, node, alpha, total_samples):
-        leaf_error = node.n_samples * min(node.positive_probability, 1.0 - node.positive_probability) / total_samples
+    def _prune_node(self, node, alpha, total_weight):
+        leaf_error = node.weight_sum * min(node.positive_probability, 1.0 - node.positive_probability) / total_weight
         if node.branches is None:
             return leaf_error, 1
 
         subtree_error = 0.0
         leaves = 0
         for child in node.branches.values():
-            child_error, child_leaves = self._prune_node(child, alpha, total_samples)
+            child_error, child_leaves = self._prune_node(child, alpha, total_weight)
             subtree_error += child_error
             leaves += child_leaves
 
@@ -248,7 +277,7 @@ class BaselineTree:
             raise ValueError("alpha must be finite and non-negative")
         result = copy(self)
         result.root = deepcopy(self.root)
-        self._prune_node(result.root, alpha, len(self.y))
+        self._prune_node(result.root, alpha, self.total_weight)
         return result
 
     def leaf_count(self):
