@@ -23,6 +23,12 @@ VARIANTS = {
     "C4.5": ("gain_ratio", "entropy", 0.001),
     "CART": ("gini", "gini", 0.0),
 }
+CART_TREE_CONFIGS = (
+    (None, 2, 1),
+    (12, 40, 20),
+    (8, 80, 40),
+)
+CART_POSITIVE_WEIGHTS = (1.0, 1.5, 2.0, 2.05, 2.5, 3.0)
 
 
 def validation_indices(y):
@@ -45,36 +51,71 @@ def prepare_fold(X_train, X_valid):
     return preprocessor.transform(X_train), preprocessor.transform(X_valid)
 
 
-def tune_cart_pruning(X, y, n_splits=5):
+def tune_cart_pruning(X, y, n_splits=5, tree_configs=CART_TREE_CONFIGS):
     y = np.asarray(y, dtype=np.int8)
     alphas = (0.0, 0.0001, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25)
     thresholds = np.round(np.arange(0.20, 0.8001, 0.02), 2)
-    probabilities = {alpha: np.empty(len(y), dtype=float) for alpha in alphas}
-    leaves = {alpha: [] for alpha in alphas}
+    candidates = [
+        (max_depth, min_samples_split, min_samples_leaf, alpha)
+        for max_depth, min_samples_split, min_samples_leaf in tree_configs
+        for alpha in alphas
+    ]
+    probabilities = {candidate: np.empty(len(y), dtype=float) for candidate in candidates}
+    leaves = {candidate: [] for candidate in candidates}
     splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
     for train_idx, valid_idx in splitter.split(X, y):
         X_train, X_valid = prepare_fold(X.iloc[train_idx], X.iloc[valid_idx])
-        maximal_tree = BaselineTree(
-            criterion="gini", max_depth=None,
-            min_samples_split=2, min_samples_leaf=1,
-        ).fit(X_train, y[train_idx])
-        for alpha in alphas:
-            tree = maximal_tree.pruned(alpha)
-            probabilities[alpha][valid_idx] = tree.predict_proba(X_valid)[:, 1]
-            leaves[alpha].append(tree.leaf_count())
+        for max_depth, min_samples_split, min_samples_leaf in tree_configs:
+            model = BaselineTree(
+                criterion="gini", max_depth=max_depth,
+                min_samples_split=min_samples_split,
+                min_samples_leaf=min_samples_leaf,
+            ).fit(X_train, y[train_idx])
+            for alpha in alphas:
+                candidate = (max_depth, min_samples_split, min_samples_leaf, alpha)
+                tree = model.pruned(alpha)
+                probabilities[candidate][valid_idx] = tree.predict_proba(X_valid)[:, 1]
+                leaves[candidate].append(tree.leaf_count())
 
     results = []
-    for alpha in alphas:
+    for max_depth, min_samples_split, min_samples_leaf, alpha in candidates:
         for threshold in thresholds:
-            prediction = threshold_predictions(probabilities[alpha], threshold)
+            candidate = (max_depth, min_samples_split, min_samples_leaf, alpha)
+            prediction = threshold_predictions(probabilities[candidate], threshold)
             results.append({
+                "max_depth": max_depth,
+                "min_samples_split": min_samples_split,
+                "min_samples_leaf": min_samples_leaf,
                 "alpha": alpha,
                 "threshold": float(threshold),
                 "macro_f1": f1_score(y, prediction, labels=[0, 1], average="macro", zero_division=0),
-                "mean_leaves": float(np.mean(leaves[alpha])),
+                "mean_leaves": float(np.mean(leaves[candidate])),
             })
-    best = max(results, key=lambda result: (result["macro_f1"], result["alpha"], result["threshold"]))
+    best = max(results, key=lambda result: (result["macro_f1"], -result["mean_leaves"], result["alpha"], result["threshold"]))
     return best, pd.DataFrame(results)
+
+
+def tune_cart_class_weight(X, y, n_splits=5, positive_weights=CART_POSITIVE_WEIGHTS):
+    y = np.asarray(y, dtype=np.int8)
+    probabilities = {weight: np.empty(len(y), dtype=np.int8) for weight in positive_weights}
+    leaves = {weight: [] for weight in positive_weights}
+    splitter = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+    for train_idx, valid_idx in splitter.split(X, y):
+        X_train, X_valid = prepare_fold(X.iloc[train_idx], X.iloc[valid_idx])
+        for weight in positive_weights:
+            model = BaselineTree(criterion="gini").fit(
+                X_train, y[train_idx], class_weight={0: 1.0, 1: weight}
+            )
+            probabilities[weight][valid_idx] = model.predict(X_valid)
+            leaves[weight].append(model.leaf_count())
+
+    results = pd.DataFrame([{
+        "positive_weight": weight,
+        "macro_f1": f1_score(y, probabilities[weight], labels=[0, 1], average="macro", zero_division=0),
+        "mean_leaves": float(np.mean(leaves[weight])),
+    } for weight in positive_weights])
+    best = max(results.to_dict(orient="records"), key=lambda row: (row["macro_f1"], -row["mean_leaves"], -row["positive_weight"]))
+    return best, results
 
 
 def score_row(name, y_true, prediction, seconds, detail):
@@ -177,8 +218,9 @@ def run_tuned_cart(train_df, train_idx, valid_idx, baseline_score):
     best, pruning_results = tune_cart_pruning(X_train_raw, y_train)
     X_train, X_valid = prepare_fold(X_train_raw, X_valid_raw)
     model = BaselineTree(
-        criterion="gini", max_depth=None,
-        min_samples_split=2, min_samples_leaf=1,
+        criterion="gini", max_depth=best["max_depth"],
+        min_samples_split=best["min_samples_split"],
+        min_samples_leaf=best["min_samples_leaf"],
     )
     fit_start = time.perf_counter()
     model.fit(X_train, y_train)
@@ -186,19 +228,21 @@ def run_tuned_cart(train_df, train_idx, valid_idx, baseline_score):
     prediction_start = time.perf_counter()
     probabilities = model.predict_proba(X_valid)[:, 1]
     row_unpruned = score_row(
-        "CART maximal tree (no pruning)", y_valid,
+        "CART selected growth configuration (no pruning)", y_valid,
         threshold_predictions(probabilities, best["threshold"]),
         fit_seconds + time.perf_counter() - prediction_start,
-        f"max_depth=None, min_samples_split=2, min_samples_leaf=1, threshold={best['threshold']:.2f}",
+        f"max_depth={best['max_depth']}, min_samples_split={best['min_samples_split']}, "
+        f"min_samples_leaf={best['min_samples_leaf']}, threshold={best['threshold']:.2f}",
     )
     prune_start = time.perf_counter()
     pruned = model.pruned(best["alpha"])
     pruned_probabilities = pruned.predict_proba(X_valid)[:, 1]
     row_pruned = score_row(
-        "CART maximal tree + cost-complexity pruning", y_valid,
+        "CART selected growth configuration + cost-complexity pruning", y_valid,
         threshold_predictions(pruned_probabilities, best["threshold"]),
         fit_seconds + time.perf_counter() - prune_start,
-        f"max_depth=None, min_samples_split=2, min_samples_leaf=1, threshold={best['threshold']:.2f}, "
+        f"max_depth={best['max_depth']}, min_samples_split={best['min_samples_split']}, "
+        f"min_samples_leaf={best['min_samples_leaf']}, threshold={best['threshold']:.2f}, "
         f"ccp_alpha={best['alpha']}, leaves={pruned.leaf_count()}",
     )
     rows = [row_unpruned, row_pruned]
@@ -207,20 +251,51 @@ def run_tuned_cart(train_df, train_idx, valid_idx, baseline_score):
     pruning_results.to_csv(destination / "pruning.csv", index=False)
     (destination / "pruning.md").write_text(
         "# CART cost-complexity pruning\n\n"
-        "Each fold grows a maximal tree (`max_depth=None`, `min_samples_split=2`, `min_samples_leaf=1`), then evaluates cost-complexity-pruned copies.\n\n"
-        f"Selected `ccp_alpha={best['alpha']}` and threshold **{best['threshold']:.2f}** by 5-fold stratified CV, "
+        "Each fold evaluates three CART growth configurations, then their cost-complexity-pruned copies and probability thresholds. The configuration is selected by macro F1 using 5-fold stratified CV.\n\n"
+        f"Selected `max_depth={best['max_depth']}`, `min_samples_split={best['min_samples_split']}`, "
+        f"`min_samples_leaf={best['min_samples_leaf']}`, `ccp_alpha={best['alpha']}`, "
+        f"and threshold **{best['threshold']:.2f}** by 5-fold stratified CV, "
         f"with macro F1 **{best['macro_f1']:.4f}** and mean leaves **{best['mean_leaves']:.1f}**.\n\n"
         f"Holdout macro F1: **{row_unpruned['validation_macro_f1']:.4f}** before pruning; "
         f"**{row_pruned['validation_macro_f1']:.4f}** after pruning ({pruned.leaf_count()} leaves), versus original baseline **{baseline_score:.4f}**.\n\n"
         "Alpha and threshold are selected on training folds only; the shared validation split remains a final holdout. Candidates are in `pruning.csv`.\n",
         encoding="utf-8",
     )
-    best.update({
-        "max_depth": None,
-        "min_samples_split": 2,
-        "min_samples_leaf": 1,
-    })
     return rows, best
+
+
+def run_weighted_cart(train_df, train_idx, valid_idx):
+    features = [c for c in train_df.columns if c not in {"id", "is_canceled"}]
+    y = train_df["is_canceled"].to_numpy(dtype=np.int8)
+    X_train_raw, X_valid_raw = train_df.iloc[train_idx][features], train_df.iloc[valid_idx][features]
+    y_train, y_valid = y[train_idx], y[valid_idx]
+    best, results = tune_cart_class_weight(X_train_raw, y_train)
+    X_train, X_valid = prepare_fold(X_train_raw, X_valid_raw)
+    start = time.perf_counter()
+    model = BaselineTree(criterion="gini").fit(
+        X_train, y_train, class_weight={0: 1.0, 1: best["positive_weight"]}
+    )
+    prediction = model.predict(X_valid)
+    row = score_row(
+        "CART class-weighted",
+        y_valid,
+        prediction,
+        time.perf_counter() - start,
+        f"positive class weight={best['positive_weight']}, leaves={model.leaf_count()}",
+    )
+    destination = OUTPUT / "CART_class_weight"
+    destination.mkdir(parents=True, exist_ok=True)
+    results.to_csv(destination / "class_weight.csv", index=False)
+    (destination / "class_weight.md").write_text(
+        "# CART class weighting\n\n"
+        "Positive-class weight is selected by 5-fold stratified CV on the training partition; each fold fits preprocessing and a weighted CART from scratch. The shared validation split is used only once for final evaluation. No submission is written.\n\n"
+        f"Selected positive class weight: **{best['positive_weight']}**; CV macro F1: **{best['macro_f1']:.4f}**; "
+        f"mean leaves: **{best['mean_leaves']:.1f}**.\n\n"
+        f"Holdout macro F1: **{row['validation_macro_f1']:.4f}**; positive-class F1: **{row['class_1_f1']:.4f}**; "
+        f"leaves: **{model.leaf_count()}**. Candidate scores are in `class_weight.csv`.\n",
+        encoding="utf-8",
+    )
+    return row, best, results
 
 
 def run_variant(name, train_df, train_idx, valid_idx):
@@ -294,7 +369,7 @@ def main(only=None):
         lines.append(
             f"| {row['model']} | {row['validation_macro_f1']:.4f} | {row['class_0_precision']:.4f} | {row['class_0_recall']:.4f} | {row['class_1_precision']:.4f} | {row['class_1_recall']:.4f} | {row['tn']} | {row['fp']} | {row['fn']} | {row['tp']} | {row['seconds']:.2f} |"
         )
-    lines += ["", "## Preprocessing bersama", "", "Imputasi median numerik dan penanda kategori kosong/asing dipelajari hanya dari bagian latih. `id` tidak menjadi fitur. Tiga baseline scratch memakai `max_depth=8`, `min_samples_split=80`, dan `min_samples_leaf=40`; eksperimen CART tambahan menumbuhkan pohon maksimal sebelum pruning.", "", "## Definisi baseline", "", "- ID3: information gain, kategori nominal multi-cabang, fitur numerik dengan threshold biner.", "- C4.5: gain ratio, kategori nominal multi-cabang, fitur numerik dengan threshold biner. Pembanding scikit-learn memakai entropy dan `ccp_alpha=0.001` sesuai spesifikasi.", "- CART: Gini, split kategori biner, fitur numerik dengan threshold biner. CART maksimal memakai `max_depth=None`, `min_samples_split=2`, `min_samples_leaf=1`, lalu cost-complexity pruning.", "", "Skor dan konfigurasi tiap model ada di `validation.csv`; kandidat pruning ada di `CART/pruning.csv`.", ""]
+    lines += ["", "## Preprocessing bersama", "", "Imputasi median numerik dan penanda kategori kosong/asing dipelajari hanya dari bagian latih. `id` tidak menjadi fitur. Tiga baseline scratch memakai `max_depth=8`, `min_samples_split=80`, dan `min_samples_leaf=40`; eksperimen CART tambahan membandingkan tiga konfigurasi pertumbuhan, pruning, serta threshold dengan target macro F1.", "", "## Definisi baseline", "", "- ID3: information gain, kategori nominal multi-cabang, fitur numerik dengan threshold biner.", "- C4.5: gain ratio, kategori nominal multi-cabang, fitur numerik dengan threshold biner. Pembanding scikit-learn memakai entropy dan `ccp_alpha=0.001` sesuai spesifikasi.", "- CART: Gini, split kategori biner, fitur numerik dengan threshold biner. Eksperimen tambahan memilih konfigurasi pertumbuhan, cost-complexity pruning, dan threshold dengan macro F1 melalui 5-fold stratified CV.", "", "Skor dan konfigurasi tiap model ada di `validation.csv`; kandidat tuning ada di `CART/pruning.csv`.", ""]
     (output / "validation.md").write_text("\n".join(lines), encoding="utf-8")
     print(results[["model", "validation_macro_f1", "seconds"]].to_string(index=False))
     print(f"\nResults: {output}")
