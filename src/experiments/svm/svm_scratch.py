@@ -6,8 +6,9 @@ import numpy as np
 # referensi metode:
 # - cortes & vapnik (1995), support-vector networks
 # - platt (1998), sequential minimal optimization (smo)
-# - hsieh et al. (2008), dual coordinate descent method for large-scale svm
 # - williams & seeger (2001), using the nystrom method to speed up kernel machines
+# - keerthi & decoste (2005), a modified finite newton method for fast solution of large scale linear svms
+# - hsieh et al. (2008), dual coordinate descent method for large-scale svm
 
 KernelType = Literal["linear", "poly", "rbf"]
 
@@ -23,7 +24,7 @@ class SVMFromScratch:
         class_weight: str | dict | None = None,
         tol: float = 1e-3,
         max_iter: int = 35,
-        n_components: int = 1200,
+        n_components: int = 1800,
         threshold: float = 0.0,
         solver: str = "auto",
         random_state: int = 42,
@@ -66,6 +67,11 @@ class SVMFromScratch:
             return 1.0 / (n_features * var) if var > 1e-12 else 1.0 / n_features
         if self.gamma == "auto":
             return 1.0 / n_features
+        if isinstance(self.gamma, str) and self.gamma.startswith("scale*"):
+            mult = float(self.gamma.split("*", 1)[1])
+            var = float(np.var(x))
+            base = 1.0 / (n_features * var) if var > 1e-12 else 1.0 / n_features
+            return base * mult
         raise ValueError(f"gamma tidak valid: {self.gamma}")
 
     def _compute_kernel(self, x1: np.ndarray, x2: np.ndarray) -> np.ndarray:
@@ -122,13 +128,96 @@ class SVMFromScratch:
 
         if self.solver == "smo" or (self.solver == "auto" and len(x) <= 1500 and self.kernel != "linear"):
             self._fit_exact_smo(x, y_pm, c_bounds)
-        else:
+        elif self.solver == "dcd":
             self._fit_rkhs_dcd(x, y_raw, y_pm, c_bounds)
+        else:
+            self._fit_rkhs_newton(x, y_raw, y_pm, c_bounds)
 
         self.is_fitted_ = True
         self.slack_total = float(self.calculate_slack(x, y_raw))
         self.fit_time_sec_ = time.perf_counter() - start_time
         return self
+
+    def _fit_rkhs_newton(self, x: np.ndarray, y_raw: np.ndarray, y_pm: np.ndarray, c_bounds: np.ndarray):
+        # active-set modified finite newton pada l2-hinge svm di ruang rkhs (keerthi & decoste 2005)
+        rng = np.random.default_rng(self.random_state)
+        n_samples = len(x)
+
+        if self.kernel == "linear":
+            z = x
+            sv_idx = None
+            l_inv_t = None
+        else:
+            m = min(self.n_components, n_samples)
+            counts = np.bincount(y_raw, minlength=2)
+            m0 = int(round(m * counts[0] / n_samples))
+            m1 = m - m0
+            idx0 = rng.choice(np.flatnonzero(y_raw == 0), size=min(m0, counts[0]), replace=False)
+            idx1 = rng.choice(np.flatnonzero(y_raw == 1), size=min(m1, counts[1]), replace=False)
+            sv_idx = np.sort(np.concatenate([idx0, idx1]))
+            sv_x = x[sv_idx]
+
+            k_mm = self._compute_kernel(sv_x, sv_x)
+            k_nm = self._compute_kernel(x, sv_x)
+            reg_mat = k_mm + 1e-5 * np.eye(len(sv_idx))
+
+            try:
+                chol_l = np.linalg.cholesky(reg_mat)
+                l_inv_t = np.linalg.solve(chol_l, np.eye(len(sv_idx))).T
+            except np.linalg.LinAlgError:
+                eigvals, eigvecs = np.linalg.eigh(reg_mat)
+                keep = eigvals > 1e-7
+                l_inv_t = eigvecs[:, keep] * (1.0 / np.sqrt(eigvals[keep]))
+
+            z = np.dot(k_nm, l_inv_t)
+
+        d = z.shape[1]
+        z_aug = np.hstack([z, np.ones((n_samples, 1), dtype=np.float64)])
+        w_aug = np.zeros(d + 1, dtype=np.float64)
+        prev_sv = None
+        max_steps = min(max(self.max_iter, 10), 15)
+
+        for it in range(max_steps):
+            margins = y_pm * np.dot(z_aug, w_aug)
+            sv_mask = margins < 1.0
+            if not np.any(sv_mask):
+                break
+            if prev_sv is not None and np.sum(sv_mask ^ prev_sv) <= 2 and it >= 3:
+                break
+            prev_sv = sv_mask
+
+            z_sv = z_aug[sv_mask]
+            wc = c_bounds[sv_mask]
+            zw = z_sv * (2.0 * wc)[:, None]
+            hess = np.dot(zw.T, z_sv)
+            idx_d = np.arange(d)
+            hess[idx_d, idx_d] += 1.0
+            hess[d, d] += 1e-6
+            rhs = np.dot(zw.T, y_pm[sv_mask])
+            w_aug = np.linalg.solve(hess, rhs)
+
+        scores = np.dot(z_aug, w_aug)
+        margins = y_pm * scores
+        self.alphas_ = 2.0 * c_bounds * np.maximum(0.0, 1.0 - margins)
+        active_mask = self.alphas_ > 1e-6
+        self.n_support_ = int(np.sum(active_mask))
+
+        if self.kernel == "linear":
+            self.w_ = w_aug[:-1]
+            self.b_ = float(w_aug[-1])
+            self.support_indices_ = np.flatnonzero(active_mask)
+            self.support_vectors_ = x[self.support_indices_]
+            self.support_y_ = y_pm[self.support_indices_]
+            self.support_alphas_ = self.alphas_[self.support_indices_]
+            self.dual_coef_ = self.support_alphas_ * self.support_y_
+        else:
+            self.w_ = None
+            self.b_ = float(w_aug[-1])
+            self.dual_coef_ = np.dot(l_inv_t, w_aug[:-1])
+            self.support_indices_ = sv_idx
+            self.support_vectors_ = x[sv_idx]
+            self.support_y_ = y_pm[sv_idx]
+            self.support_alphas_ = np.abs(self.dual_coef_)
 
     def _fit_rkhs_dcd(self, x: np.ndarray, y_raw: np.ndarray, y_pm: np.ndarray, c_bounds: np.ndarray):
         # dual coordinate descent di ruang rkhs untuk seluruh sampel
@@ -305,13 +394,10 @@ class SVMFromScratch:
         self.predict_time_sec_ = time.perf_counter() - start_time
         return preds
 
-    def tune_threshold(self, x_val: np.ndarray, y_val: np.ndarray, n_points: int = 101) -> float:
-        # cari ambang batas yang memaksimalkan macro f1
-        scores = self.decision_function(x_val)
-        y_true = np.asarray(y_val, dtype=np.int64)
+    @staticmethod
+    def _best_macro_f1_threshold(scores: np.ndarray, y_true: np.ndarray, n_points: int = 201) -> tuple[float, float]:
         best_f1 = -1.0
-        best_th = self.threshold
-
+        best_th = 0.0
         th_candidates = np.linspace(np.percentile(scores, 5), np.percentile(scores, 95), n_points)
         for th in th_candidates:
             p = np.where(scores >= th, 1, 0)
@@ -323,11 +409,84 @@ class SVMFromScratch:
             f1_1 = 2.0 * tp / max(2 * tp + fp + fn, 1)
             f1_0 = 2.0 * tn / max(2 * tn + fp + fn, 1)
             macro_f1 = 0.5 * (f1_0 + f1_1)
-
             if macro_f1 > best_f1:
                 best_f1 = macro_f1
                 best_th = float(th)
+        return best_f1, best_th
 
+    def tune_threshold(self, x_val: np.ndarray, y_val: np.ndarray, n_points: int = 201) -> float:
+        # cari ambang batas yang memaksimalkan macro f1
+        scores = self.decision_function(x_val)
+        y_true = np.asarray(y_val, dtype=np.int64)
+        _, best_th = self._best_macro_f1_threshold(scores, y_true, n_points=n_points)
+        self.threshold = best_th
+        return best_th
+
+    def __getstate__(self):
+        import zlib
+        import pickle
+        state = self.__dict__.copy()
+        heavy = {
+            "support_vectors_": state.pop("support_vectors_", None),
+            "alphas_": state.pop("alphas_", None),
+            "dual_coef_": state.pop("dual_coef_", None),
+            "support_y_": state.pop("support_y_", None),
+            "support_alphas_": state.pop("support_alphas_", None),
+            "support_indices_": state.pop("support_indices_", None),
+        }
+        state["_heavy_arrays_zlib_"] = zlib.compress(pickle.dumps(heavy), level=6)
+        return state
+
+    def __setstate__(self, state):
+        import zlib
+        import pickle
+        heavy_bytes = state.pop("_heavy_arrays_zlib_", None)
+        self.__dict__.update(state)
+        if heavy_bytes is not None:
+            heavy = pickle.loads(zlib.decompress(heavy_bytes))
+            self.support_vectors_ = heavy["support_vectors_"]
+            self.alphas_ = heavy["alphas_"]
+            self.dual_coef_ = heavy["dual_coef_"]
+            self.support_y_ = heavy["support_y_"]
+            self.support_alphas_ = heavy["support_alphas_"]
+            self.support_indices_ = heavy["support_indices_"]
+
+    def tune_threshold_oof(self, x: np.ndarray, y: np.ndarray, n_splits: int = 5, n_points: int = 201) -> float:
+        # kalibrasi ambang batas berbasis out-of-fold secara efisien
+        x = np.asarray(x, dtype=np.float64)
+        y_true = np.asarray(y, dtype=np.int64)
+        rng = np.random.default_rng(self.random_state)
+        folds = np.zeros(len(y_true), dtype=np.int64)
+        for lbl in (0, 1):
+            idx = np.flatnonzero(y_true == lbl)
+            rng.shuffle(idx)
+            for pos, sample_i in enumerate(idx):
+                folds[sample_i] = pos % n_splits
+
+        # gunakan subsample basis nystrom yang representatif agar kalibrasi threshold cepat
+        sub_comp = min(self.n_components, 900)
+        oof_scores = np.zeros(len(y_true), dtype=np.float64)
+        for f in range(n_splits):
+            va_m = folds == f
+            tr_m = ~va_m
+            clone = SVMFromScratch(
+                C=self.C,
+                kernel=self.kernel,
+                degree=self.degree,
+                gamma=self.gamma,
+                coef0=self.coef0,
+                class_weight=self.class_weight,
+                tol=self.tol,
+                max_iter=min(self.max_iter, 20),
+                n_components=sub_comp,
+                threshold=0.0,
+                solver=self.solver,
+                random_state=self.random_state + f,
+            )
+            clone.fit(x[tr_m], y_true[tr_m])
+            oof_scores[va_m] = clone.decision_function(x[va_m])
+
+        _, best_th = self._best_macro_f1_threshold(oof_scores, y_true, n_points=n_points)
         self.threshold = best_th
         return best_th
 
@@ -337,83 +496,6 @@ class SVMFromScratch:
         margins = y_pm * scores
         slacks = np.maximum(0.0, 1.0 - margins)
         return float(np.sum(slacks))
-
-
-class SVMEnsemble:
-    def __init__(self, random_state: int = 42):
-        self.random_state = int(random_state)
-        self.rbf_ = SVMFromScratch(C=1.5, kernel="rbf", gamma="scale", max_iter=45, n_components=1400, random_state=random_state)
-        self.lin_ = SVMFromScratch(C=0.5, kernel="linear", max_iter=45, random_state=random_state)
-        self.poly_ = SVMFromScratch(C=2.0, kernel="poly", degree=2, coef0=1.0, class_weight="balanced", max_iter=45, n_components=1400, random_state=random_state)
-        self.weights = [0.50, 0.30, 0.20]
-        self.std_rbf_ = 1.0
-        self.std_lin_ = 1.0
-        self.std_poly_ = 1.0
-        self.threshold = 0.0
-        self.is_fitted_ = False
-        self.fit_time_sec_ = 0.0
-        self.predict_time_sec_ = 0.0
-
-    def fit(self, x: np.ndarray, y: np.ndarray):
-        start = time.perf_counter()
-        self.rbf_.fit(x, y)
-        self.lin_.fit(x, y)
-        self.poly_.fit(x, y)
-
-        sc_rbf = self.rbf_.decision_function(x)
-        sc_lin = self.lin_.decision_function(x)
-        sc_poly = self.poly_.decision_function(x)
-
-        self.std_rbf_ = max(float(np.std(sc_rbf)), 1e-4)
-        self.std_lin_ = max(float(np.std(sc_lin)), 1e-4)
-        self.std_poly_ = max(float(np.std(sc_poly)), 1e-4)
-
-        self.fit_time_sec_ = time.perf_counter() - start
-        self.is_fitted_ = True
-        return self
-
-    def decision_function(self, x: np.ndarray) -> np.ndarray:
-        if not self.is_fitted_:
-            raise RuntimeError("model belum di-fit")
-        sc_r = self.rbf_.decision_function(x) / self.std_rbf_
-        sc_l = self.lin_.decision_function(x) / self.std_lin_
-        sc_p = self.poly_.decision_function(x) / self.std_poly_
-        return self.weights[0] * sc_r + self.weights[1] * sc_l + self.weights[2] * sc_p
-
-    def predict(self, x: np.ndarray, threshold: float | None = None) -> np.ndarray:
-        start = time.perf_counter()
-        th = self.threshold if threshold is None else float(threshold)
-        scores = self.decision_function(x)
-        preds = np.where(scores >= th, 1, 0).astype(np.int64)
-        self.predict_time_sec_ = time.perf_counter() - start
-        return preds
-
-    def tune_threshold(self, x_val: np.ndarray, y_val: np.ndarray, n_points: int = 101) -> float:
-        scores = self.decision_function(x_val)
-        y_true = np.asarray(y_val, dtype=np.int64)
-        best_f1 = -1.0
-        best_th = self.threshold
-        th_candidates = np.linspace(np.percentile(scores, 5), np.percentile(scores, 95), n_points)
-        for th in th_candidates:
-            p = np.where(scores >= th, 1, 0)
-            tp = np.sum((p == 1) & (y_true == 1))
-            fp = np.sum((p == 1) & (y_true == 0))
-            fn = np.sum((p == 0) & (y_true == 1))
-            tn = np.sum((p == 0) & (y_true == 0))
-            f1_1 = 2.0 * tp / max(2 * tp + fp + fn, 1)
-            f1_0 = 2.0 * tn / max(2 * tn + fp + fn, 1)
-            macro_f1 = 0.5 * (f1_0 + f1_1)
-            if macro_f1 > best_f1:
-                best_f1 = macro_f1
-                best_th = float(th)
-        self.threshold = best_th
-        return best_th
-
-    def calculate_slack(self, x: np.ndarray, y_raw: np.ndarray) -> float:
-        y_pm = np.where(y_raw == 1, 1.0, -1.0)
-        scores = self.decision_function(x)
-        margins = y_pm * scores
-        return float(np.sum(np.maximum(0.0, 1.0 - margins)))
 
 
 if __name__ == "__main__":
