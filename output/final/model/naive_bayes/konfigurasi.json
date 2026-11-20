@@ -1,0 +1,166 @@
+{
+  "algorithm": "KDB (Bayesian Network) from scratch",
+  "variant": "kdb",
+  "params": {
+    "variant": "kdb",
+    "k": 4,
+    "m_estimate": 100.0,
+    "alpha": 1.0,
+    "var_smoothing": 0.05,
+    "threshold": 0.405,
+    "bias": 0.0,
+    "feature_weights": [
+      0.75,
+      0.75,
+      0.5,
+      1.0,
+      0.25,
+      0.5,
+      1.0,
+      1.0,
+      1.25,
+      1.0,
+      1.0,
+      0.5,
+      0.75,
+      0.0,
+      1.0,
+      1.0,
+      1.5,
+      0.75,
+      1.5,
+      0.75,
+      0.5,
+      2.0
+    ]
+  },
+  "preprocessing": {
+    "name": "bin_all_q30",
+    "feature_set": [
+      "ota_x_requests",
+      "rate_weekend_req_ota",
+      "lead_x_weekend_req",
+      "channel_x_meal",
+      "is_offline"
+    ],
+    "options": {
+      "standardize": false,
+      "add_missing_indicators": true,
+      "categorical_numeric_cols": [
+        "needs_parking",
+        "is_returning_guest",
+        "arrival_year",
+        "arrival_month",
+        "special_requests",
+        "num_adults",
+        "num_children",
+        "weekend_nights",
+        "weekday_nights",
+        "prior_cancellations",
+        "is_offline"
+      ],
+      "log1p_cols": [
+        "days_before_arrival",
+        "nightly_rate_idr",
+        "prior_completed_bookings"
+      ],
+      "bin_cols": [
+        "days_before_arrival",
+        "nightly_rate_idr",
+        "prior_completed_bookings",
+        "arrival_day"
+      ],
+      "n_bins": 25,
+      "bin_strategy": "quantile"
+    }
+  },
+  "cleaning": {
+    "dropped_train_duplicates": 64
+  },
+  "mandatory_baseline": {
+    "mode": "baseline",
+    "variant": "categorical",
+    "alpha": 1.0,
+    "threshold": 0.5,
+    "n_bins": 20,
+    "macro_f1_cv": 0.74656,
+    "macro_f1_holdout": 0.753704
+  },
+  "feature_selection": {
+    "method": "none",
+    "selected_features": null
+  },
+  "dimensionality_reduction": {
+    "method": "none"
+  },
+  "seed": 42,
+  "macro_f1_validasi": 0.821914,
+  "macro_f1_cv": 0.817709,
+  "macro_f1_holdout": 0.821914,
+  "model_params": {
+    "k": 4,
+    "alpha": 1.0,
+    "m_estimate": 100.0,
+    "threshold": 0.405,
+    "n_categories": [
+      7,
+      8,
+      10,
+      20,
+      6,
+      4,
+      9,
+      26,
+      4,
+      14,
+      27,
+      7,
+      4,
+      11,
+      3,
+      27,
+      8,
+      12,
+      101,
+      62,
+      22,
+      4
+    ],
+    "feature_weights": [
+      0.75,
+      0.75,
+      0.5,
+      1.0,
+      0.25,
+      0.5,
+      1.0,
+      1.0,
+      1.25,
+      1.0,
+      1.0,
+      0.5,
+      0.75,
+      0.0,
+      1.0,
+      1.0,
+      1.5,
+      0.75,
+      1.5,
+      0.75,
+      0.5,
+      2.0
+    ],
+    "bias": 0.0
+  },
+  "dr_state": {
+    "method": "none"
+  },
+  "sklearn_comparison": {
+    "GaussianNB_numeric+onehot": 0.701035,
+    "CategoricalNB_binned": 0.794346
+  },
+  "library_versions": {
+    "numpy": "2.5.4",
+    "pandas": "3.1.1"
+  }
+}
