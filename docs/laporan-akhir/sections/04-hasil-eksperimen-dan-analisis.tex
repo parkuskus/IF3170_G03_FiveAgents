@@ -15,7 +15,54 @@
 
 \subsection{Hasil Pengujian}
 
+Pengujian konfigurasi \texttt{SVMFromScratch} dilakukan pada \textit{validation split} bersama (\texttt{seed=42}, $5.475$ baris: $3.681$ kelas $0$ dan $1.794$ kelas $1$) setelah prapemrosesan \texttt{SVMPreprocessor} ($135$ fitur). Dari $18$ kandidat kombinasi hiperparameter di \texttt{src/experiments/svm/run\_experiments.py}, konfigurasi terbaik masing-masing kernel dirangkum pada Tabel~\ref{tab:svm_best_kernels}.
+
+\begin{table}[H]
+\centering
+\caption{Hasil pengujian konfigurasi terbaik tiap kernel \texttt{SVMFromScratch} pada data validasi.}
+\label{tab:svm_best_kernels}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lccccccc@{}}
+\toprule
+\textbf{Kernel} & \textbf{Varian Terbaik} & \textbf{Macro F1} & \textbf{F1 (0)} & \textbf{F1 (1)} & \textbf{Support Vectors} & \textbf{Slack Valid} & \textbf{Fit Time (s)} \\
+\midrule
+Linear & \texttt{linear\_c0.01\_none} & 0,8763 & 0,9209 & 0,8318 & 11.650 & 1823,96 & 0,28 \\
+Gaussian RBF & \texttt{rbf\_c0.2\_g0.4} & 0,8753 & 0,9197 & 0,8309 & 14.207 & 1799,05 & 21,95 \\
+Polynomial ($d=2$) & \texttt{poly\_d2\_c0.05\_g0.4} & 0,8742 & 0,9191 & 0,8293 & 12.669 & 1816,02 & 26,34 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Seluruh ketiga kernel dari nol berhasil melampaui angka $0{,}874$, dengan pemenang keseluruhan adalah kernel Linear ($C=0{,}01$, tanpa bobot kelas) pada Macro F1 sebesar $0{,}8763$ (\textit{confusion matrix}: $\text{TN}=3430, \text{FP}=251, \text{FN}=338, \text{TP}=1456$). Ketika model pemenang tersebut dilatih ulang pada seluruh $27.373$ baris \texttt{train.csv} dengan kalibrasi ambang batas OOF ($\text{threshold}=-0{,}007$), proses pelatihan selesai dalam $2{,}20\text{ detik}$ dan menghasilkan $6.844$ prediksi uji ($4.768$ kelas $0$ dan $2.076$ kelas $1$) yang konsisten $100\%$ sebelum maupun sesudah pemuatan ulang bundel \texttt{svm\_pipeline.pkl} ($40{,}94\text{ MB}$).
+
 \subsection{Komparasi dengan \texttt{scikit-learn}}
+
+Perbandingan \textit{head-to-head} terhadap \texttt{sklearn.svm.SVC} dilakukan pada matriks fitur $135$-dimensi dan \textit{validation split} yang persis sama. Ringkasan perbandingan ditampilkan pada Tabel~\ref{tab:svm_vs_sklearn}.
+
+\begin{table}[H]
+\centering
+\caption{Perbandingan \texttt{SVMFromScratch} dan \texttt{sklearn.svm.SVC} pada ketiga kernel.}
+\label{tab:svm_vs_sklearn}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llcccc@{}}
+\toprule
+\textbf{Kernel} & \textbf{Implementasi} & \textbf{Macro F1} & \textbf{Slack Valid} & \textbf{Fit Time (s)} & \textbf{Predict Time (s)} \\
+\midrule
+Linear & \texttt{SVMFromScratch} & 0,8763 & 1823,96 & 0,28 & 0,001 \\
+Linear & \texttt{sklearn.svm.SVC} & 0,8745 & 1467,54 & 34,46 & 4,492 \\
+\midrule
+Gaussian RBF & \texttt{SVMFromScratch} & 0,8753 & 1799,05 & 21,95 & 0,448 \\
+Gaussian RBF & \texttt{sklearn.svm.SVC} & 0,8746 & 1396,42 & 35,55 & 7,493 \\
+\midrule
+Polynomial ($d=2$) & \texttt{SVMFromScratch} & 0,8742 & 1816,02 & 26,34 & 0,208 \\
+Polynomial ($d=2$) & \texttt{sklearn.svm.SVC} & 0,8731 & 1442,70 & 36,80 & 3,066 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Implementasi \texttt{SVMFromScratch} tidak hanya menyamai, melainkan sedikit mengungguli \texttt{sklearn.svm.SVC} pada seluruh tiga kernel dengan selisih Macro F1 sekitar $+0{,}0007$ hingga $+0{,}0018$. Dari sisi biaya komputasi, \textit{solver} \textit{Active-Set Modified Finite Newton} jauh lebih cepat dibanding optimasi SMO dual penuh milik LIBSVM pada data berjumlah $>21.000$ baris, terutama pada kernel Linear yang mencapai percepatan lebih dari $120\times$ ($0{,}28\text{ s}$ vs $34{,}46\text{ s}$) dan waktu inferensi $0{,}001\text{ detik}$.
 
 \section{Naive Bayes}
 
@@ -30,6 +77,17 @@
 \subsection{Bonus Logistic Regression Garis Kontur Fungsi \textit{Loss}}
 
 \subsection{Bonus SVM Visualisasi Bidang Pemisah}
+
+Hasil proyeksi 2D menggunakan PCA pada data latih menangkap $63{,}65\%$ total variansi fitur. Visualisasi bidang pemisah, batas margin $\pm 1$, dan \textit{support vector} untuk ketiga kernel ditunjukkan pada Gambar~\ref{fig:svm_2d_boundary}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{public/04-hasil-eksperimen-dan-analisis/svm_2d_boundary.png}
+    \caption{Visualisasi 2D bidang pemisah ($f(\mathbf{x})=0$), margin ($\pm 1$), dan \textit{support vector} pada kernel Linear, Polynomial ($d=2$), dan Gaussian RBF.}
+    \label{fig:svm_2d_boundary}
+\end{figure}
+
+Pada ruang dua dimensi tereduksi, ketiga kernel menunjukkan karakter pemisahan yang berbeda. Kernel Linear ($\text{SV}=301/800$) membentuk bidang pemisah berupa garis lurus dengan pita margin sejajar yang memisahkan area probabilitas pembatalan tinggi di sisi kanan dan rendah di sisi kiri. Kernel Polynomial ($d=2$, $\text{SV}=274/800$) menghasilkan kurva kuadratik lembut yang menyesuaikan kepadatan kelas di sekitar area tumpang tindih tengah sekaligus membutuhkan jumlah \textit{support vector} paling sedikit pada subsampel 2D. Sementara itu, kernel Gaussian RBF ($\text{SV}=307/800$) membentuk kontur batas keputusan non-linear lokal yang melingkupi kantong observasi di area batas, sehingga lebih fleksibel namun lebih peka terhadap \textit{noise} apabila nilai $\gamma$ dan $C$ tidak diregularisasi.
 
 \subsection{Bayesian Network Graf Antarfitur}
 
