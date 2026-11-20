@@ -1,29 +1,608 @@
 \section{\textit{Supervised Learning}}
 
+\textit{Supervised learning} atau pembelajaran terawasi mempelajari hubungan antara masukan dan keluaran dari contoh yang telah berlabel. Misalkan data latih dinyatakan sebagai pasangan $\{(x_i,y_i)\}_{i=1}^{n}$, dengan $x_i$ sebagai vektor fitur dan $y_i$ sebagai target. Pelatihan menghasilkan fungsi prediksi $f$ yang memetakan fitur ke target. Untuk data baru $x$, model menghasilkan perkiraan $\hat{y}=f(x)$. Model diharapkan dapat memprediksi pengamatan yang belum pernah dijumpai, yakni melakukan generalisasi ke data baru \cite{james2021islr,scikitlearn_userguide}.
+
+Pembelajaran terawasi mencakup regresi dan klasifikasi. Regresi memprediksi target numerik, sedangkan klasifikasi memprediksi kategori. Klasifikasi biner memiliki dua kelas, sementara klasifikasi multikelas memiliki lebih dari dua kelas \cite{james2021islr}.
+
 \section{\textit{Data Preprocessing}}
+
+\textit{Data preprocessing} menyiapkan fitur mentah agar konsisten dan sesuai dengan kebutuhan algoritma. Tahap ini mencakup pemeriksaan kualitas data, transformasi fitur, seleksi fitur, dan pengurangan dimensi. Pilihan tahap bergantung pada karakteristik data dan algoritma karena tidak semua model memerlukan transformasi yang sama \cite{scikitlearn_preprocessing,scikitlearn_imputation}.
+
+\begin{table}[H]
+    \centering
+    \caption{Ringkasan tahapan \textit{data preprocessing}.}
+    \label{tab:data-preprocessing}
+    \small
+    \begin{tabular}{p{0.19\textwidth} p{0.34\textwidth} p{0.35\textwidth}}
+        \toprule
+        Tahap                             & Tujuan                                                    & Contoh umum                                                \\
+        \midrule
+        \textit{Data cleaning}            & Memeriksa nilai hilang, tidak valid, atau tidak konsisten & Menangani isian kosong dan memeriksa nilai di luar rentang \\
+        \textit{Data transformation}      & Mengubah skala atau representasi fitur                    & Menstandarkan fitur numerik dan mengodekan kategori        \\
+        \textit{Feature selection}        & Mempertahankan sebagian fitur asli yang relevan           & Memilih fitur yang informatif bagi target                  \\
+        \textit{Dimensionality reduction} & Membentuk representasi baru dengan dimensi lebih rendah   & Merangkum fitur melalui komponen utama                     \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \subsection{\textit{Data Cleaning}}
 
+\textit{Data cleaning} memeriksa dan menangani masalah kualitas data sebelum pemodelan. Pemeriksaan meliputi nilai hilang, format atau tipe yang keliru, nilai di luar rentang yang wajar, dan baris duplikat. Penanganannya dapat berupa penghapusan baris atau kolom maupun imputasi nilai yang hilang berdasarkan data tersedia. Pemilihan metode perlu mempertimbangkan jumlah nilai hilang dan makna fitur agar informasi berguna tidak terhapus tanpa alasan \cite{scikitlearn_imputation}.
+
+Nilai hilang harus ditangani sebelum fitur diberikan kepada algoritma yang tidak mendukungnya. Nilai ekstrem juga perlu diperiksa berdasarkan konteks. Jarak suatu nilai dari mayoritas pengamatan tidak serta-merta menunjukkan kesalahan. Karena itu, sumber dan makna nilai perlu ditinjau sebelum pencilan dihapus.
+
+Gambar~\ref{fig:data-cleaning} membandingkan data bersih dengan data yang masih bermasalah. Pada contoh, beberapa nama mengandung salah ketik, format tanggal tidak seragam, dan format nilai jumlah berbeda-beda. Ketidakkonsistenan ini dapat menghambat penggabungan data atau menyebabkan sistem membaca nilai yang sama secara berbeda. Pembersihan data menata ketidakkonsistenan tersebut. Nilai yang meragukan tetap perlu dicocokkan dengan sumbernya agar koreksi tidak mengubah informasi yang benar.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{public/02-landasan-teori/data-cleaning.png}
+    \caption{Ilustrasi data bersih dan data yang masih memiliki masalah kualitas.}
+    \label{fig:data-cleaning}
+\end{figure}
+
 \subsection{\textit{Data Transformation}}
+
+\textit{Data transformation} mengubah skala atau representasi fitur agar sesuai dengan kebutuhan algoritma. Fitur numerik dengan rentang berbeda dapat distandarkan menggunakan rata-rata dan simpangan baku data latih, sebagaimana dirumuskan pada Persamaan~\ref{eq:standardization}. Transformasi ini penting bagi algoritma yang peka terhadap skala fitur, termasuk model linear berregularisasi dan SVM berbasis kernel \cite{scikitlearn_preprocessing}.
+
+\begin{equation}
+    z_{ij}=\frac{x_{ij}-\mu_j}{\sigma_j}
+    \label{eq:standardization}
+\end{equation}
+
+Pada Persamaan~\ref{eq:standardization}, $x_{ij}$ adalah nilai fitur ke-$j$ pada pengamatan ke-$i$, sedangkan $\mu_j$ dan $\sigma_j$ adalah rata-rata dan simpangan baku fitur ke-$j$ yang dihitung dari data latih. Fitur kategorikal nominal dapat direpresentasikan dengan pengodean satu-dari-K atau \textit{one-hot encoding}. Setiap kategori diubah menjadi fitur biner sehingga representasi tersebut tidak menyiratkan adanya urutan antarkategori \cite{scikitlearn_preprocessing}.
+
+Parameter transformasi yang dipelajari dari data, seperti rata-rata untuk standardisasi, dihitung hanya dari data latih. Parameter yang sama diterapkan pada data validasi dan data uji. Cara ini menjaga konsistensi representasi serta mencegah kebocoran informasi dari data evaluasi ke pelatihan \cite{scikitlearn_pitfalls}.
+
+Gambar~\ref{fig:data-transformation} membandingkan distribusi numerik sebelum dan sesudah transformasi. Histogram data awal menunjukkan bahwa sebagian besar nilai berada pada rentang rendah, dengan ekor yang memanjang ke kanan. Setelah transformasi, histogram tampak lebih simetris dan titik-titik pada plot probabilitas normal lebih dekat ke garis acuan. Contoh ini memperlihatkan bahwa transformasi dapat mengubah bentuk distribusi. Namun, normalisasi distribusi bukan tujuan setiap transformasi. Pemilihannya tetap bergantung pada tujuan analisis dan karakteristik fitur.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{public/02-landasan-teori/data-transformation.png}
+    \caption{Perbandingan distribusi data sebelum dan sesudah transformasi.}
+    \label{fig:data-transformation}
+\end{figure}
 
 \subsection{\textit{Feature Selection}}
 
+\textit{Feature selection} atau seleksi fitur memilih sebagian fitur asli untuk digunakan dalam model. Seleksi ini dapat mengurangi fitur yang tidak informatif, menyederhanakan model, dan menekan biaya komputasi. Metodenya dapat menilai skor statistik setiap fitur, mengevaluasi kombinasi fitur secara berulang, atau menggunakan bobot dan tingkat kepentingan yang dihasilkan model. Contohnya mencakup seleksi univariat, \textit{recursive feature elimination}, dan seleksi berbasis model \cite{scikitlearn_feature_selection}.
+
+Seleksi fitur mempertahankan identitas dan makna fitur yang dipilih, berbeda dari pengurangan dimensi yang membentuk representasi baru. Tingkat kepentingan fitur juga dapat berbeda antarmodel, sehingga fitur yang penting bagi satu metode belum tentu meningkatkan kinerja metode lain. Jika seleksi menggunakan label target, pemilihan dilakukan hanya pada data latih. Hasilnya kemudian diterapkan pada data validasi atau uji untuk mencegah kebocoran data \cite{scikitlearn_pitfalls}.
+
+Gambar~\ref{fig:feature-selection} memperlihatkan pemilihan sebagian fitur asli dan tiga pendekatan seleksi. Metode \textit{filter} menilai fitur dengan kriteria statistik sebelum algoritma pembelajaran dijalankan. Metode \textit{wrapper} menguji beberapa kombinasi fitur berdasarkan kinerja algoritma. Metode \textit{embedded} menyeleksi fitur selama proses pelatihan model. Dari sisi komputasi, \textit{filter} umumnya lebih sederhana. \textit{Wrapper} menyesuaikan seleksi dengan algoritma, tetapi memerlukan evaluasi berulang, sedangkan \textit{embedded} menggabungkan seleksi dengan pembentukan model.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{public/02-landasan-teori/feature-selection.png}
+\caption{Ilustrasi seleksi fitur dengan pendekatan \textit{filter}, \textit{wrapper}, dan \textit{embedded}.}
+    \label{fig:feature-selection}
+\end{figure}
+
 \subsection{\textit{Dimensionality Reduction}}
 
+\textit{Dimensionality reduction} atau pengurangan dimensi membentuk representasi fitur baru dengan dimensi lebih rendah daripada data awal. Salah satu metode yang umum digunakan adalah \textit{Principal Component Analysis} (PCA). PCA membentuk komponen ortogonal sebagai kombinasi linear fitur dan mengurutkannya menurut proporsi variasi data yang dijelaskan. Sejumlah komponen pertama dapat dipertahankan untuk meringkas data sambil menjaga sebagian besar variasinya \cite{scikitlearn_pca}.
+
+PCA berbeda dari seleksi fitur karena komponennya merupakan gabungan fitur awal, bukan kolom asli yang dipertahankan. Dimensi data berkurang, tetapi komponen hasil PCA lebih sulit ditafsirkan secara langsung. Skala fitur numerik juga perlu diperhatikan. PCA memusatkan data pada rata-rata, tetapi tidak otomatis menyamakan skala fitur. Semua parameter PCA harus dipelajari dari data latih dan diterapkan secara konsisten pada data lain \cite{scikitlearn_pca,scikitlearn_pitfalls}.
+
+Gambar~\ref{fig:dimensionality-reduction} memperlihatkan data berbentuk gulungan tiga dimensi yang dipetakan ke ruang dua dimensi dengan LLE dan PCA. LLE mempertahankan hubungan ketetanggaan lokal, sedangkan PCA mencari arah yang menjelaskan variasi data terbesar. Perbedaan prinsip tersebut menghasilkan peta dua dimensi yang berbeda. Proyeksi ini memudahkan visualisasi, tetapi tidak selalu mempertahankan seluruh jarak atau struktur data asal \cite{scikitlearn_manifold,scikitlearn_pca}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{public/02-landasan-teori/dimensionality-reduction.png}
+    \caption{Ilustrasi pengurangan dimensi menggunakan LLE dan PCA.}
+    \label{fig:dimensionality-reduction}
+\end{figure}
 \section{Algoritma Pembelajaran Terawasi}
 
 \subsection{\textit{Decision Tree Learning} (DTL)}
 
+\textit{Decision Tree Learning} (DTL) adalah metode pembelajaran terawasi yang menyatakan keputusan dalam bentuk pohon. Simpul internal memuat pengujian fitur, cabang menunjukkan hasil pengujian, dan daun menyimpan prediksi kelas atau nilai. Prediksi diperoleh dengan menelusuri pohon dari akar, mengikuti cabang yang sesuai dengan fitur pengamatan hingga mencapai daun.
+
+Gambar~\ref{fig:decision-tree} menampilkan pohon untuk mengelompokkan tingkat risiko. Pengamatan berusia 18--30 tahun diarahkan langsung ke daun berlabel risiko rendah. Untuk usia di bawah 18 tahun, pohon memeriksa fitur berat badan, sedangkan untuk usia di atas 30 tahun, pohon memeriksa status merokok. Setiap jalur dari akar ke daun menyatakan aturan keputusan yang dapat ditelusuri. Ilustrasi ini hanya menunjukkan struktur pohon dan bukan alat penilaian risiko medis.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{public/02-landasan-teori/decision-tree.png}
+    \caption{Ilustrasi struktur pohon keputusan untuk klasifikasi tingkat risiko.}
+    \label{fig:decision-tree}
+\end{figure}
+
+Simpul $m$ merepresentasikan wilayah $R_m\subseteq\mathcal{X}$ dan data $D_m=\{(x_i,y_i):x_i\in R_m\}$. Setiap daun menghasilkan prediksi konstan $\hat{y}_m$. Pohon tersebut dapat dinyatakan sebagai fungsi yang bernilai konstan pada setiap wilayah
+
+\begin{equation}
+    f_T(x)=\hat{y}_m\quad\text{jika }x\in R_m,\;m\in\widetilde{T},
+    \qquad \mathcal{X}=\bigsqcup_{m\in\widetilde{T}}R_m
+    \label{eq:tree-piecewise}
+\end{equation}
+
+dengan $\widetilde{T}$ menyatakan himpunan daun dan $\bigsqcup$ menyatakan gabungan wilayah yang saling lepas. Pada klasifikasi, $\hat{y}_m$ umumnya merupakan kelas mayoritas di $D_m$. Pada regresi, $\hat{y}_m$ umumnya merupakan rata-rata target di $D_m$.
+
+Pohon dibentuk dari akar ke bawah dengan memilih pengujian pada setiap simpul, kemudian membangun subpohon secara rekursif. Strategi \textit{greedy} memilih pembagian yang terbaik menurut kriteria lokal tanpa mengevaluasi seluruh struktur pohon. Karena itu, pilihan terbaik pada satu simpul belum tentu menghasilkan pohon terbaik secara global. Pertumbuhan dihentikan ketika simpul murni atau tidak ada pembagian yang cukup memperbaiki model. Kedalaman, jumlah minimum pengamatan per daun, dan pemangkasan dapat membatasi kompleksitas pohon serta mengurangi risiko \textit{overfitting} \cite{quinlan1986id3,quinlan1993c45,breiman1984cart}.
+
+Perbedaan utama ID3, C4.5, dan CART terletak pada kriteria pemilihan pembagian, bentuk cabang yang dihasilkan, dukungan terhadap jenis fitur, serta cara mengendalikan ukuran pohon. ID3 dan C4.5 terutama digunakan untuk klasifikasi, sedangkan CART dapat digunakan untuk klasifikasi maupun regresi. Rincian setiap metode dibahas pada subbagian berikut.
+
 \subsubsection{\textit{Iterative Dichotomiser} 3 (ID3)}
+
+ID3 membentuk pohon klasifikasi dengan memilih atribut yang paling menurunkan ketidakpastian kelas. Entropi digunakan untuk mengukur ketidakpastian pada himpunan data $D$.
+
+\begin{equation}
+    H(D)=-\sum_{k=1}^{K}p_k\log_2 p_k
+    \label{eq:id3-entropy}
+\end{equation}
+
+Pada Persamaan~\ref{eq:id3-entropy}, $K=|\mathcal{C}|$ menyatakan banyaknya kelas dan $p_k=|\{(x_i,y_i)\in D:y_i=c_k\}|/|D|$ menyatakan proporsi kelas $c_k$. Konvensi $0\log_2 0=0$ digunakan. Entropi bernilai nol pada simpul murni dan mencapai maksimum $\log_2 K$ ketika distribusi kelas seragam. Untuk atribut $A$, \textit{information gain} mengukur penurunan entropi harapan setelah data dipartisi berdasarkan nilai atribut tersebut.
+
+\begin{equation}
+    IG(D,A)=H(D)-\sum_{v\in\mathcal{V}(A)}\frac{|D_v|}{|D|}H(D_v)
+    \label{eq:id3-gain}
+\end{equation}
+
+Misalkan $\mathcal{V}(A)$ adalah himpunan nilai atribut $A$. Partisi pada Persamaan~\ref{eq:id3-gain} didefinisikan sebagai $D_v=\{(x_i,y_i)\in D:x_{i,A}=v\}$. Rasio $|D_v|/|D|$ mengestimasi peluang cabang $v$. ID3 memilih atribut $A^*=\arg\max_{A\in\mathcal{A}}IG(D,A)$, lalu menerapkan kriteria yang sama secara rekursif pada setiap $D_v$ dengan kandidat $\mathcal{A}\setminus\{A^*\}$. Rekursi berhenti ketika $H(D)=0$ atau $\mathcal{A}=\varnothing$. Jika tidak ada atribut tersisa, daun memprediksi kelas mayoritas $\hat{c}(D)=\arg\max_{c\in\mathcal{C}}|\{(x_i,y_i)\in D:y_i=c\}|$. Bentuk dasar ID3 menggunakan atribut kategorikal dan tidak memangkas pohon setelah pembentukan. Selain itu, $IG$ cenderung menguntungkan atribut dengan banyak nilai berbeda karena atribut tersebut dapat menghasilkan partisi lebih rinci \cite{quinlan1986id3}.
+
+Pada pemanggilan awal, $c_0=\hat{c}(D)$ untuk data latih $D$. Pemanggilan rekursif meneruskan kelas mayoritas simpul induk sebagai $c_0$ agar cabang kosong tetap memiliki prediksi.
+
+\begin{algorithm}[H]
+    \caption{Pembentukan pohon klasifikasi menggunakan ID3}
+    \label{alg:id3}
+    \begin{algorithmic}[1]
+        \REQUIRE $D=\{(x_i,y_i)\}_{i=1}^{n}$, $\mathcal{A}$, kelas bawaan $c_0$
+        \ENSURE Pohon keputusan $T$
+        \STATE \textbf{fungsi} ID3$(D,\mathcal{A},c_0)$
+        \IF{$D=\varnothing$}
+        \RETURN $\operatorname{Leaf}(c_0)$
+        \ENDIF
+        \IF{$H(D)=0$}
+        \RETURN $\operatorname{Leaf}(\hat{c}(D))$
+        \ENDIF
+        \IF{$\mathcal{A}=\varnothing$}
+        \RETURN $\operatorname{Leaf}(\hat{c}(D))$
+        \ENDIF
+        \STATE $A^*\leftarrow\arg\max_{A\in\mathcal{A}}IG(D,A)$
+        \STATE $T\leftarrow\operatorname{Node}(A^*)$
+        \FOR{$v\in\mathcal{V}(A^*)$}
+        \STATE $D_v\leftarrow\{(x_i,y_i)\in D:x_{i,A^*}=v\}$
+        \IF{$D_v=\varnothing$}
+        \STATE $T[v]\leftarrow\operatorname{Leaf}(\hat{c}(D))$
+        \ELSE
+        \STATE $T[v]\leftarrow\operatorname{ID3}(D_v,\mathcal{A}\setminus\{A^*\},\hat{c}(D))$
+        \ENDIF
+        \ENDFOR
+        \RETURN $T$
+    \end{algorithmic}
+\end{algorithm}
 
 \subsubsection{\textit{C4.5}}
 
+C4.5 mengembangkan ID3 dengan memperluas penanganan fitur dan data tidak lengkap serta mengurangi bias pemilihan atribut pada \textit{information gain}. Kriteria utamanya, \textit{gain ratio}, membagi \textit{information gain} dengan entropi distribusi data ke cabang (\textit{split information}). Untuk data berbobot, definisikan $W(D)=\sum_{i\in D}w_i$ dan gunakan proporsi cabang $W(D_v)/W(D)$ dalam perhitungan entropi. Pada data lengkap, $w_i=1$ sehingga proporsi tersebut sama dengan $|D_v|/|D|$.
+
+\begin{equation}
+    GR(D,A)=\frac{IG(D,A)}{SI(D,A)},\qquad
+    SI(D,A)=-\sum_{v\in\mathcal{V}(A)}\frac{W(D_v)}{W(D)}\log_2\frac{W(D_v)}{W(D)}
+    \label{eq:c45-gain-ratio}
+\end{equation}
+
+Dengan $SI(D,A)$ sebagai entropi distribusi cabang, himpunan kandidat yang lolos penyaringan dinyatakan sebagai
+
+\begin{equation}
+    \mathcal{A}'=\left\{A\in\mathcal{A}:IG(D,A)\geq\overline{IG}(D)\right\},
+    \qquad
+    A^*=\arg\max_{A\in\mathcal{A}'}GR(D,A),
+    \qquad
+    \overline{IG}(D)=\frac{1}{|\mathcal{A}|}\sum_{A\in\mathcal{A}}IG(D,A)
+    \label{eq:c45-selection}
+\end{equation}
+
+Penyaringan ini mencegah kandidat dengan rasio tinggi tetapi penurunan entropi rendah terpilih. Atribut kategorikal $A$ menghasilkan cabang untuk setiap $v\in\mathcal{V}(A)$. Untuk atribut numerik $A_j$, pengujian membagi data menurut $x_j\leq t$ dan $x_j>t$, dengan $t$ sebagai ambang kandidat di antara nilai terurut. Jika nilai fitur pengamatan $i$ tidak diketahui, bobot kasus pada cabang $v$ menjadi $w_{iv}=w_i\pi_v$, dengan $\pi_v=W_v/\sum_u W_u$ dan $W_v$ sebagai bobot pengamatan yang diketahui berada di cabang tersebut. Setelah pohon tumbuh, estimasi galat digunakan untuk membandingkan subpohon dengan daun pengganti atau subpohon yang diangkat \cite{quinlan1993c45}.
+
+Operator $\mathcal{A}_v=\operatorname{Update}(\mathcal{A},A^*,v)$ mempertahankan ambang numerik yang masih valid pada subwilayah $v$ dan menghapus atribut kategorikal yang sudah digunakan pada jalur tersebut. Pada akar, kelas bawaan ditetapkan sebagai $c_0=\hat{c}(D)$.
+
+\begin{algorithm}[H]
+    \caption{Pembentukan pohon klasifikasi C4.5}
+    \label{alg:c45}
+    \begin{algorithmic}[1]
+        \REQUIRE $D=\{(x_i,y_i,w_i)\}_{i=1}^{n}$, kandidat pengujian $\mathcal{A}$, kelas bawaan $c_0$
+        \ENSURE Pohon keputusan $T$
+        \STATE \textbf{fungsi} C45$(D,\mathcal{A},c_0)$
+        \IF{$D=\varnothing$}
+        \RETURN $\operatorname{Leaf}(c_0)$
+        \ENDIF
+        \IF{$H(D)=0$ \OR $\mathcal{A}=\varnothing$}
+        \RETURN $\operatorname{Leaf}(\hat{c}(D))$
+        \ENDIF
+        \STATE $A^*\leftarrow\arg\max_{A\in\mathcal{A}'}GR(D,A)$
+        \STATE $T\leftarrow\operatorname{Node}(A^*)$
+        \FOR{$v\in\mathcal{V}(A^*)$}
+        \STATE $D_v\leftarrow\operatorname{Partition}(D,A^*,v;\pi_v)$
+        \IF{$W(D_v)=0$}
+        \STATE $T[v]\leftarrow\operatorname{Leaf}(\hat{c}(D))$
+        \ELSE
+        \STATE $T[v]\leftarrow\operatorname{C45}(D_v,\operatorname{Update}(\mathcal{A},A^*,v),\hat{c}(D))$
+        \ENDIF
+        \ENDFOR
+        \RETURN $T$
+    \end{algorithmic}
+\end{algorithm}
+
 \subsubsection{\textit{Classification and Regression Tree} (CART)}
+
+CART membentuk pohon biner, sehingga setiap pengujian membagi data menjadi dua wilayah. Indeks Gini dapat digunakan untuk klasifikasi, sedangkan rata-rata kuadrat galat terhadap rata-rata target dapat digunakan untuk regresi.
+
+\begin{equation}
+    \begin{aligned}
+        G(D)       & =1-\sum_{k=1}^{K}p_k^2,                                \\
+        Q(D)       & =\frac{1}{|D|}\sum_{i\in D}(y_i-\bar{y}_D)^2,          \\
+        \hat{c}(D) & =\arg\max_{c\in\mathcal{C}}|\{(x_i,y_i)\in D:y_i=c\}|, \\
+        \hat{y}(D) & =\begin{cases}
+                          \hat{c}(D), & \text{klasifikasi}, \\
+                          \bar{y}_D,  & \text{regresi}
+                      \end{cases}
+    \end{aligned}
+    \label{eq:cart-impurity}
+\end{equation}
+
+Untuk setiap kandidat pembagian biner $s$ yang menghasilkan simpul anak kiri $D_L$ dan simpul anak kanan $D_R$, CART menghitung penurunan impuritas dengan membandingkan impuritas simpul induk dengan rata-rata berbobot impuritas kedua simpul anak.
+
+\begin{equation}
+    \Delta I(s)=I(D)-\left(\frac{|D_L|}{|D|}I(D_L)+\frac{|D_R|}{|D|}I(D_R)\right)
+    \label{eq:cart-split}
+\end{equation}
+
+Pada Persamaan~\ref{eq:cart-impurity}, $p_k$ adalah proporsi kelas $k$ dan $\bar{y}_D=|D|^{-1}\sum_{i\in D}y_i$. Fungsi $I$ menggunakan $G$ untuk klasifikasi dan $Q$ untuk regresi. Pembagian terbaik adalah $s^*=\arg\max_{s\in\mathcal{S}(D)}\Delta I(s)$, dengan $\mathcal{S}(D)$ sebagai himpunan pengujian biner yang valid pada $D$. Untuk fitur numerik, $s=(j,t)$ menyatakan pemisahan $x_j\leq t$ dan $x_j>t$. Untuk fitur kategorikal, $s=(j,B)$ membagi kategori fitur $j$ menjadi kelompok $B$ dan $\mathcal{V}_j\setminus B$. Karena setiap simpul dioptimalkan secara lokal, prosedur ini tidak menjamin pohon global yang optimal.
+
+CART menumbuhkan pohon besar untuk menangkap pola data, lalu memangkasnya dengan kriteria \textit{cost-complexity}. Untuk pohon $T$, fungsi objektif pemangkasan dirumuskan sebagai berikut.
+
+\begin{equation}
+    R_{\alpha}(T)=R(T)+\alpha|\widetilde{T}|
+    \label{eq:cart-cost-complexity}
+\end{equation}
+
+Pada persamaan tersebut, $R(T)=\sum_{m\in\widetilde{T}}\frac{|D_m|}{|D|}I(D_m)$ adalah galat empiris berbobot, $|\widetilde{T}|$ adalah jumlah daun, dan $\alpha\geq0$ mengatur penalti kompleksitas. Semakin besar $\alpha$, semakin kuat penalti bagi pohon dengan banyak daun. Jika $T_\alpha$ meminimalkan $R_\alpha$, pemilihan parameter dapat ditulis sebagai
+
+\begin{equation}
+    \alpha^*=\arg\min_{\alpha\in\Lambda}\operatorname{CV}(T_\alpha),
+    \label{eq:cart-alpha}
+\end{equation}
+
+dengan $\Lambda$ sebagai himpunan kandidat parameter dan $\operatorname{CV}$ sebagai estimasi galat melalui validasi silang. Pemangkasan dengan kriteria \textit{cost-complexity} menghasilkan kandidat subpohon, lalu validasi silang membantu memilih subpohon yang lebih baik dalam menggeneralisasi \cite{breiman1984cart}.
+
+\begin{algorithm}[H]
+    \caption{Pembentukan pohon CART}
+    \label{alg:cart}
+    \begin{algorithmic}[1]
+        \REQUIRE $D=\{(x_i,y_i)\}_{i=1}^{n}$, $I\in\{G,Q\}$, $d_{\max}$, $n_{\min}$
+        \ENSURE Pohon klasifikasi atau regresi $T$
+        \STATE \textbf{fungsi} CART$(D,d;I)$
+        \IF{$d\geq d_{\max}$ \OR $|D|<2n_{\min}$}
+        \RETURN $\operatorname{Leaf}(\hat{y}(D))$
+        \ENDIF
+        \STATE $\mathcal{S}(D)\leftarrow\{s\in\mathcal{S}_{\mathrm{all}}:|D_L(s)|\geq n_{\min}\land|D_R(s)|\geq n_{\min}\}$
+        \IF{$\mathcal{S}(D)=\varnothing$}
+        \RETURN $\operatorname{Leaf}(\hat{y}(D))$
+        \ENDIF
+        \STATE $s^*\leftarrow\arg\max_{s\in\mathcal{S}(D)}\Delta I(s)$
+        \IF{$\Delta I(s^*)\leq0$}
+        \RETURN $\operatorname{Leaf}(\hat{y}(D))$
+        \ENDIF
+        \STATE $D_L\leftarrow\{(x_i,y_i)\in D:s^*(x_i)=0\}$
+        \STATE $D_R\leftarrow\{(x_i,y_i)\in D:s^*(x_i)=1\}$
+        \STATE $T\leftarrow\operatorname{Node}(s^*)$
+        \STATE $T[0]\leftarrow\operatorname{CART}(D_L,d+1;I)$
+        \STATE $T[1]\leftarrow\operatorname{CART}(D_R,d+1;I)$
+        \RETURN $T$
+    \end{algorithmic}
+\end{algorithm}
 
 \subsection{\textit{Logistic Regression}}
 
+\textit{Logistic Regression} adalah model klasifikasi probabilistik yang memetakan fitur ke peluang kelas. Regresi linear menggunakan nilai linear sebagai prediksi, padahal nilai tersebut dapat berada di luar rentang $[0,1]$. Regresi logistik memetakan kombinasi linear fitur melalui fungsi logistik agar keluarannya dapat ditafsirkan sebagai probabilitas kelas positif \cite{james2021islr}.
+
+Gambar~\ref{fig:logistic-regression} menghubungkan nilai \textit{tutorial score} dengan peluang memperoleh label ``Yes''. Titik merah dan hijau menunjukkan label aktual, sedangkan kurva berbentuk S menunjukkan probabilitas label 1 untuk setiap nilai fitur. Peluang tersebut mendekati nol pada skor rendah, meningkat di sekitar batas transisi, lalu mendekati satu pada skor tinggi.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{public/02-landasan-teori/logistic-regression.png}
+    \caption{Ilustrasi fungsi logistik untuk memodelkan peluang kelas biner.}
+    \label{fig:logistic-regression}
+\end{figure}
+
+Untuk klasifikasi biner, misalkan $D=\{(x_i,y_i)\}_{i=1}^{n}$, dengan $x_i\in\mathbb{R}^{p}$ dan $y_i\in\{0,1\}$. Intersep dimasukkan ke dalam $\tilde{x}_i=(1,x_i^{\mathsf{T}})^{\mathsf{T}}$, sedangkan vektor parameter ditulis sebagai $\theta=(\beta_0,\beta_1,\ldots,\beta_p)^{\mathsf{T}}$. Prediktor linear dan peluang kelas positif dinyatakan sebagai
+
+\begin{equation}
+    \eta_i=\theta^{\mathsf{T}}\tilde{x}_i,
+    \qquad
+    p_i=P(Y_i=1\mid x_i)=\sigma(\eta_i)=\frac{1}{1+\exp(-\eta_i)}.
+    \label{eq:logistic-probability}
+\end{equation}
+
+Fungsi sigmoid $\sigma(\cdot)$ memetakan bilangan real ke interval $(0,1)$. Persamaan yang sama dapat ditulis dalam bentuk \textit{logit}, $\log\frac{p_i}{1-p_i}=\theta^{\mathsf{T}}\tilde{x}_i$. Linearitas model berlaku pada logaritma \textit{odds}, bukan pada probabilitas. Jika fitur lain tetap, kenaikan satu unit pada fitur $j$ mengubah logit sebesar $\beta_j$ dan mengalikan \textit{odds} kelas positif dengan $\exp(\beta_j)$ \cite{james2021islr}.
+
+Parameter $\theta$ diestimasi dengan memaksimalkan likelihood Bernoulli. Cara yang ekuivalen adalah meminimalkan \textit{binary cross-entropy} berikut.
+
+\begin{equation}
+    J(\theta)=-\frac{1}{n}\sum_{i=1}^{n}\left[y_i\log p_i+(1-y_i)\log(1-p_i)\right],
+    \qquad
+    \nabla J(\theta)=\frac{1}{n}\widetilde{X}^{\mathsf{T}}(\mathbf{p}-\mathbf{y})
+    \label{eq:logistic-loss-gradient}
+\end{equation}
+
+Pada Persamaan~\ref{eq:logistic-loss-gradient}, $\widetilde{X}$ adalah matriks desain yang memuat kolom intersep, sedangkan $\mathbf{p}$ dan $\mathbf{y}$ adalah vektor peluang prediksi dan label aktual. Gradien menyatakan arah perubahan fungsi objektif terhadap parameter. Selisih antara peluang prediksi dan label aktual menentukan arah pembaruan tersebut.
+
+Fungsi objektif konveks terhadap $\theta$, sehingga setiap minimum lokal merupakan minimum global jika solusi berhingga ada. Pada data yang terpisah sempurna, estimasi tanpa regularisasi dapat menuju parameter tak berhingga. Algoritma~\ref{alg:logistic-regression} menggunakan penurunan gradien batch. Nilai $\gamma$ perlu dipilih agar pembaruan konvergen \cite{james2021islr}.
+
+\begin{algorithm}[H]
+    \caption{Estimasi parameter regresi logistik dengan penurunan gradien batch}
+    \label{alg:logistic-regression}
+    \begin{algorithmic}[1]
+        \REQUIRE $\widetilde{X}\in\mathbb{R}^{n\times(p+1)}$, $\mathbf{y}\in\{0,1\}^{n}$, $\gamma>0$, $\varepsilon>0$, $T_{\max}$
+        \ENSURE $\hat{\theta}$
+        \STATE $\theta^{(0)}\leftarrow\mathbf{0}$
+        \FOR{$t=0,1,\ldots,T_{\max}-1$}
+        \STATE $\mathbf{p}^{(t)}\leftarrow\sigma(\widetilde{X}\theta^{(t)})$
+        \STATE $\mathbf{g}^{(t)}\leftarrow n^{-1}\widetilde{X}^{\mathsf{T}}(\mathbf{p}^{(t)}-\mathbf{y})$
+        \IF{$\|\mathbf{g}^{(t)}\|_2\leq\varepsilon$}
+        \RETURN $\theta^{(t)}$
+        \ENDIF
+        \STATE $\theta^{(t+1)}\leftarrow\theta^{(t)}-\gamma\mathbf{g}^{(t)}$
+        \ENDFOR
+        \RETURN $\theta^{(T_{\max})}$
+    \end{algorithmic}
+\end{algorithm}
+
+Prediksi biner diperoleh dengan membandingkan probabilitas dengan ambang $\tau$, yaitu $\hat{y}_i=\mathbb{I}(p_i\geq\tau)$. Ambang $\tau=0.5$ umum digunakan, tetapi dapat disesuaikan dengan biaya kesalahan atau kebutuhan evaluasi. Untuk lebih dari dua kelas, regresi logistik dapat diperluas dengan fungsi \textit{softmax}, $P(Y_i=k\mid x_i)=\exp(\theta_k^{\mathsf{T}}\tilde{x}_i)/\sum_{r=1}^{K}\exp(\theta_r^{\mathsf{T}}\tilde{x}_i)$ \cite{james2021islr}.
+
 \subsection{\textit{Support Vector Machine} (SVM)}
+
+\textit{Support Vector Machine} (SVM) menentukan batas keputusan dengan memaksimalkan margin antarkelas. SVM memilih garis atau bidang pemisah yang memiliki jarak terbesar dari pengamatan terdekat pada kedua kelas. Pengamatan terdekat ini disebut \textit{support vectors} karena posisinya menentukan batas keputusan.
+
+Gambar~\ref{fig:svm-margin} menunjukkan garis pemisah di antara dua batas margin. Titik yang dilingkari berada pada batas atau paling dekat dengannya, sehingga menjadi \textit{support vectors}. Jarak di antara kedua batas adalah margin yang dimaksimalkan SVM. Margin yang lebih lebar dapat membuat pemisah lebih tahan terhadap perubahan kecil pada data. Parameter regularisasi mengatur kompromi antara lebar margin dan kesalahan klasifikasi.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{public/02-landasan-teori/support-vector-machine.png}
+    \caption{Pemisah linear SVM, margin, dan \textit{support vectors}.}
+    \label{fig:svm-margin}
+\end{figure}
+
+Untuk data biner $D=\{(x_i,y_i)\}_{i=1}^{n}$, dengan $x_i\in\mathbb{R}^{p}$ dan $y_i\in\{-1,+1\}$, fungsi keputusan linear dinyatakan sebagai $f(x)=w^{\mathsf{T}}x+b$. Tanda $f(x)$ menentukan prediksi kelas. Dalam skala kanonik, dua bidang margin memenuhi $w^{\mathsf{T}}x+b=+1$ dan $w^{\mathsf{T}}x+b=-1$. Jarak tegak lurus di antara keduanya adalah $2/\|w\|_2$. Karena itu, memaksimalkan margin setara dengan meminimalkan norma $w$.
+
+Jika data dapat dipisahkan secara linear, masalah \textit{hard-margin SVM} dirumuskan sebagai
+
+\begin{equation}
+    \begin{aligned}
+        \min_{w,b}\quad  & \frac{1}{2}\|w\|_2^2                              \\
+        \text{s.t.}\quad & y_i(w^{\mathsf{T}}x_i+b)\geq1,\quad i=1,\ldots,n.
+    \end{aligned}
+    \label{eq:svm-hard-margin}
+\end{equation}
+
+Kendala tersebut menempatkan setiap pengamatan pada sisi yang benar dan di luar margin. Jika data tumpang tindih atau mengandung pencilan, kendala keras dapat membuat masalah tidak memiliki solusi layak. \textit{Soft-margin SVM} mengatasi keadaan ini dengan variabel slack $\xi_i\geq0$ yang mengizinkan pelanggaran margin.
+
+\begin{equation}
+    \begin{aligned}
+        \min_{w,b,\boldsymbol{\xi}}\quad & \frac{1}{2}\|w\|_2^2+C\sum_{i=1}^{n}\xi_i               \\
+        \text{s.t.}\quad                 & y_i(w^{\mathsf{T}}x_i+b)\geq1-\xi_i,\quad i=1,\ldots,n, \\
+                                         & \xi_i\geq0,\quad i=1,\ldots,n.
+    \end{aligned}
+    \label{eq:svm-soft-margin}
+\end{equation}
+
+Parameter $C>0$ mengatur penalti atas pelanggaran margin. Nilai $C$ yang besar mendorong model menekan kesalahan pada data latih, sedangkan nilai yang lebih kecil mengizinkan lebih banyak pelanggaran demi margin yang lebih lebar. Pemilihan $C$ menyeimbangkan kecocokan pada data latih dengan kompleksitas batas keputusan.
+
+Pengali Lagrange mengubah masalah tersebut ke bentuk dual. Bentuk dual hanya bergantung pada hasil kali dalam antarvektor fitur, sehingga memungkinkan penggunaan fungsi kernel.
+
+\begin{equation}
+    \begin{aligned}
+        \max_{\boldsymbol{\alpha}}\quad & \sum_{i=1}^{n}\alpha_i-\frac{1}{2}\sum_{i=1}^{n}\sum_{j=1}^{n}\alpha_i\alpha_jy_iy_jK(x_i,x_j) \\
+        \text{s.t.}\quad                & 0\leq\alpha_i\leq C,\quad i=1,\ldots,n,                                                        \\
+                                        & \sum_{i=1}^{n}\alpha_i y_i=0.
+    \end{aligned}
+    \label{eq:svm-dual}
+\end{equation}
+
+Pada SVM linear, $K(x_i,x_j)=x_i^{\mathsf{T}}x_j$. Kernel nonlinear $K(x_i,x_j)=\phi(x_i)^{\mathsf{T}}\phi(x_j)$ menghitung hasil kali dalam pada ruang fitur hasil transformasi tanpa membentuk $\phi(x)$ secara eksplisit. Kernel yang umum digunakan mencakup kernel polinomial dan fungsi basis radial $K(x,z)=\exp(-\gamma\|x-z\|_2^2)$, dengan $\gamma>0$. Fungsi keputusan kernel dirumuskan sebagai
+
+\begin{equation}
+    f(x)=\sum_{i=1}^{n}\alpha_i y_i K(x_i,x)+b,
+    \qquad \hat{y}=\operatorname{sign}(f(x)).
+    \label{eq:svm-kernel-decision}
+\end{equation}
+
+Kondisi Karush--Kuhn--Tucker menghubungkan koefisien dual dengan posisi pengamatan. Pengamatan dengan $\alpha_i>0$ menjadi \textit{support vectors} dan berkontribusi pada fungsi keputusan, sedangkan pengamatan dengan $\alpha_i=0$ tidak berkontribusi. Jika $0<\alpha_i<C$, pengamatan berada tepat pada margin dan dapat digunakan untuk menghitung intersep $b$. SVM peka terhadap skala fitur. Karena itu, fitur umumnya distandardisasi sebelum pelatihan, dengan parameter transformasi yang dihitung hanya dari data latih \cite{james2021islr,scikitlearn_preprocessing}.
+
+Algoritma~\ref{alg:svm} merangkum estimasi SVM soft-margin dengan menyelesaikan masalah kuadratik pada Persamaan~\ref{eq:svm-dual}. Untuk lebih dari dua kelas, strategi \textit{one-vs-rest} atau \textit{one-vs-one} menggabungkan beberapa pengklasifikasi biner \cite{scikitlearn_userguide}.
+
+\begin{algorithm}[H]
+    \caption{Pelatihan soft-margin SVM berbasis kernel}
+    \label{alg:svm}
+    \begin{algorithmic}[1]
+        \REQUIRE $D=\{(x_i,y_i)\}_{i=1}^{n}$, $y_i\in\{-1,+1\}$, $C>0$, kernel $K$
+        \ENSURE $\boldsymbol{\alpha}^*$, $b$, himpunan \textit{support vectors} $S$
+        \STATE $Q_{ij}\leftarrow y_i y_j K(x_i,x_j)$, $\quad i,j=1,\ldots,n$
+        \STATE $\boldsymbol{\alpha}^*\leftarrow\arg\max_{\boldsymbol{\alpha}}\;\mathbf{1}^{\mathsf{T}}\boldsymbol{\alpha}-\frac{1}{2}\boldsymbol{\alpha}^{\mathsf{T}}Q\boldsymbol{\alpha}$
+        \STATE $\text{s.t. }\mathbf{0}\leq\boldsymbol{\alpha}\leq C\mathbf{1},\quad\mathbf{y}^{\mathsf{T}}\boldsymbol{\alpha}=0$
+        \STATE $S\leftarrow\{i:\alpha_i^*>0\}$
+        \STATE $S_f\leftarrow\{i:0<\alpha_i^*<C\}$
+        \IF{$S_f\neq\varnothing$}
+        \STATE $b\leftarrow|S_f|^{-1}\sum_{i\in S_f}\left(y_i-\sum_{j=1}^{n}\alpha_j^*y_jK(x_j,x_i)\right)$
+        \ELSE
+        \STATE $b\leftarrow$ nilai yang memenuhi kondisi KKT
+        \ENDIF
+        \RETURN $(\boldsymbol{\alpha}^*,b,S)$
+    \end{algorithmic}
+\end{algorithm}
 
 \subsection{\textit{Bayesian Network} / Naive Bayes}
 
+\textit{Bayesian Network} merepresentasikan distribusi peluang bersama melalui graf berarah tanpa siklus. Setiap simpul menyatakan variabel dan setiap sisi berarah menunjukkan hubungan probabilistik langsung. Struktur graf menentukan faktorisasi distribusi bersama sebagai
+
+\begin{equation}
+    P(X_1,\ldots,X_d)=\prod_{j=1}^{d}P(X_j\mid\operatorname{Pa}(X_j)),
+    \label{eq:bn-factorization}
+\end{equation}
+
+dengan $\operatorname{Pa}(X_j)$ sebagai himpunan simpul induk $X_j$. Faktorisasi ini menyatakan bahwa distribusi bersama dapat dihitung dari distribusi lokal setiap variabel berdasarkan simpul induknya. Struktur tersebut memungkinkan pemodelan ketergantungan antarvariabel tanpa menyimpan tabel distribusi bersama yang besar \cite{russell2021artificial}.
+
+\textit{Naive Bayes} menerapkan aturan Bayes untuk klasifikasi dengan asumsi fitur-fitur saling bebas bersyarat terhadap kelas. Pada jaringan Bayesian yang merepresentasikan asumsi ini, kelas menjadi induk bagi setiap fitur dan tidak ada sisi antarfitur. Untuk kelas $c$ dan vektor fitur $x$, aturan Bayes dinyatakan sebagai
+
+\begin{equation}
+    P(Y=c\mid X=x)=\frac{P(Y=c)P(X=x\mid Y=c)}{P(X=x)}.
+    \label{eq:nb-bayes-rule}
+\end{equation}
+
+Pembilang menggabungkan peluang awal kelas $P(Y=c)$ dengan kecocokan fitur terhadap kelas tersebut. Penyebut $P(X=x)$ menormalkan posterior agar peluang seluruh kelas berjumlah satu. Saat kelas dibandingkan untuk pengamatan $x$ yang sama, penyebutnya tetap sehingga tidak memengaruhi kelas dengan posterior terbesar.
+
+Asumsi kebebasan bersyarat menyederhanakan peluang seluruh fitur menjadi hasil kali peluang masing-masing fitur.
+
+\begin{equation}
+    P(X=x\mid Y=c)=\prod_{j=1}^{p}P(X_j=x_j\mid Y=c),
+    \qquad
+    \hat{y}=\arg\max_{c\in\mathcal{C}}P(Y=c)\prod_{j=1}^{p}P(X_j=x_j\mid Y=c).
+    \label{eq:nb-independence}
+\end{equation}
+
+Setiap faktor pada perkalian menunjukkan seberapa sesuai satu fitur dengan kelas $c$. Prediksi menggabungkan kontribusi fitur dengan peluang awal kelas. Asumsi independensi bersyarat dapat menyederhanakan estimasi parameter dan prediksi, meskipun tidak selalu sesuai dengan ketergantungan fitur pada data nyata. Perkalian banyak peluang kecil juga rentan terhadap \textit{underflow} numerik, sehingga perhitungan biasanya dilakukan pada skala logaritmik.
+
+\begin{equation}
+    \hat{y}=\arg\max_{c\in\mathcal{C}}\left[\log P(Y=c)+\sum_{j=1}^{p}\log P(X_j=x_j\mid Y=c)\right].
+    \label{eq:nb-log-score}
+\end{equation}
+
+Transformasi log tidak mengubah urutan kelas karena logaritma merupakan fungsi monoton naik. Perkalian peluang pada Persamaan~\ref{eq:nb-independence} menjadi penjumlahan kontribusi fitur, sehingga skor kelas dapat dihitung tanpa mengalikan banyak bilangan kecil.
+
+Gambar~\ref{fig:naive-bayes} memperlihatkan klasifikasi tiga kelas berdasarkan dua fitur. Titik-titik mewakili pengamatan berlabel, sedangkan garis lengkung membatasi wilayah prediksi. Batas antara kelas $c_1$ dan $c_2$ terletak pada titik dengan peluang posterior sama, yaitu $P(Y=c_1\mid x)=P(Y=c_2\mid x)$. Bentuk batas ditentukan oleh asumsi distribusi fitur dan data latih. Setiap wilayah kemudian diberi label kelas dengan peluang posterior terbesar.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{public/02-landasan-teori/naive-bayes.png}
+    \caption{Ilustrasi wilayah keputusan pengklasifikasi Naive Bayes untuk tiga kelas.}
+    \label{fig:naive-bayes}
+\end{figure}
+
+Peluang kelas dan peluang fitur bersyarat diestimasi dari data latih. Untuk prior kelas, estimasi frekuensi relatifnya adalah
+
+\begin{equation}
+    \widehat{P}(Y=c)=\frac{N_c}{n},
+    \label{eq:nb-prior}
+\end{equation}
+
+dengan $N_c$ sebagai jumlah pengamatan dari kelas $c$ dan $n$ sebagai jumlah seluruh pengamatan. Prior mencerminkan proporsi kelas pada data latih. Kelas yang lebih sering muncul karena itu memiliki peluang awal lebih besar sebelum fitur dipertimbangkan.
+
+Untuk fitur kategorikal, peluang bersyarat dapat dihitung dengan penghalusan Laplace.
+
+\begin{equation}
+    \widehat{P}(X_j=v\mid Y=c)=\frac{N_{jvc}+\alpha}{N_c+\alpha V_j},
+    \qquad \alpha>0,
+    \label{eq:nb-categorical}
+\end{equation}
+
+dengan $N_{jvc}$ sebagai jumlah pengamatan dari kelas $c$ yang memiliki nilai fitur $v$ dan $V_j$ sebagai banyaknya nilai yang mungkin untuk fitur $j$. Penambahan $\alpha$ mencegah peluang bernilai nol ketika kombinasi kelas dan fitur tidak muncul dalam data latih. Untuk $\alpha=1$, penghalusan ini disebut penghalusan Laplace.
+
+Untuk fitur numerik, salah satu pilihan yang umum adalah memodelkan distribusi fitur bersyarat kelas dengan distribusi Gaussian.
+
+\begin{equation}
+    \widehat{P}(X_j=x_j\mid Y=c)=\frac{1}{\sqrt{2\pi\hat{\sigma}_{jc}^{2}}}\exp\left(-\frac{(x_j-\hat{\mu}_{jc})^2}{2\hat{\sigma}_{jc}^{2}}\right),
+    \label{eq:nb-gaussian}
+\end{equation}
+
+Parameter $\hat{\mu}_{jc}$ dan $\hat{\sigma}_{jc}^{2}$ adalah rata-rata dan varians fitur $j$ pada kelas $c$. Persamaan tersebut menyatakan kepadatan, bukan peluang pada satu nilai kontinu. Nilai fitur yang dekat dengan rata-rata kelas memiliki kepadatan lebih tinggi daripada nilai yang jauh. Parameter Gaussian diestimasi dari data latih untuk setiap kelas sebagai berikut.
+
+\begin{equation}
+    \hat{\mu}_{jc}=\frac{1}{N_c}\sum_{i:y_i=c}x_{ij},
+    \qquad
+    \hat{\sigma}_{jc}^{2}=\frac{1}{N_c}\sum_{i:y_i=c}(x_{ij}-\hat{\mu}_{jc})^2+\epsilon,
+    \quad\epsilon>0.
+    \label{eq:nb-gaussian-parameters}
+\end{equation}
+
+Rata-rata menentukan pusat distribusi fitur pada kelas $c$, sedangkan varians mengukur sebaran nilainya. Penambahan $\epsilon$ menjaga varians tetap positif ketika nilai fitur pada suatu kelas sama. Asumsi distribusi Gaussian merupakan pilihan pemodelan fitur, bukan konsekuensi dari aturan Bayes \cite{scikitlearn_naive_bayes}.
+
+Algoritma~\ref{alg:naive-bayes} merangkum estimasi parameter dan prediksi. Fitur kategorikal menggunakan frekuensi yang dihaluskan dengan Laplace, sedangkan fitur numerik menggunakan parameter distribusi Gaussian. Skor log menjumlahkan prior kelas dan kontribusi setiap fitur.
+
+\begin{algorithm}[H]
+    \caption{Pelatihan dan prediksi menggunakan Naive Bayes}
+    \label{alg:naive-bayes}
+    \begin{algorithmic}[1]
+        \REQUIRE $D=\{(x_i,y_i)\}_{i=1}^{n}$, fitur uji $x$, kelas $\mathcal{C}$, tipe fitur, $\alpha,\epsilon>0$
+        \ENSURE Prediksi kelas $\hat{y}$
+        \FOR{$c\in\mathcal{C}$}
+        \STATE $\hat{P}(c)\leftarrow N_c/n$
+        \FOR{$j=1,\ldots,p$}
+        \IF{$X_j$ kategorikal}
+        \FOR{$v\in\mathcal{V}_j$}
+        \STATE $\hat{P}(X_j=v\mid c)\leftarrow(N_{jvc}+\alpha)/(N_c+\alpha V_j)$
+        \ENDFOR
+        \ELSE
+        \STATE $\hat{\mu}_{jc}\leftarrow N_c^{-1}\sum_{i:y_i=c}x_{ij}$
+        \STATE $\hat{\sigma}_{jc}^{2}\leftarrow N_c^{-1}\sum_{i:y_i=c}(x_{ij}-\hat{\mu}_{jc})^2+\epsilon$
+        \ENDIF
+        \ENDFOR
+        \ENDFOR
+        \FOR{$c\in\mathcal{C}$}
+        \STATE $s_c\leftarrow\log\hat{P}(c)+\sum_{j=1}^{p}\log\hat{P}(x_j\mid c)$
+        \ENDFOR
+        \RETURN $\hat{y}\leftarrow\arg\max_{c\in\mathcal{C}}s_c$
+    \end{algorithmic}
+\end{algorithm}
+
+Naive Bayes memiliki biaya komputasi rendah karena peluang setiap fitur diestimasi secara terpisah untuk setiap kelas. Jika fitur saling berkorelasi, asumsi independensi dapat membuat probabilitas posterior kurang terkalibrasi. Meski demikian, kelas dengan skor tertinggi masih dapat menjadi prediksi yang baik \cite{scikitlearn_naive_bayes}.
+
 \subsection{\textit{Metric of Error}}
+
+Metrik evaluasi mengukur kinerja prediksi model pada data berlabel. Untuk klasifikasi, kinerja dapat diringkas dengan \textit{confusion matrix}, yang membandingkan kelas aktual dengan kelas prediksi. Gambar~\ref{fig:metric-of-error} menunjukkan empat kemungkinan hasil. \textit{True positive} (TP) dan \textit{true negative} (TN) adalah prediksi benar. \textit{False positive} (FP) dan \textit{false negative} (FN) adalah prediksi salah. FP terjadi ketika model memprediksi kelas positif untuk pengamatan negatif, sedangkan FN terjadi ketika model memprediksi kelas negatif untuk pengamatan positif.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{public/02-landasan-teori/metric-of-error.png}
+    \caption{\textit{Confusion matrix} dan metrik evaluasi klasifikasi.}
+    \label{fig:metric-of-error}
+\end{figure}
+
+Jumlah pengamatan adalah $N=TP+TN+FP+FN$. Akurasi dan tingkat kesalahan masing-masing menyatakan proporsi prediksi benar dan salah.
+
+\begin{equation}
+    \operatorname{Accuracy}=\frac{TP+TN}{N},
+    \qquad
+    \operatorname{ErrorRate}=\frac{FP+FN}{N}=1-\operatorname{Accuracy}.
+    \label{eq:classification-accuracy}
+\end{equation}
+
+Akurasi menyatakan persentase prediksi yang tepat, sedangkan \textit{error rate} menyatakan persentase prediksi yang keliru. Pada data dengan distribusi kelas timpang, akurasi dapat tetap tinggi meskipun model jarang mengenali kelas minoritas.
+
+Presisi dan \textit{recall} menilai kinerja model terhadap kelas positif, tetapi menggunakan penyebut berbeda.
+
+\begin{equation}
+    \operatorname{Precision}=\frac{TP}{TP+FP},
+    \qquad
+    \operatorname{Recall}=\frac{TP}{TP+FN}.
+    \label{eq:precision-recall}
+\end{equation}
+
+Presisi menunjukkan proporsi prediksi positif yang benar. Nilainya turun ketika FP bertambah. \textit{Recall} atau sensitivitas menunjukkan proporsi kasus positif aktual yang ditemukan model. Nilainya turun ketika FN bertambah. Metrik yang lebih diprioritaskan bergantung pada konsekuensi masing-masing kesalahan.
+
+Spesifisitas dan \textit{negative predictive value} (NPV) mengukur kinerja prediksi dari sisi kelas negatif.
+
+\begin{equation}
+    \operatorname{Specificity}=\frac{TN}{TN+FP},
+    \qquad
+    \operatorname{NPV}=\frac{TN}{TN+FN}.
+    \label{eq:specificity-npv}
+\end{equation}
+
+Spesifisitas mengukur proporsi kasus negatif aktual yang dikenali dengan benar, sedangkan NPV mengukur proporsi prediksi negatif yang tepat. Skor F1 merangkum presisi dan \textit{recall} menggunakan rata-rata harmonik.
+
+\begin{equation}
+    F_1=2\frac{\operatorname{Precision}\cdot\operatorname{Recall}}{\operatorname{Precision}+\operatorname{Recall}}.
+    \label{eq:f1-score}
+\end{equation}
+
+Skor F1 tinggi memerlukan presisi dan \textit{recall} yang sama-sama tinggi, tetapi tidak memperhitungkan TN. Pemilihan metrik perlu mengikuti tujuan evaluasi dan jenis kesalahan yang hendak dikendalikan, bukan semata-mata nilai tertinggi \cite{scikitlearn_metrics}.
+
+Untuk regresi, evaluasi membandingkan prediksi $\hat{y}_i$ dengan nilai aktual $y_i$. Dua ukuran yang umum digunakan adalah MAE dan RMSE.
+
+\begin{equation}
+    \operatorname{MAE}=\frac{1}{n}\sum_{i=1}^{n}|y_i-\hat{y}_i|,
+    \qquad
+    \operatorname{RMSE}=\sqrt{\frac{1}{n}\sum_{i=1}^{n}(y_i-\hat{y}_i)^2}.
+    \label{eq:regression-errors}
+\end{equation}
+
+MAE menyatakan rata-rata nilai absolut selisih prediksi dalam satuan target. RMSE juga menggunakan satuan target yang sama, tetapi lebih dipengaruhi oleh kesalahan besar karena selisih dikuadratkan sebelum dirata-ratakan. Nilai kedua metrik yang mendekati nol menunjukkan kesalahan prediksi yang lebih kecil. Keduanya sebaiknya dihitung pada data evaluasi yang tidak digunakan untuk melatih model \cite{scikitlearn_metrics}.
