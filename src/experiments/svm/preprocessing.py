@@ -330,10 +330,13 @@ class SVMPreprocessor:
             vals[c] = rv
         return {"groups": groups, "vals": vals, "cats": cats, "y": ref_y}
 
-    def fit(self, df_train: pd.DataFrame):
+    def fit(self, df_train: pd.DataFrame, y: np.ndarray | None = None):
         df = df_train.copy().reset_index(drop=True)
-        assert "is_canceled" in df.columns
-        y = df["is_canceled"].to_numpy(dtype=np.int64)
+        if y is None:
+            assert "is_canceled" in df.columns
+            y = df["is_canceled"].to_numpy(dtype=np.int64)
+        else:
+            y = np.asarray(y, dtype=np.int64)
         self.global_mean_ = float(np.mean(y))
         n_tr = len(df)
 
@@ -509,6 +512,8 @@ class SVMPreprocessor:
             "feature_names": list(self.feature_names_),
         }
         self._fitted_ids_ = df["id"].astype(str).tolist() if "id" in df.columns else None
+        self._fitted_len_ = len(df)
+        self._fitted_rate_sum_ = float(pd.to_numeric(df["nightly_rate_idr"], errors="coerce").fillna(-1.0).sum())
         self._train_oof_cache_ = X_svm_oof
         self.is_fitted_ = True
         return self
@@ -518,14 +523,16 @@ class SVMPreprocessor:
             raise RuntimeError("preprocessor belum di-fit")
 
         # kembalikan cache oof terkalibrasi bila dipanggil persis pada df_train
-        if (
-            self._train_oof_cache_ is not None
-            and self._fitted_ids_ is not None
-            and "id" in df.columns
-            and len(df) == len(self._fitted_ids_)
-            and df["id"].astype(str).tolist() == self._fitted_ids_
-        ):
-            return self._train_oof_cache_.copy()
+        if self._train_oof_cache_ is not None and len(df) == getattr(self, "_fitted_len_", len(self._fitted_ids_ or [])):
+            if (
+                self._fitted_ids_ is not None
+                and "id" in df.columns
+                and df["id"].astype(str).tolist() == self._fitted_ids_
+            ):
+                return self._train_oof_cache_.copy()
+            rate_sum = float(pd.to_numeric(df["nightly_rate_idr"], errors="coerce").fillna(-1.0).sum())
+            if abs(rate_sum - getattr(self, "_fitted_rate_sum_", -999.0)) < 1e-3:
+                return self._train_oof_cache_.copy()
 
         df = df.copy().reset_index(drop=True)
         out64, outv2, outp_base, keys, subs = self._build_base_blocks(df)
@@ -575,8 +582,8 @@ class SVMPreprocessor:
         E_mat = self.sc_emb_.transform(np.column_stack([_logit(p_rf64), _logit(p_rfv2), _logit(p_et), _logit(p_hgb)]))
         return np.hstack([Xp_mat * 0.40, Man_mat * 0.80, E_mat * 2.50])
 
-    def fit_transform(self, df_train: pd.DataFrame) -> np.ndarray:
-        self.fit(df_train)
+    def fit_transform(self, df_train: pd.DataFrame, y: np.ndarray | None = None) -> np.ndarray:
+        self.fit(df_train, y=y)
         return self._train_oof_cache_.copy()
 
 

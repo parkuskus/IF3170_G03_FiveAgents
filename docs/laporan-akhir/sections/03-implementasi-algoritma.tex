@@ -210,7 +210,25 @@ Seluruh keluaran ditempatkan di dalam direktori \path{output/final/model/logisti
 
 \subsection{SVM}
 
+Implementasi \textit{Support Vector Machine} (SVM) dari nol ditempatkan pada kelas \texttt{SVMFromScratch} di berkas \texttt{src/experiments/svm/svm\_scratch.py} dengan seluruh perhitungan aljabar linear dan optimasi margin dibangun murni menggunakan \texttt{numpy}. Kelas ini mendukung klasifikasi biner $y \in \{-1, +1\}$ dengan meminimalkan objektif \textit{soft-margin} $L_2$-hinge loss:
+\begin{equation}
+\min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|_2^2 + C \sum_{i=1}^{N} \max\left(0, 1 - y_i (\mathbf{w}^\top \phi(\mathbf{x}_i) + b)\right)^2
+\end{equation}
+Pada metode \texttt{\_compute\_kernel}, disediakan tiga fungsi kernel: kernel linear dengan $K(\mathbf{x}_i, \mathbf{x}_j) = \mathbf{x}_i^\top \mathbf{x}_j$, kernel polynomial dengan $K(\mathbf{x}_i, \mathbf{x}_j) = (\gamma \mathbf{x}_i^\top \mathbf{x}_j + r)^d$ disertai pengendalian rentang numerik agar terhindar dari \textit{overflow}, serta kernel Gaussian (RBF) dengan $K(\mathbf{x}_i, \mathbf{x}_j) = \exp(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|_2^2)$ untuk opsi skala $\gamma \in \{\texttt{"scale"}, \texttt{"auto"}, \texttt{"scale*"}\}$.
+
+Untuk menjaga stabilitas dan kecepatan pelatihan pada $21.898$ data latih, \texttt{SVMFromScratch} menggunakan \textit{Active-Set Modified Finite Newton} di ruang fitur primal/RKHS. Pada kernel non-linear (\texttt{poly} dan \texttt{rbf}), matriks kernel penuh didekati melalui metode Cholesky-Nystr\"om menggunakan $m=2000$ \textit{landmark} terstratifikasi ($\mathbf{Z} = \mathbf{K}_{NM}(\mathbf{K}_{MM} + 10^{-5}\mathbf{I})^{-1/2}$), sedangkan untuk ukuran sampel kecil ($\le 1500$, seperti visualisasi 2D) tersedia pula \textit{solver} \textit{Sequential Minimal Optimization} (SMO) eksak. Setiap model terlatih juga menghitung jumlah \textit{support vector} aktif (\texttt{n\_support\_}) serta total pelanggaran margin \texttt{slack\_total} $= \sum_i \max(0, 1 - y_i f(\mathbf{x}_i))$, dan mendukung kalibrasi ambang batas keputusan berbasis \textit{out-of-fold} (\texttt{tune\_threshold\_oof}) untuk memaksimalkan Macro F1.
+
 \subsubsection{Optimasi \textit{Pipeline} SVM}
+
+Untuk menghasilkan representasi fitur yang kaya sekaligus bebas dari kebocoran data (\textit{data leakage}), disusun kelas \texttt{SVMPreprocessor} di \texttt{src/experiments/svm/preprocessing.py}. Seluruh parameter statistik hanya di-\textit{fit} pada \texttt{train\_idx} ($21.898$ baris) dan menghasilkan $135$ fitur numerik kontinu yang terbagi ke dalam beberapa blok utama.
+
+Blok fitur domain dan kalender membentuk representasi dasar melalui indikator \textit{missingness} (\texttt{miss\_*}, \texttt{n\_missing}), agregasi lama menginap, rasio akhir pekan, tarif per tamu-malam (\texttt{rate\_per\_guest\_night}), transformasi logaritmik (\texttt{log\_lead}, \texttt{log\_rate}), deviasi tarif terhadap segmen bulan-kamar, serta fitur siklikal kedatangan dan pemesanan.
+
+Imputasi prediktif terawasi (\texttt{imp\_*}) memulihkan nilai hilang pada kolom \texttt{days\_before\_arrival}, \texttt{nightly\_rate\_idr}, dan \texttt{special\_requests} menggunakan \texttt{HistGradientBoostingRegressor} yang dilatih hanya pada baris non-null \texttt{train\_idx}.
+
+Manifold non-parametrik murni (\textit{strictly out-of-fold} 5-fold CV) menggabungkan \textit{Hierarchical Empirical Bayes Target Encoding} (\texttt{te\_*}), kepadatan lokal \textit{K-Nearest Neighbors} dan \textit{Parzen Window KDE} pada tiga subruang ortogonal (\texttt{sub1..3\_knn\_3/9/25}, \texttt{sub1..3\_kde}), serta \textit{Masked Exact Match} untuk menangkap konsistensi label pada observasi yang identik di seluruh kolom non-null.
+
+Proyeksi logit manifold non-linear (\textit{strictly OOF}) menghasilkan empat logit probabilitas terkalibrasi dari fitur dasar untuk menangkap interaksi orde tinggi sebelum dilakukan pembobotan subruang \texttt{[X\_pure * 0.40, X\_manifold * 0.80, X\_emb * 2.50]} dan standardisasi \texttt{StandardScaler}. Seluruh objek model dan \textit{preprocessor} dikompresi dengan \texttt{zlib} pada \texttt{\_\_getstate\_\_} sehingga ukuran bundel \texttt{svm\_pipeline.pkl} tetap ramping ($40{,}94\text{ MB}$).
 
 \subsection{Naive Bayes}
 
@@ -248,6 +266,8 @@ render_tree_svg(final_model[0].root, CFG.TREE_TOP_N, tree_image)
 \end{lstlisting}
 
 \subsection{Bonus SVM Visualisasi Bidang Pemisah}
+
+Untuk memvisualisasikan geometri bidang pemisah, batas margin, dan \textit{support vector} ketiga kernel pada ruang dua dimensi, matriks fitur terstandardisasi hasil \texttt{SVMPreprocessor} pada data latih (\texttt{X\_train\_model}, berdimensi $135$) diproyeksikan terlebih dahulu ke dua komponen utama menggunakan \texttt{PCA(n\_components=2)} yang hanya di-\textit{fit} pada data latih. Selanjutnya diambil subsampel terstratifikasi sebanyak $800$ titik ($400$ kelas $0$ dan $400$ kelas $1$), lalu dilatih tiga instans \texttt{SVMFromScratch} dengan \textit{solver} eksak \texttt{solver="smo"} dan \texttt{class\_weight="balanced"} untuk kernel Linear ($C=0{,}5$), Polynomial ($d=2, C=1{,}0, r=1{,}0$), serta Gaussian RBF ($C=1{,}0, \gamma=\texttt{"scale"}$). Grid evaluasi $200 \times 200$ dibentuk untuk menggambar daerah keputusan, garis pemisah $f(\mathbf{x}) = 0$, garis margin $f(\mathbf{x}) = \pm 1$, serta lingkaran penanda \textit{support vector}.
 
 \subsection{Bayesian Network Graf Antarfitur}
 

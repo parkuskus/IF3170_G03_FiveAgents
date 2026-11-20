@@ -40,27 +40,27 @@ def calculate_svc_slack(svc_model: SVC, x: np.ndarray, y_raw: np.ndarray) -> flo
 
 def get_candidate_configs() -> list[dict]:
     return [
-        # kernel linear
-        {"variant": "linear_c0.5_none", "kernel": "linear", "C": 0.5, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
-        {"variant": "linear_c1.0_none", "kernel": "linear", "C": 1.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
-        {"variant": "linear_c1.0_bal", "kernel": "linear", "C": 1.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "linear_c2.0_none", "kernel": "linear", "C": 2.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
-        {"variant": "linear_c2.0_bal", "kernel": "linear", "C": 2.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "linear_c4.0_bal", "kernel": "linear", "C": 4.0, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
+        # kernel linear (l2 regularized)
+        {"variant": "linear_c0.002_none", "kernel": "linear", "C": 0.002, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "linear_c0.005_none", "kernel": "linear", "C": 0.005, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "linear_c0.01_none", "kernel": "linear", "C": 0.01, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "linear_c0.02_none", "kernel": "linear", "C": 0.02, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "linear_c0.05_none", "kernel": "linear", "C": 0.05, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "linear_c0.005_bal", "kernel": "linear", "C": 0.005, "degree": 1, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
         # kernel polynomial
-        {"variant": "poly_d2_c2.0_r1_bal", "kernel": "poly", "C": 2.0, "degree": 2, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        {"variant": "poly_d3_c1.0_r1_none", "kernel": "poly", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": None},
-        {"variant": "poly_d3_c1.0_r1_bal", "kernel": "poly", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        {"variant": "poly_d3_c2.0_r1_bal", "kernel": "poly", "C": 2.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        {"variant": "poly_d3_c3.0_r1_bal", "kernel": "poly", "C": 3.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
-        {"variant": "poly_d3_c4.0_r1_bal", "kernel": "poly", "C": 4.0, "degree": 3, "gamma": "scale", "coef0": 1.0, "class_weight": "balanced"},
+        {"variant": "poly_d2_c0.005_g0.4", "kernel": "poly", "C": 0.005, "degree": 2, "gamma": "scale*0.4", "coef0": 1.0, "class_weight": None},
+        {"variant": "poly_d2_c0.01_g0.4", "kernel": "poly", "C": 0.01, "degree": 2, "gamma": "scale*0.4", "coef0": 1.0, "class_weight": None},
+        {"variant": "poly_d2_c0.02_g0.4", "kernel": "poly", "C": 0.02, "degree": 2, "gamma": "scale*0.4", "coef0": 1.0, "class_weight": None},
+        {"variant": "poly_d2_c0.05_g0.4", "kernel": "poly", "C": 0.05, "degree": 2, "gamma": "scale*0.4", "coef0": 1.0, "class_weight": None},
+        {"variant": "poly_d3_c0.01_g0.2", "kernel": "poly", "C": 0.01, "degree": 3, "gamma": "scale*0.2", "coef0": 1.0, "class_weight": None},
+        {"variant": "poly_d2_c0.01_bal", "kernel": "poly", "C": 0.01, "degree": 2, "gamma": "scale*0.4", "coef0": 1.0, "class_weight": "balanced"},
         # kernel gaussian / rbf
-        {"variant": "rbf_c1.0_scale_none", "kernel": "rbf", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": None},
-        {"variant": "rbf_c1.0_scale_bal", "kernel": "rbf", "C": 1.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "rbf_c2.0_scale_bal", "kernel": "rbf", "C": 2.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "rbf_c3.0_scale_bal", "kernel": "rbf", "C": 3.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "rbf_c4.0_scale_bal", "kernel": "rbf", "C": 4.0, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": "balanced"},
-        {"variant": "rbf_c4.0_g0.01_bal", "kernel": "rbf", "C": 4.0, "degree": 3, "gamma": 0.01, "coef0": 0.0, "class_weight": "balanced"},
+        {"variant": "rbf_c0.05_g0.4", "kernel": "rbf", "C": 0.05, "degree": 3, "gamma": "scale*0.4", "coef0": 0.0, "class_weight": None},
+        {"variant": "rbf_c0.1_g0.4", "kernel": "rbf", "C": 0.1, "degree": 3, "gamma": "scale*0.4", "coef0": 0.0, "class_weight": None},
+        {"variant": "rbf_c0.2_g0.4", "kernel": "rbf", "C": 0.2, "degree": 3, "gamma": "scale*0.4", "coef0": 0.0, "class_weight": None},
+        {"variant": "rbf_c0.1_g0.2", "kernel": "rbf", "C": 0.1, "degree": 3, "gamma": "scale*0.2", "coef0": 0.0, "class_weight": None},
+        {"variant": "rbf_c0.1_scale", "kernel": "rbf", "C": 0.1, "degree": 3, "gamma": "scale", "coef0": 0.0, "class_weight": None},
+        {"variant": "rbf_c0.1_bal", "kernel": "rbf", "C": 0.1, "degree": 3, "gamma": "scale*0.4", "coef0": 0.0, "class_weight": "balanced"},
     ]
 
 
@@ -86,8 +86,8 @@ def run_all_experiments():
             gamma=cfg["gamma"],
             coef0=cfg["coef0"],
             class_weight=cfg["class_weight"],
-            max_iter=45,
-            n_components=1400,
+            max_iter=35,
+            n_components=2000,
             random_state=42,
         )
         model.fit(x_train, y_train)
@@ -96,7 +96,12 @@ def run_all_experiments():
         y_pred_def = model.predict(x_valid, threshold=0.0)
         metrics_def = evaluate_predictions(y_valid, y_pred_def)
 
-        # evaluasi threshold ter-tune
+        # kalibrasi threshold oof murni dari data latih
+        th_oof = model.tune_threshold_oof(x_train, y_train)
+        y_pred_oof = model.predict(x_valid, threshold=th_oof)
+        metrics_oof = evaluate_predictions(y_valid, y_pred_oof)
+
+        # evaluasi threshold ter-tune pada validasi (oracle)
         th_tuned = model.tune_threshold(x_valid, y_valid)
         y_pred_tuned = model.predict(x_valid, threshold=th_tuned)
         metrics_tuned = evaluate_predictions(y_valid, y_pred_tuned)
@@ -110,6 +115,8 @@ def run_all_experiments():
             "class_weight": str(cfg["class_weight"]),
             "seed": 42,
             "default_macro_f1": round(metrics_def["macro_f1"], 4),
+            "oof_macro_f1": round(metrics_oof["macro_f1"], 4),
+            "oof_threshold": round(th_oof, 3),
             "macro_f1": round(metrics_tuned["macro_f1"], 4),
             "best_threshold": round(th_tuned, 3),
             "prec_0": round(metrics_tuned["prec_0"], 4),
@@ -176,7 +183,11 @@ def run_all_experiments():
 
         cw = None if best["class_weight"] == "None" else best["class_weight"]
         gamma_arg = best["gamma"]
-        if isinstance(gamma_arg, str) and gamma_arg not in ("scale", "auto"):
+        if isinstance(gamma_arg, str) and gamma_arg.startswith("scale*"):
+            mult = float(gamma_arg.split("*", 1)[1])
+            var = float(np.var(x_train))
+            gamma_arg = (1.0 / (x_train.shape[1] * var)) * mult if var > 1e-12 else (1.0 / x_train.shape[1]) * mult
+        elif isinstance(gamma_arg, str) and gamma_arg not in ("scale", "auto"):
             gamma_arg = float(gamma_arg)
 
         svc = SVC(
