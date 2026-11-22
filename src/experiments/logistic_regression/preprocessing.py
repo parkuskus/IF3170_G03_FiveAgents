@@ -92,6 +92,7 @@ def build_features(raw, options):
         for col, cap in [('special_requests', 3), ('num_adults', 3), ('num_children', 2),
                          ('weekend_nights', 3), ('weekday_nights', 7)]:
             frame[f'category_{col}'] = raw[col].clip(upper=cap).fillna(-1).astype(str)
+    # basis piecewise linear / hinge (James et al., ISLR, 2021)
     if 'splines' in enabled or 'channel_splines' in enabled:
         for col, values, knots in [
             ('lead', lead, [3, 7, 14, 30, 60, 90, 120, 180, 270]),
@@ -137,6 +138,7 @@ def clip_features(frame, bounds):
         frame[columns] = frame[columns].clip(lower=pd.Series(bounds['lower']), upper=pd.Series(bounds['upper']), axis=1)
     return frame
 
+# fit hanya pada data latih: https://scikit-learn.org/stable/common_pitfalls.html
 def fit_preprocessing(raw, options):
     frame = build_features(raw, options)
     binary = ['needs_parking', 'is_returning_guest']

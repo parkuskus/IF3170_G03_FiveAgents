@@ -50,6 +50,7 @@ class LogisticRegressionScratch:
         if isinstance(self.random_state, bool) or not isinstance(self.random_state, (int, np.integer)) or self.random_state < 0:
             raise ValueError('random_state must be a nonnegative integer')
 
+    # penalti L1/L2/Elastic Net: https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
     def _objective(self, X, y, w, b):
         z = X @ w + b
         log_loss = np.mean(np.logaddexp(0.0, z) - y * z)
@@ -85,6 +86,7 @@ class LogisticRegressionScratch:
                 if l2:
                     direction -= l2 * w
                 if l1:
+                    # subgradien L1 (Boyd et al., 2003, EE392o)
                     direction -= l1 * np.sign(w)
                 w += eta * direction
                 b += eta * error

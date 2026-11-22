@@ -142,6 +142,7 @@ def cross_validate(raw, y):
     return pd.DataFrame(fold_rows), scores
 
 
+# pemetaan C untuk rata-rata log-loss: https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
 def build_comparison_model(variant, n_train):
     config = FINAL_CONFIGS[variant]
     params = {
