@@ -430,6 +430,48 @@ Algoritma~\ref{alg:svm} merangkum estimasi SVM soft-margin dengan menyelesaikan 
     \end{algorithmic}
 \end{algorithm}
 
+\subsubsection{Formulasi Primal \textit{L2-Hinge Loss} dan Pembobotan Kelas}
+
+Formulasi klasik pada Persamaan~\eqref{eq:svm-soft-margin} memakai penalti kesalahan linear (\textit{L1-hinge loss}) $\xi_i = \max(0, 1 - y_i f(x_i))$ yang tidak terdiferensialkan pada titik batas $y_i f(x_i) = 1$. Untuk memungkinkan optimasi berbasis turunan orde dua pada skala besar, digunakan varian \textit{L2-hinge loss} (\textit{squared hinge loss}) yang terdiferensialkan secara kontinu di seluruh ruang parameter \cite{keerthi2005newton}:
+\begin{equation}
+    \min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|_2^2 + C \sum_{i=1}^{n} c_i \max\left(0,\, 1 - y_i (\mathbf{w}^{\mathsf{T}}\phi(x_i) + b)\right)^2.
+    \label{eq:svm-l2-hinge}
+\end{equation}
+Bobot per sampel $c_i > 0$ memungkinkan penerapan \textit{class weighting} untuk data tidak seimbang. Pada skema seimbang (\textit{balanced}), bobot kelas $y \in \{0, 1\}$ ditetapkan berbanding terbalik dengan frekuensinya sebagai $c_y = \frac{n}{2\,n_y}$ sehingga kelas minoritas memperoleh penalti kesalahan lebih besar.
+
+\subsubsection{Algoritma Optimasi SVM: SMO, \textit{Dual Coordinate Descent}, dan \textit{Modified Finite Newton}}
+
+Penyelesaian masalah kuadratik SVM dengan pemecah umum (\textit{general-purpose QP solver}) memakan memori dan waktu yang tinggi ketika $n$ mencapai puluhan ribu. Oleh karena itu, dikembangkan tiga metode optimasi khusus:
+\begin{enumerate}
+    \item \textit{Sequential Minimal Optimization} (SMO) memecah masalah dual pada Persamaan~\eqref{eq:svm-dual} menjadi rangkaian submasalah analitik berukuran dua variabel $(\alpha_i, \alpha_j)$ secara berulang sambil mempertahankan kendala kesetaraan $\sum_{k=1}^n \alpha_k y_k = 0$ serta kendala kotak $0 \le \alpha_k \le C$ tanpa memerlukan pustaka optimasi eksternal \cite{platt1998smo}.
+    \item \textit{Dual Coordinate Descent} (DCD) menyelesaikan masalah dual secara primal-dual dengan memperbarui satu pengali $\alpha_i$ per langkah di sepanjang arah gradien koordinat terproyeksi, sehingga sangat efisien untuk pemetaan berdimensi tetap berukuran besar \cite{hsieh2008dcd}.
+    \item \textit{Active-Set Modified Finite Newton} menyelesaikan langsung bentuk primal \textit{L2-hinge loss} pada Persamaan~\eqref{eq:svm-l2-hinge} \cite{keerthi2005newton}. Pada tiap iterasi, himpunan titik aktif yang masih melanggar margin didefinisikan sebagai $I = \{i : y_i (\mathbf{w}^{\mathsf{T}}\mathbf{z}_i + b) < 1\}$. Dengan membentuk matriks augmen $\tilde{\mathbf{z}}_i = [\mathbf{z}_i^{\mathsf{T}}, 1]^{\mathsf{T}}$ dan bobot diagonal $\mathbf{D}_I$, langkah Newton eksak diperoleh melalui sistem persamaan linear tereduksi:
+    \begin{equation}
+        \left(\mathbf{I}_{d+1}' + 2 \tilde{\mathbf{Z}}_I^{\mathsf{T}} \mathbf{D}_I \tilde{\mathbf{Z}}_I\right) \tilde{\mathbf{w}} = 2 \tilde{\mathbf{Z}}_I^{\mathsf{T}} \mathbf{D}_I \mathbf{y}_I,
+        \label{eq:svm-newton-step}
+    \end{equation}
+    dengan $\mathbf{I}_{d+1}' = \operatorname{diag}(1, \ldots, 1, \epsilon)$ agar bias tidak terkena regularisasi penuh. Karena struktur fungsi objektifnya bersifat kuadratik sepotong-sepotong, metode ini mencapai konvergensi kuadratik hanya dalam beberapa iterasi.
+\end{enumerate}
+
+\subsubsection{Aproksimasi Kernel \textit{Cholesky-Nystr\"om} untuk Skala Besar}
+
+Evaluasi langsung matriks kernel penuh $\mathbf{K} \in \mathbb{R}^{n \times n}$ untuk kernel non-linear (seperti polinomial dan RBF) membutuhkan kompleksitas memori $O(n^2)$ yang tidak praktis pada dataset besar. Metode Nystr\"om mengatasi kendala ini dengan memilih $m \ll n$ titik acuan (\textit{landmarks}) secara terstratifikasi untuk membentuk representasi fitur eksplisit peringkat rendah \cite{williams2001nystrom}. Misalkan $\mathbf{K}_{MM} \in \mathbb{R}^{m \times m}$ adalah matriks kernel antar-landmark dan $\mathbf{K}_{NM} \in \mathbb{R}^{n \times m}$ adalah matriks kernel antara seluruh data dan landmark. Melalui faktorisasi Cholesky teratur $\mathbf{K}_{MM} + \lambda \mathbf{I}_m = \mathbf{L}\mathbf{L}^{\mathsf{T}}$ ($\lambda = 10^{-5}$, dengan cadangan dekomposisi nilai eigen apabila matriks mendekati singular), data diproyeksikan ke ruang fitur ortogonal berdimensi $m$:
+\begin{equation}
+    \mathbf{Z} = \mathbf{K}_{NM} (\mathbf{L}^{-1})^{\mathsf{T}} \in \mathbb{R}^{n \times m}.
+    \label{eq:nystrom-proj}
+\end{equation}
+Representasi $\mathbf{Z}$ menurunkan kebutuhan memori dari $O(n^2)$ menjadi $O(nm)$ serta memungkinkan kernel polinomial dan RBF dilatih langsung pada ruang primal menggunakan metode \textit{Modified Finite Newton}.
+
+\subsubsection{Kalibrasi Ambang Batas \textit{Out-Of-Fold} dan Teknik Prapemrosesan Pendukung Lanjutan}
+
+Untuk menyesuaikan keluaran SVM dengan metrik evaluasi \textit{Macro F1} pada data timpang serta memperkaya representasi fitur tanpa kebocoran data, diterapkan beberapa konsep pendukung di luar teori dasar SVM:
+\begin{enumerate}
+    \item Kalibrasi ambang batas keputusan berbasis \textit{out-of-fold} (OOF) menggantikan ambang baku $0$ pada $\hat{y} = \mathbb{I}[f(x) \ge \tau]$. Nilai $\tau^*$ dipilih dari pencarian garis di atas skor keputusan validasi silang $K$-lipatan pada data latih saja sehingga memaksimalkan $\frac{1}{2}(\mathrm{F1}_0 + \mathrm{F1}_1)$ tanpa mengintip data validasi maupun uji.
+    \item Skema \textit{strictly out-of-fold} pada fitur berbasis target memastikan bahwa nilai fitur untuk setiap lipatan latih ke-$k$ hanya dihitung dari $K-1$ lipatan lainnya, sehingga mencegah \textit{in-sample memorization} dan menjaga kesetaraan distribusi antara fitur latih, validasi, dan uji \cite{scikitlearn_pitfalls}.
+    \item \textit{Hierarchical Empirical Bayes Target Encoding} memetakan kategori berkardinalitas tinggi ke estimasi peluang bersyarat yang diperhalus ke rata-rata induknya (\textit{prior}) melalui rumus $(S_c + m \cdot p_{\text{prior}}) / (N_c + m)$ untuk menekan variansi pada kategori berfrekuensi rendah \cite{miccibarreca2001target}.
+    \item Estimasi densitas lokal non-parametrik (\textit{K-Nearest Neighbors} berbobot invers jarak dan \textit{Parzen Window Kernel Density Estimation} dengan kernel Gaussian), imputasi prediktif berbasis regresi gradien (\textit{HistGradientBoostingRegressor}) untuk memulihkan atribut numerik yang hilang, pencocokan baris identik toleran nilai kosong (\textit{Masked Exact Match}), serta transformasi skor probabilitas ke skala logit $\operatorname{logit}(p) = \ln\bigl(\frac{p}{1-p}\bigr)$ digunakan sebagai fitur masukan terstruktur sebelum standardisasi dan pembelajaran bidang pemisah SVM.
+\end{enumerate}
+
 \subsection{\textit{Bayesian Network} / Naive Bayes}
 
 \textit{Bayesian Network} merepresentasikan distribusi peluang bersama melalui graf berarah tanpa siklus. Setiap simpul menyatakan variabel dan setiap sisi berarah menunjukkan hubungan probabilistik langsung. Struktur graf menentukan faktorisasi distribusi bersama sebagai
