@@ -232,7 +232,128 @@ Perbedaan skor pipeline akhir jauh lebih kecil daripada pada model dasar. Pada L
 
 \subsection{Hasil Pengujian}
 
+Seluruh eksperimen SVM menggunakan pembagian data sesuai kontrak kelompok (\texttt{seed=42}, terstratifikasi dengan rasio $80:20$). Data latih (\texttt{train\_idx}) terdiri atas $21.898$ baris, yakni $14.723$ kelas $0$ dan $7.175$ kelas $1$. Data validasi (\texttt{valid\_idx}) terdiri atas $5.475$ baris, yakni $3.681$ kelas $0$ dan $1.794$ kelas $1$. Pengembangan berlangsung dalam tiga iterasi besar yang tercatat dalam riwayat repositori Git. Perubahan skor Macro F1 validasi setelah setiap iterasi prapemrosesan dan optimasi dirangkum pada Tabel~\ref{tab:svm_iter_progression}.
+
+\begin{table}[H]
+\centering
+\caption{Perkembangan performa Macro F1 validasi \texttt{SVMFromScratch} pada setiap iterasi eksperimen.}
+\label{tab:svm_iter_progression}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llccccc@{}}
+\toprule
+\textbf{Tahap Eksperimen} & \textbf{Karakteristik Pipeline dan Solver} & \textbf{Jml Fitur} & \textbf{Linear} & \textbf{Polynomial} & \textbf{Gaussian RBF} & \textbf{Terbaik Validasi} \\
+\midrule
+Baseline Notebook Utama & Imputasi median/modus, one-hot, 96 fixed landmarks SGD & 31 & 0,7476 & 0,7490 & 0,7505 & 0,7505 \\
+Iterasi 1 (Tahap Awal) & Fitur dasar domain, one-hot, solver mini-batch DCD ($m=1200$) & 51 & 0,7653 & 0,8102 & 0,8048 & 0,8102 \\
+Iterasi 2 (Pipeline Fitur 1 dan 2) & Binning lead time, interaksi OTA, target encoding, threshold tuning & 90 & 0,8568 & 0,8557 & 0,8573 & 0,8573 \\
+Iterasi 3 (Pipeline Final OOF) & Strictly 5-fold OOF, KNN/KDE, Masked Match, Modified Finite Newton & 135 & 0,8763 & 0,8742 & 0,8753 & 0,8763 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Perkembangan setiap iterasi pada Tabel~\ref{tab:svm_iter_progression} dijelaskan sebagai berikut.
+\begin{enumerate}
+    \item Pada Iterasi 1 ($51$ fitur dasar dan solver \textit{Dual Coordinate Descent} dengan $m=1200$ komponen Nystr\"om), kernel Linear mencatat Macro F1 sebesar $0{,}7653$ (pada $C=0{,}1$), kernel Gaussian RBF sebesar $0{,}8048$ ($C=2{,}0$, \texttt{class\_weight="balanced"}), dan kernel Polynomial derajat $3$ sebesar $0{,}8102$ ($C=2{,}0$, \texttt{coef0=1,0}, \texttt{class\_weight="balanced"}). Perbedaan skor ini mengindikasikan bahwa representasi pada iterasi awal belum cukup menangkap hubungan nonlinear antara fitur reservasi dan pembatalan. Interaksi waktu tunggu (\texttt{days\_before\_arrival}), pemesanan melalui \textit{Online Travel Agent} (OTA), dan ketiadaan permintaan khusus (\texttt{special\_requests = 0}) menjadi contoh hubungan fitur yang perlu dipertimbangkan, bukan bukti kausalitas.
+    \item Pada Iterasi 2 ($90$ fitur), ditambahkan pembagian waktu tunggu ke dalam delapan rentang non-linear, pemisahan indikator jumlah permintaan khusus (\texttt{sr\_0}, \texttt{sr\_1}, \texttt{sr\_2}, \texttt{sr\_ge3}), rasio tarif terhadap rata-rata kamar dan kanal, fitur siklikal bulan dan hari, \textit{target encoding} pada kombinasi kategori, satu fitur ringkasan probabilitas interaksi pohon, serta pencarian ambang batas keputusan (\texttt{tune\_threshold}). Seluruh tiga kernel berhasil melampaui target $0{,}85$, dengan Gaussian RBF mencapai $0{,}8573$ ($C=1{,}0$, $\gamma=\texttt{"scale"}$), Linear melonjak tajam ke $0{,}8568$ ($C=0{,}5$), dan Polynomial derajat $2$ mencapai $0{,}8557$ (skor Kaggle Public Leaderboard mencapai $0{,}85471$ lalu $0{,}86356$).
+    \item Audit Iterasi 2 menemukan dua keterbatasan. Pemanggilan \texttt{prep.transform(df\_train)} menghitung fitur berbasis target secara \textit{in-sample} pada data latih sehingga menghasilkan perbedaan representasi terhadap data baru. Selain itu, kemiripan baris dengan nilai kosong (\texttt{NaN}) belum dimanfaatkan. Sebanyak $9{,}0\%$ baris data validasi ($494$ dari $5.475$ baris) memiliki pasangan yang identik pada seluruh kolom bernilai lengkap di data latih, dengan kesepakatan label $92{,}31\%$.
+    \item Pada Iterasi 3 ($135$ fitur), seluruh pembuatan fitur berbasis label di data latih dikunci agar murni menggunakan prediksi \textit{out-of-fold} (5-fold CV), dilengkapi imputasi regresi terawasi (\texttt{imp\_*}), kepadatan lingkungan lokal KNN dan Parzen KDE pada tiga subruang fitur, pencocokan duplikat toleran nilai kosong (\textit{Masked Exact Match}), serta algoritma pelatihan \textit{Active-Set Modified Finite Newton} dengan basis Cholesky-Nystr\"om $m=2000$ dan kalibrasi ambang batas \textit{out-of-fold} (\texttt{tune\_threshold\_oof}). Hasil lengkap pengujian $18$ kandidat pada pipeline final ini disajikan pada Tabel~\ref{tab:svm_all_18_candidates}.
+\end{enumerate}
+
+\begin{table}[H]
+\centering
+\caption{Hasil lengkap eksperimen 18 kandidat konfigurasi \texttt{SVMFromScratch} pada pipeline final (135 fitur).}
+\label{tab:svm_all_18_candidates}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}clccccccccc@{}}
+\toprule
+\textbf{Rank} & \textbf{Nama Varian} & \textbf{Kernel} & \textbf{C} & \textbf{Deg} & \textbf{Gamma} & \textbf{Class Weight} & \textbf{Default F1} & \textbf{OOF F1} & \textbf{Tuned F1} & \textbf{Fit Time (s)} \\
+\midrule
+1 & \texttt{linear\_c0.01\_none} & linear & 0,010 & 1 & scale & None & 0,8738 & 0,8743 & 0,8763 & 0,28 \\
+2 & \texttt{linear\_c0.05\_none} & linear & 0,050 & 1 & scale & None & 0,8738 & 0,8736 & 0,8761 & 0,28 \\
+3 & \texttt{linear\_c0.005\_none} & linear & 0,005 & 1 & scale & None & 0,8745 & 0,8745 & 0,8760 & 0,29 \\
+4 & \texttt{linear\_c0.02\_none} & linear & 0,020 & 1 & scale & None & 0,8741 & 0,8725 & 0,8760 & 0,32 \\
+5 & \texttt{linear\_c0.005\_bal} & linear & 0,005 & 1 & scale & balanced & 0,8648 & 0,8764 & 0,8758 & 0,30 \\
+6 & \texttt{rbf\_c0.2\_g0.4} & rbf & 0,200 & 3 & scale*0.4 & None & 0,8736 & 0,8751 & 0,8753 & 21,95 \\
+7 & \texttt{linear\_c0.002\_none} & linear & 0,002 & 1 & scale & None & 0,8749 & 0,8743 & 0,8752 & 0,38 \\
+8 & \texttt{rbf\_c0.1\_g0.4} & rbf & 0,100 & 3 & scale*0.4 & None & 0,8726 & 0,8741 & 0,8750 & 19,81 \\
+9 & \texttt{rbf\_c0.1\_bal} & rbf & 0,100 & 3 & scale*0.4 & balanced & 0,8672 & 0,8731 & 0,8747 & 26,31 \\
+10 & \texttt{rbf\_c0.1\_g0.2} & rbf & 0,100 & 3 & scale*0.2 & None & 0,8722 & 0,8736 & 0,8743 & 19,56 \\
+11 & \texttt{poly\_d2\_c0.05\_g0.4} & poly & 0,050 & 2 & scale*0.4 & None & 0,8719 & 0,8734 & 0,8742 & 26,34 \\
+12 & \texttt{rbf\_c0.05\_g0.4} & rbf & 0,050 & 3 & scale*0.4 & None & 0,8725 & 0,8733 & 0,8738 & 20,10 \\
+13 & \texttt{poly\_d2\_c0.02\_g0.4} & poly & 0,020 & 2 & scale*0.4 & None & 0,8715 & 0,8736 & 0,8736 & 16,35 \\
+14 & \texttt{rbf\_c0.1\_scale} & rbf & 0,100 & 3 & scale & None & 0,8730 & 0,8724 & 0,8736 & 20,76 \\
+15 & \texttt{poly\_d2\_c0.01\_bal} & poly & 0,010 & 2 & scale*0.4 & balanced & 0,8675 & 0,8711 & 0,8731 & 20,02 \\
+16 & \texttt{poly\_d2\_c0.01\_g0.4} & poly & 0,010 & 2 & scale*0.4 & None & 0,8690 & 0,8718 & 0,8729 & 15,65 \\
+17 & \texttt{poly\_d3\_c0.01\_g0.2} & poly & 0,010 & 3 & scale*0.2 & None & 0,8689 & 0,8718 & 0,8722 & 22,99 \\
+18 & \texttt{poly\_d2\_c0.005\_g0.4} & poly & 0,005 & 2 & scale*0.4 & None & 0,8683 & 0,8718 & 0,8713 & 18,40 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Skor pada tabel merupakan hasil pencarian konfigurasi dan ambang keputusan dengan memanfaatkan label validasi yang sama. Kolom \textit{Default F1} menggunakan ambang nol, \textit{OOF F1} menggunakan ambang yang dipilih dari data latih, sedangkan \textit{Tuned F1} memilih ambang yang memaksimalkan Macro F1 pada data validasi. Karena itu, \textit{Tuned F1} adalah hasil pemilihan eksploratif, bukan estimasi kinerja pada data uji independen. Perbandingan antarkandidat juga tidak dapat diperlakukan sebagai uji perbedaan generalisasi.
+
+Tabel~\ref{tab:svm_all_18_candidates} menunjukkan pola berikut pada hiperparameter SVM.
+\begin{enumerate}
+    \item Pergeseran nilai regularisasi $C$ ke angka kecil ($C \in [0{,}005; 0{,}20]$) memberikan hasil terbaik setelah sinyal non-linear dan kemiripan lokal terwakili secara bebas bocor di dalam ke-$135$ fitur masukan. Nilai $C$ yang kecil memperlebar margin pemisah dan mencegah SVM memberikan bobot berlebihan pada titik-titik pencilan (\textit{noisy labels}) di sekitar perbatasan kelas.
+    \item Pada $C=0{,}1$, penggunaan $\gamma$ sebesar $0{,}4$ kali skala standar (\texttt{"scale*0.4"}) berkaitan dengan perubahan Macro F1 dari $0{,}8736$ (\texttt{rbf\_c0.1\_scale}) menjadi $0{,}8750$ (\texttt{rbf\_c0.1\_g0.4}). Skor $0{,}8753$ pada \texttt{rbf\_c0.2\_g0.4} juga melibatkan perubahan $C$ menjadi $0{,}2$, sehingga tidak dapat dikaitkan hanya dengan $\gamma$. Nilai $\gamma$ yang lebih kecil memperlebar jangkauan kernel RBF, tetapi penyebab perbedaan skor belum diuji terpisah.
+    \item Interaksi antara \texttt{class\_weight="balanced"} dan kalibrasi ambang OOF memengaruhi skor yang tercatat. Pada ambang standar ($0{,}0$), bobot kelas seimbang menurunkan skor awal karena menghasilkan lebih banyak \textit{false positive}. Setelah \texttt{tune\_threshold\_oof} menggeser ambang ke sekitar $+0{,}21$ hingga $+0{,}23$, skor OOF pada \texttt{linear\_c0.005\_bal} mencapai $0{,}8764$, tertinggi dalam pencarian ini.
+\end{enumerate}
+
+Rangkuman perbandingan konfigurasi terbaik dari masing-masing ketiga kernel disajikan pada Tabel~\ref{tab:svm_best_kernels}.
+
+\begin{table}[H]
+\centering
+\caption{Rincian metrik per kelas untuk konfigurasi terbaik tiap kernel \texttt{SVMFromScratch} pada data validasi.}
+\label{tab:svm_best_kernels}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}lccccccccc@{}}
+\toprule
+\textbf{Kernel} & \textbf{Varian Terbaik} & \textbf{Macro F1} & \textbf{Prec (0)} & \textbf{Rec (0)} & \textbf{F1 (0)} & \textbf{Prec (1)} & \textbf{Rec (1)} & \textbf{F1 (1)} & \textbf{Support Vectors} \\
+\midrule
+Linear & \texttt{linear\_c0.01\_none} & 0,8763 & 0,9103 & 0,9318 & 0,9209 & 0,8530 & 0,8116 & 0,8318 & 11.650 \\
+Gaussian RBF & \texttt{rbf\_c0.2\_g0.4} & 0,8753 & 0,9119 & 0,9277 & 0,9197 & 0,8462 & 0,8161 & 0,8309 & 14.207 \\
+Polynomial ($d=2$) & \texttt{poly\_d2\_c0.05\_g0.4} & 0,8742 & 0,9109 & 0,9275 & 0,9191 & 0,8454 & 0,8138 & 0,8293 & 12.669 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Berdasarkan pencarian pada data validasi, varian \texttt{linear\_c0.01\_none} dipilih sebagai konfigurasi akhir. Skor Macro F1 tercatat sebesar $0{,}8763$ dan waktu pelatihan model pada runner eksperimen sebesar $0{,}28\text{ detik}$. Waktu tersebut tidak mencakup pelatihan prapemrosesan. Pada $5.475$ baris validasi, model memprediksi benar $4.886$ baris ($89{,}24\%$), dengan $\text{TN}=3430$, $\text{TP}=1456$, $\text{FP}=251$, dan $\text{FN}=338$. Analisis profil kesalahan pada notebook bersifat deskriptif. Kemiripan sebagian karakteristik reservasi pada kedua kelas belum cukup untuk memastikan penyebab kesalahan ataupun besar galat yang tidak dapat dihindari. Setelah dilatih ulang pada seluruh $27.373$ baris \texttt{train.csv} dengan ambang OOF ($\text{threshold}=-0{,}007$), model mencatat $14.047$ titik bermargin aktif dan memprediksi $6.844$ baris \texttt{test.csv} sebagai $4.768$ kelas $0$ ($69{,}67\%$) serta $2.076$ kelas $1$ ($30{,}33\%$).
+
 \subsection{Komparasi dengan \texttt{scikit-learn}}
+
+Sebagai pembanding empiris, ketiga konfigurasi kernel dibandingkan dengan \texttt{sklearn.svm.SVC} pada matriks fitur $135$ dimensi dan \texttt{valid\_idx} yang sama. Kedua implementasi memiliki fungsi kerugian dan metode optimasi yang berbeda. Ambang keputusan untuk \texttt{SVC} dicari langsung pada label validasi, sebagaimana ambang model dari nol dalam eksperimen kandidat. Perbandingan pada Tabel~\ref{tab:svm_vs_sklearn} bersifat eksploratif dan tidak membuktikan kesetaraan formulasi ataupun perbedaan kinerja pada data yang belum dilihat.
+
+\begin{table}[H]
+\centering
+\caption{Perbandingan lengkap \texttt{SVMFromScratch} dan \texttt{sklearn.svm.SVC} pada ketiga kernel.}
+\label{tab:svm_vs_sklearn}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{@{}llcccccccc@{}}
+\toprule
+\textbf{Kernel} & \textbf{Implementasi} & \textbf{Macro F1} & \textbf{F1 (0)} & \textbf{F1 (1)} & \textbf{Confusion Matrix [[TN, FP], [FN, TP]]} & \textbf{Jml SV} & \textbf{Slack Valid} & \textbf{Fit (s)} & \textbf{Predict (s)} \\
+\midrule
+Linear & \texttt{SVMFromScratch} & 0,8763 & 0,9209 & 0,8318 & \texttt{[[3430, 251], [338, 1456]]} & 11.650 & 1823,96 & 0,28 & 0,001 \\
+Linear & \texttt{sklearn.svm.SVC} & 0,8745 & 0,9192 & 0,8299 & \texttt{[[3411, 270], [330, 1464]]} & 6.206 & 1467,54 & 34,46 & 4,492 \\
+\midrule
+Gaussian RBF & \texttt{SVMFromScratch} & 0,8753 & 0,9197 & 0,8309 & \texttt{[[3415, 266], [330, 1464]]} & 14.207 & 1799,05 & 21,95 & 0,448 \\
+Gaussian RBF & \texttt{sklearn.svm.SVC} & 0,8746 & 0,9189 & 0,8304 & \texttt{[[3403, 278], [323, 1471]]} & 6.259 & 1396,42 & 35,55 & 7,493 \\
+\midrule
+Polynomial ($d=2$) & \texttt{SVMFromScratch} & 0,8742 & 0,9191 & 0,8293 & \texttt{[[3414, 267], [334, 1460]]} & 12.669 & 1816,02 & 26,34 & 0,208 \\
+Polynomial ($d=2$) & \texttt{sklearn.svm.SVC} & 0,8731 & 0,9169 & 0,8293 & \texttt{[[3376, 305], [307, 1487]]} & 6.482 & 1442,70 & 36,80 & 3,066 \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+Tabel~\ref{tab:svm_vs_sklearn} menunjukkan tiga hal dalam perbandingan implementasi dari nol dengan \texttt{scikit-learn}.
+\begin{enumerate}
+    \item Pada validasi yang digunakan untuk memilih ambang, selisih Macro F1 yang tercatat berkisar antara $+0{,}0007$ dan $+0{,}0018$ untuk model dari nol. Selisih kecil ini tidak dapat diatribusikan secara khusus kepada kerugian \textit{L2-hinge} atau aproksimasi Nystr\"om tanpa uji yang mengisolasi masing-masing faktor. Jumlah \textit{support vector} pada \texttt{SVC} dan jumlah titik bermargin aktif pada solver primal juga mengikuti definisi pencatatan yang berbeda sehingga tidak dapat dibandingkan sebagai ukuran yang identik.
+    \item Dalam pengukuran runner, waktu pelatihan Linear untuk \texttt{SVMFromScratch} adalah $0{,}28\text{ detik}$ dan untuk \texttt{SVC} $34{,}46\text{ detik}$, sedangkan waktu prediksinya masing-masing $0{,}001\text{ detik}$ dan $4{,}492\text{ detik}$. Pada RBF dan Polynomial, waktu pelatihan model dari nol masing-masing $21{,}95\text{ detik}$ dan $26{,}34\text{ detik}$, dibanding $35{,}55\text{ detik}$ dan $36{,}80\text{ detik}$ untuk \texttt{SVC}. Angka tersebut berasal dari satu rangkaian pengukuran pada perangkat dan implementasi yang digunakan, tanpa biaya pelatihan prapemrosesan. Perbedaan waktu tidak dapat digeneralisasi ke semua lingkungan.
+    \item Stabilitas numerik pada ketiga kernel sangat bergantung pada standardisasi \texttt{StandardScaler} sebelum fitur masuk ke dalam SVM. Tanpa standardisasi, kolom \texttt{nightly\_rate\_idr} yang bernilai sekitar $1{,}5 \times 10^6$ menghasilkan produk dalam $\mathbf{x}_i^\top \mathbf{x}_j \approx 2{,}25 \times 10^{12}$ yang langsung meluap (\textit{overflow}) pada kernel Polynomial, sementara pada kernel Gaussian RBF jarak kuadrat $\|\mathbf{x}_i - \mathbf{x}_j\|_2^2 \approx 10^{12}$ membuat nilai $\exp(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|_2^2)$ anjlok menjadi nol sehingga matriks kernel kolaps menjadi matriks identitas. Dengan standardisasi \textit{z-score} yang dipelajari hanya dari data latih disertai regularisasi diagonal $10^{-5}\mathbf{I}$ pada faktorisasi Cholesky, seluruh perhitungan matriks berjalan stabil tanpa nilai \texttt{NaN} ataupun \texttt{Inf}.
+\end{enumerate}
 
 \section{Naive Bayes}
 
@@ -245,6 +366,22 @@ Perbedaan skor pipeline akhir jauh lebih kecil daripada pada model dasar. Pada L
 \subsection{Bonus DTL Gambar Percabangan Tree}
 
 \subsection{Bonus SVM Visualisasi Bidang Pemisah}
+
+Proyeksi dua komponen utama pertama dari \texttt{PCA(n\_components=2)} pada matriks fitur latih menjelaskan $63{,}65\%$ variansi data. Persentase variansi tersebut tidak mengukur seberapa baik pemisahan kelas dipertahankan setelah proyeksi. Gambar~\ref{fig:svm_2d_boundary} menampilkan bidang pemisah ($f(\mathbf{x}) = 0$), batas margin ($f(\mathbf{x}) = \pm 1$), dan sebagian penanda \textit{support vector} untuk tiga model yang dilatih ulang pada sampel dua dimensi. Batas tersebut bukan proyeksi langsung dari model akhir berdimensi $135$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{public/04-hasil-eksperimen-dan-analisis/svm_2d_boundary.png}
+    \caption{Visualisasi dua dimensi bidang pemisah ($f(\mathbf{x})=0$), margin ($\pm 1$), dan maksimal 150 penanda \textit{support vector} per kernel pada sampel terstratifikasi.}
+    \label{fig:svm_2d_boundary}
+\end{figure}
+
+Gambar~\ref{fig:svm_2d_boundary} memperlihatkan perbedaan geometri pemisahan kelas dan distribusi \textit{support vector} pada ketiga kernel.
+\begin{enumerate}
+    \item Kernel Linear (panel pertama, $\text{SV}=301/800$) menghasilkan bidang pemisah lurus antara area prediksi tidak batal dan batal, dengan dua garis margin sejajar. Judul panel mencatat $301$ titik bermargin aktif dari $800$ sampel. Kode hanya menandai paling banyak $150$ titik pertama dengan lingkaran hitam.
+    \item Kernel Polynomial derajat dua (panel kedua, $d=2$, $\text{SV}=274/800$) menghasilkan batas keputusan melengkung. Judul panel mencatat $274$ titik bermargin aktif dari $800$ sampel, paling sedikit di antara ketiga panel. Gambar ini sendiri tidak membuktikan bahwa lengkungan tersebut meningkatkan kemampuan prediksi pada data baru.
+    \item Kernel Gaussian RBF (panel ketiga) menghasilkan batas margin yang melengkung dan beberapa kontur lokal. Judul gambar mencatat $\text{SV}=317/800$, sedangkan naskah sebelumnya menyebut $307/800$. Selisih jumlah tersebut belum diverifikasi melalui eksekusi ulang sel visualisasi. Model dua dimensi ini menggunakan $\gamma=\texttt{"scale"}$, bukan $\texttt{"scale*0.4"}$ seperti salah satu konfigurasi eksperimen utama. Oleh karena itu, gambar tidak menjadi bukti pemilihan $\gamma$ pada model akhir.
+\end{enumerate}
 
 \subsection{Bayesian Network Graf Antarfitur}
 
