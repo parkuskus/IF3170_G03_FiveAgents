@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2640" height="800" viewBox="0 0 2640 800">
+<rect width="100%" height="100%" fill="white"/>
+<path d="M 240.0 580 L 120 670" stroke="#64748b" fill="none"/>
+<path d="M 240.0 580 L 360 670" stroke="#64748b" fill="none"/>
+<path d="M 720.0 580 L 600 670" stroke="#64748b" fill="none"/>
+<path d="M 720.0 580 L 840 670" stroke="#64748b" fill="none"/>
+<path d="M 480.0 420 L 240.0 510" stroke="#64748b" fill="none"/>
+<path d="M 480.0 420 L 720.0 510" stroke="#64748b" fill="none"/>
+<path d="M 1200.0 580 L 1080 670" stroke="#64748b" fill="none"/>
+<path d="M 1200.0 580 L 1320 670" stroke="#64748b" fill="none"/>
+<path d="M 1380.0 420 L 1200.0 510" stroke="#64748b" fill="none"/>
+<path d="M 1380.0 420 L 1560 510" stroke="#64748b" fill="none"/>
+<path d="M 930.0 260 L 480.0 350" stroke="#64748b" fill="none"/>
+<path d="M 930.0 260 L 1380.0 350" stroke="#64748b" fill="none"/>
+<path d="M 1920.0 420 L 1800 510" stroke="#64748b" fill="none"/>
+<path d="M 1920.0 420 L 2040 510" stroke="#64748b" fill="none"/>
+<path d="M 2400.0 420 L 2280 510" stroke="#64748b" fill="none"/>
+<path d="M 2400.0 420 L 2520 510" stroke="#64748b" fill="none"/>
+<path d="M 2160.0 260 L 1920.0 350" stroke="#64748b" fill="none"/>
+<path d="M 2160.0 260 L 2400.0 350" stroke="#64748b" fill="none"/>
+<path d="M 1545.0 100 L 930.0 190" stroke="#64748b" fill="none"/>
+<path d="M 1545.0 100 L 2160.0 190" stroke="#64748b" fill="none"/>
+<rect x="15" y="670" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="120" y="688" text-anchor="middle" font-size="11" fill="#334155">≤ 92.5<title>≤ 92.5</title></text>
+<text x="120" y="710" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="120" y="729" text-anchor="middle" font-size="11">n=4743 | p1=0.104</text>
+<rect x="255" y="670" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="360" y="688" text-anchor="middle" font-size="11" fill="#334155">&gt; 92.5<title>&gt; 92.5</title></text>
+<text x="360" y="710" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="360" y="729" text-anchor="middle" font-size="11">n=1108 | p1=0.363</text>
+<rect x="135.0" y="510" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="240.0" y="528" text-anchor="middle" font-size="11" fill="#334155">in {Airline, +3}<title>in {Airline, Complimentary, Corporate, Offline Agent}</title></text>
+<text x="240.0" y="550" text-anchor="middle" font-size="12" font-weight="bold">days_before_arrival</text>
+<text x="240.0" y="569" text-anchor="middle" font-size="11">n=5851 | p1=0.153</text>
+<rect x="495" y="670" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="600" y="688" text-anchor="middle" font-size="11" fill="#334155">≤ 16.5<title>≤ 16.5</title></text>
+<text x="600" y="710" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="600" y="729" text-anchor="middle" font-size="11">n=1727 | p1=0.254</text>
+<rect x="735" y="670" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="840" y="688" text-anchor="middle" font-size="11" fill="#334155">&gt; 16.5<title>&gt; 16.5</title></text>
+<text x="840" y="710" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="840" y="729" text-anchor="middle" font-size="11">n=4115 | p1=0.616</text>
+<rect x="615.0" y="510" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="720.0" y="528" text-anchor="middle" font-size="11" fill="#334155">not in {Airline, +3}<title>not in {Airline, Complimentary, Corporate, Offline Agent}</title></text>
+<text x="720.0" y="550" text-anchor="middle" font-size="12" font-weight="bold">days_before_arrival</text>
+<text x="720.0" y="569" text-anchor="middle" font-size="11">n=5842 | p1=0.509</text>
+<rect x="375.0" y="350" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="480.0" y="368" text-anchor="middle" font-size="11" fill="#334155">≤ 0.5<title>≤ 0.5</title></text>
+<text x="480.0" y="390" text-anchor="middle" font-size="12" font-weight="bold">booking_channel</text>
+<text x="480.0" y="409" text-anchor="middle" font-size="11">n=11693 | p1=0.331</text>
+<rect x="975" y="670" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="1080" y="688" text-anchor="middle" font-size="11" fill="#334155">in {Complimentary, +2}<title>in {Complimentary, Corporate, Offline Agent}</title></text>
+<text x="1080" y="710" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="1080" y="729" text-anchor="middle" font-size="11">n=1127 | p1=0.035</text>
+<rect x="1215" y="670" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="1320" y="688" text-anchor="middle" font-size="11" fill="#334155">not in {Complimentary, +2}<title>not in {Complimentary, Corporate, Offline Agent}</title></text>
+<text x="1320" y="710" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="1320" y="729" text-anchor="middle" font-size="11">n=5814 | p1=0.179</text>
+<rect x="1095.0" y="510" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="1200.0" y="528" text-anchor="middle" font-size="11" fill="#334155">≤ 1.5<title>≤ 1.5</title></text>
+<text x="1200.0" y="550" text-anchor="middle" font-size="12" font-weight="bold">booking_channel</text>
+<text x="1200.0" y="569" text-anchor="middle" font-size="11">n=6941 | p1=0.156</text>
+<rect x="1455" y="510" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="1560" y="528" text-anchor="middle" font-size="11" fill="#334155">&gt; 1.5<title>&gt; 1.5</title></text>
+<text x="1560" y="550" text-anchor="middle" font-size="12" font-weight="bold">leaf</text>
+<text x="1560" y="569" text-anchor="middle" font-size="11">n=3287 | p1=0.048</text>
+<rect x="1275.0" y="350" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="1380.0" y="368" text-anchor="middle" font-size="11" fill="#334155">&gt; 0.5<title>&gt; 0.5</title></text>
+<text x="1380.0" y="390" text-anchor="middle" font-size="12" font-weight="bold">special_requests</text>
+<text x="1380.0" y="409" text-anchor="middle" font-size="11">n=10228 | p1=0.121</text>
+<rect x="825.0" y="190" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="930.0" y="208" text-anchor="middle" font-size="11" fill="#334155">≤ 147.5<title>≤ 147.5</title></text>
+<text x="930.0" y="230" text-anchor="middle" font-size="12" font-weight="bold">special_requests</text>
+<text x="930.0" y="249" text-anchor="middle" font-size="11">n=21921 | p1=0.233</text>
+<rect x="1695" y="510" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="1800" y="528" text-anchor="middle" font-size="11" fill="#334155">≤ 0.5<title>≤ 0.5</title></text>
+<text x="1800" y="550" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="1800" y="569" text-anchor="middle" font-size="11">n=2360 | p1=0.653</text>
+<rect x="1935" y="510" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="2040" y="528" text-anchor="middle" font-size="11" fill="#334155">&gt; 0.5<title>&gt; 0.5</title></text>
+<text x="2040" y="550" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="2040" y="569" text-anchor="middle" font-size="11">n=997 | p1=0.367</text>
+<rect x="1815.0" y="350" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="1920.0" y="368" text-anchor="middle" font-size="11" fill="#334155">≤ 1.676e+06<title>≤ 1.676e+06</title></text>
+<text x="1920.0" y="390" text-anchor="middle" font-size="12" font-weight="bold">special_requests</text>
+<text x="1920.0" y="409" text-anchor="middle" font-size="11">n=3357 | p1=0.568</text>
+<rect x="2175" y="510" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="2280" y="528" text-anchor="middle" font-size="11" fill="#334155">≤ 11.5<title>≤ 11.5</title></text>
+<text x="2280" y="550" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="2280" y="569" text-anchor="middle" font-size="11">n=2020 | p1=0.956</text>
+<rect x="2415" y="510" width="210" height="70" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+<text x="2520" y="528" text-anchor="middle" font-size="11" fill="#334155">&gt; 11.5<title>&gt; 11.5</title></text>
+<text x="2520" y="550" text-anchor="middle" font-size="12" font-weight="bold">cut (more splits)</text>
+<text x="2520" y="569" text-anchor="middle" font-size="11">n=75 | p1=0.253</text>
+<rect x="2295.0" y="350" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="2400.0" y="368" text-anchor="middle" font-size="11" fill="#334155">&gt; 1.676e+06<title>&gt; 1.676e+06</title></text>
+<text x="2400.0" y="390" text-anchor="middle" font-size="12" font-weight="bold">arrival_month</text>
+<text x="2400.0" y="409" text-anchor="middle" font-size="11">n=2095 | p1=0.931</text>
+<rect x="2055.0" y="190" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="2160.0" y="208" text-anchor="middle" font-size="11" fill="#334155">&gt; 147.5<title>&gt; 147.5</title></text>
+<text x="2160.0" y="230" text-anchor="middle" font-size="12" font-weight="bold">nightly_rate_idr</text>
+<text x="2160.0" y="249" text-anchor="middle" font-size="11">n=5452 | p1=0.708</text>
+<rect x="1440.0" y="30" width="210" height="70" rx="7" fill="#dbeafe" stroke="#64748b"/>
+<text x="1545.0" y="48" text-anchor="middle" font-size="11" fill="#334155">root<title>root</title></text>
+<text x="1545.0" y="70" text-anchor="middle" font-size="12" font-weight="bold">days_before_arrival</text>
+<text x="1545.0" y="89" text-anchor="middle" font-size="11">n=27373 | p1=0.328</text>
+</svg>

@@ -3,7 +3,149 @@
 \section{DTL}
 \subsection{Hasil Pengujian}
 
+Evaluasi DTL menggunakan pemisahan stratifikasi yang sama untuk semua varian, yaitu 21.898 baris latih dan 5.475 baris \textit{holdout} dengan \textit{seed} 42. Data \textit{holdout} memuat 3.681 contoh kelas 0 dan 1.794 contoh kelas 1. Statistik imputasi dan kategori dipelajari dari bagian latih saja. Ukuran utama ialah Macro F1, yaitu rata-rata F1 kedua kelas agar kinerja pada kelas yang lebih sedikit tidak tertutup oleh kelas mayoritas. Konfigurasi Pipeline DTL Final dipilih melalui 5-fold \textit{stratified cross-validation} pada bagian latih, kemudian diukur sekali pada \textit{holdout}. Tabel~\ref{tab-dtl-growth} dan Tabel~\ref{tab-dtl-pruning} merupakan ablasi diagnostik pada \textit{holdout} yang sama. Nilai-nilai dalam tabel tersebut tidak digunakan untuk memilih ulang model.
+
+\begin{table}[H]
+\centering
+\caption{Ablasi batas pertumbuhan CART tanpa \textit{pruning} pada ambang 0,50}
+\label{tab-dtl-growth}
+\begin{tabular}{rrrrrr}
+\hline
+\texttt{max\_depth} & \texttt{min\_split} & \texttt{min\_leaf} & Daun & Macro F1 & FN \\
+\hline
+8 & 80 & 40 & 73 & 0,8127 & 496 \\
+12 & 40 & 20 & 161 & 0,8324 & 469 \\
+Tanpa batas & 2 & 1 & 2.986 & 0,8048 & 450 \\
+\hline
+\end{tabular}
+\end{table}
+
+Tabel~\ref{tab-dtl-growth} membandingkan konfigurasi pertumbuhan dengan \texttt{alpha=0} dan ambang 0,50. Konfigurasi tanpa batas kedalaman membentuk 2.986 daun, jauh lebih banyak daripada konfigurasi kedalaman 12, tetapi Macro F1-nya lebih rendah. Jumlah \textit{false negative} (FN) turun menjadi 450, sementara \textit{false positive} (FP) naik menjadi 498 dari 322 pada kedalaman 12. Karena Macro F1 memperhitungkan kedua kelas, penurunan FN tersebut tidak cukup untuk menutupi peningkatan FP. Ketiga baris mengubah batas pertumbuhan secara bersamaan. Tabel~\ref{tab-dtl-onefactor} memisahkan perubahan setiap parameter terhadap konfigurasi final.
+
+\begin{table}[H]
+\centering
+\caption{Ablasi satu parameter pertumbuhan dengan \texttt{alpha=0,0001} dan ambang 0,62}
+\label{tab-dtl-onefactor}
+\begin{tabular}{lrrr}
+\hline
+Perubahan dari konfigurasi final & Daun & Macro F1 & FN \\
+\hline
+Final, tanpa batas / 2 / 1 & 268 & 0,8371 & 489 \\
+\texttt{max\_depth=8} & 77 & 0,8080 & 626 \\
+\texttt{max\_depth=12} & 186 & 0,8394 & 482 \\
+\texttt{min\_samples\_split=40} & 161 & 0,8381 & 485 \\
+\texttt{min\_samples\_split=80} & 123 & 0,8223 & 573 \\
+\texttt{min\_samples\_leaf=20} & 120 & 0,8293 & 522 \\
+\texttt{min\_samples\_leaf=40} & 79 & 0,8098 & 615 \\
+\hline
+\end{tabular}
+\end{table}
+
+Dengan \textit{pruning} dan ambang tetap, pembatasan kedalaman ke 8 menurunkan Macro F1 dari 0,8371 menjadi 0,8080 dan menambah FN dari 489 menjadi 626. Batas minimum 80 sampel untuk pemisahan atau 40 sampel per daun juga menurunkan skor. Kedalaman 12 dan batas pemisahan 40 justru sedikit melampaui konfigurasi final pada \textit{holdout}. Perbedaan tersebut bersifat diagnostik, bukan alasan mengganti pilihan CV. Seluruh nilai pada Tabel~\ref{tab-dtl-onefactor} mempertahankan dua parameter pertumbuhan lain, \texttt{alpha}, dan ambang.
+
+\begin{table}[H]
+\centering
+\caption{Ablasi \textit{post-pruning} dan ambang pada pertumbuhan CART tanpa batas}
+\label{tab-dtl-pruning}
+\begin{tabular}{rrrrrr}
+\hline
+\texttt{alpha} & Ambang & Daun & Macro F1 & FP & FN \\
+\hline
+0 & 0,62 & 2.986 & 0,8048 & 498 & 450 \\
+0,0001 & 0,50 & 268 & 0,8371 & 276 & 485 \\
+0,0001 & 0,62 & 268 & 0,8371 & 271 & 489 \\
+0,0001 & 0,70 & 268 & 0,8259 & 221 & 573 \\
+0,001 & 0,62 & 20 & 0,7933 & 322 & 628 \\
+0,01 & 0,62 & 5 & 0,6862 & 284 & 1.035 \\
+\hline
+\end{tabular}
+\end{table}
+
+Pada konfigurasi pertumbuhan yang dipilih CV, \textit{post-pruning} dengan \texttt{alpha=0,0001} menurunkan jumlah daun dari 2.986 menjadi 268. Pada ambang 0,62, Macro F1 naik dari 0,8048 menjadi 0,8371, sedangkan FP turun dari 498 menjadi 271 meski FN naik dari 450 menjadi 489. \textit{Pruning} yang lebih kuat tidak selalu membantu. Pada \texttt{alpha=0,001}, jumlah daun tinggal 20 dan Macro F1 turun menjadi 0,7933. Ambang yang lebih tinggi pada pohon 268 daun juga menekan FP tetapi menambah FN. Skor 0,837135 pada ambang 0,50 sedikit melampaui 0,837108 pada ambang 0,62 di \textit{holdout}. Selisih tersebut tidak membenarkan perubahan ambang final karena pemilihan berdasarkan \textit{holdout} akan membocorkan informasi evaluasi ke proses optimasi. Konfigurasi final tetap memakai ambang 0,62 hasil CV.
+
+\begin{table}[H]
+\centering
+\caption{Ablasi pendekatan optimasi CART pada \textit{holdout} bersama}
+\label{tab-dtl-method}
+\begin{tabular}{lrrrr}
+\hline
+Pendekatan & Macro F1 & F1 kelas 1 & FP & FN \\
+\hline
+Baseline, kedalaman 8 & 0,8127 & 0,7447 & 394 & 496 \\
+Pertumbuhan tanpa batas, ambang 0,62 & 0,8048 & 0,7393 & 498 & 450 \\
+\textit{Post-pruning} dan ambang CV, Pipeline DTL Final & 0,8371 & 0,7745 & 271 & 489 \\
+Pembobotan kelas dari CV & 0,8127 & 0,7447 & 394 & 496 \\
+\hline
+\end{tabular}
+\end{table}
+
+Tabel~\ref{tab-dtl-method} membedakan pembatasan pertumbuhan, \textit{post-pruning} beserta penyesuaian ambang, dan pembobotan kelas. Pada eksperimen pembobotan kelas, kandidat bobot positif 1,0 sampai 3,0 dibandingkan melalui 5-fold CV dengan ambang prediksi bawaan. CV memilih bobot 1,0 dengan Macro F1 0,8068, sehingga hasil \textit{holdout} sama dengan baseline tanpa bobot. Metode ini tidak memberi bukti bahwa pembobotan kelas memperbaiki model pada rentang yang diuji. Sebaliknya, kombinasi \textit{post-pruning} dan ambang CV meningkatkan Macro F1 sebesar 0,0244 dibandingkan baseline. Baris-baris tersebut tidak mengisolasi satu intervensi tunggal karena konfigurasi pohon dan kebijakan prediksi juga berbeda. Rincian 108 kombinasi diagnostik tersedia di \path{output/experiments/decision_tree/ablation_holdout.csv}, sedangkan kandidat CV pembobotan kelas berada di \path{output/experiments/decision_tree/CART_class_weight/class_weight.csv}.
+
 \subsection{Komparasi dengan \texttt{scikit-learn}}
+
+Perbandingan pada Tabel~\ref{tab-dtl-sklearn} menggunakan pemisahan, target, dan imputasi yang sama. Ketiga baseline \textit{from scratch} dan pembanding memakai \texttt{max\_depth=8}, \texttt{min\_samples\_split=80}, serta \texttt{min\_samples\_leaf=40}. Model \textit{from scratch} menerima kategori nominal secara langsung, sedangkan \texttt{DecisionTreeClassifier} menerima kategori hasil \textit{one-hot encoding}. Oleh sebab itu, pembandingan ini menilai kinerja dua pipeline, bukan kesetaraan implementasi yang identik.
+
+\begin{table}[H]
+\centering
+\caption{Macro F1 \textit{holdout} implementasi DTL dan pembanding scikit-learn}
+\label{tab-dtl-sklearn}
+\begin{tabular}{lrrr}
+\hline
+Varian & \textit{From scratch} & scikit-learn & Selisih pembanding \\
+\hline
+ID3 / \textit{entropy} & 0,8086 & 0,8128 & +0,0042 \\
+C4.5 / \textit{entropy} & 0,7030 & 0,8116 & +0,1085 \\
+CART / Gini & 0,8127 & 0,8049 & $-$0,0078 \\
+\hline
+\end{tabular}
+\end{table}
+
+Selisih terbesar terdapat pada baris C4.5. Implementasi \textit{from scratch} memakai \textit{gain ratio} dan membagi fitur kategorikal menjadi beberapa cabang, sedangkan pembanding menggunakan \textit{entropy} dengan \texttt{ccp\_alpha=0,001}, bukan algoritma C4.5. Pada \textit{holdout}, C4.5 \textit{from scratch} menghasilkan \textit{recall} kelas 1 sebesar 0,3930 dengan 1.089 FN. Angka ini menjelaskan rendahnya Macro F1 0,7030 tanpa menyimpulkan bahwa C4.5 pada umumnya lebih buruk daripada \textit{entropy}. Pada ID3, \textit{information gain} untuk kategori multi-cabang juga berbeda dari pemisahan biner fitur \textit{one-hot} pada pembanding. CART sama-sama memakai Gini, tetapi representasi kategori dan ruang kandidat \textit{split} tetap berbeda.
+
+Implementasi \textit{from scratch} membatasi kandidat ambang numerik hingga 64 titik per fitur di setiap \textit{node}. Untuk fitur kategorikal CART dengan lebih dari 10 nilai, pencarian dibatasi pada pemisahan satu kategori melawan sisanya. Pilihan ini, bersama aturan penanganan kategori yang tidak terlihat saat pelatihan dan pemutusan seri antar-\textit{split}, dapat menghasilkan struktur pohon yang berbeda dari scikit-learn walaupun batas kedalaman dan ukuran daun sama. Selisih skor pada Tabel~\ref{tab-dtl-sklearn} tidak dapat dikaitkan dengan satu penyebab saja. Pipeline DTL Final tidak dibandingkan langsung sebagai pasangan identik dengan baris pembanding tersebut karena kedalaman, \textit{pruning}, dan ambangnya dipilih dengan protokol berbeda.
+
+\subsection{\textit{Error Analysis}}
+
+Analisis kesalahan menggunakan prediksi Pipeline DTL Final pada 5.475 baris \textit{holdout} yang sama dengan Tabel~\ref{tab-dtl-pruning}. Model dilatih hanya pada bagian latih dengan konfigurasi hasil CV, yaitu pertumbuhan tanpa batas kedalaman, \texttt{alpha=0,0001}, dan ambang 0,62. Dari 1.794 pembatalan aktual, 489 diprediksi tidak batal sebagai \textit{false negative} (FN). Dari 3.681 pemesanan yang tidak batal, 271 diprediksi batal sebagai \textit{false positive} (FP). Kesalahan lebih banyak berupa pembatalan yang luput daripada alarm pembatalan palsu. Untuk membandingkan kelompok yang ukurannya berbeda, tingkat luput dihitung sebagai FN dibagi jumlah pembatalan aktual dalam kelompok, sedangkan tingkat alarm palsu dihitung sebagai FP dibagi jumlah pemesanan yang tidak batal dalam kelompok.
+
+\begin{table}[H]
+\centering
+\caption{Kesalahan Pipeline DTL Final menurut waktu sebelum kedatangan pada \textit{holdout}}
+\label{tab-dtl-error-days}
+\begin{tabular}{lrrrrr}
+\hline
+\texttt{days\_before\_arrival} & Jumlah & FP & FN & Luput (\%) & Salah total (\%) \\
+\hline
+0--30 hari & 1.820 & 49 & 164 & 63,1 & 11,7 \\
+31--147 hari & 2.348 & 178 & 237 & 35,0 & 17,7 \\
+148 hari ke atas & 1.093 & 34 & 50 & 6,4 & 7,7 \\
+Kosong & 214 & 10 & 38 & 53,5 & 22,4 \\
+\hline
+\end{tabular}
+\end{table}
+
+Tabel~\ref{tab-dtl-error-days} memperlihatkan dua pola yang berbeda. Kelompok 31--147 hari memuat kesalahan terbanyak, yaitu 415 dari 760 kesalahan seluruh \textit{holdout}, serta tingkat kesalahan total 17,7\%. Namun, risiko luput tertinggi di antara kelompok waktu yang terisi muncul pada pemesanan 0--30 hari. Model melewatkan 164 dari 260 pembatalan pada kelompok tersebut atau 63,1\%. Kelompok dengan waktu kosong mencatat tingkat kesalahan total 22,4\% pada 214 baris, tetapi ukurannya lebih kecil sehingga angka ini perlu dibaca hati-hati. Pembagian kelompok menggunakan nilai fitur asli. Batas 147,5 dipakai untuk memisahkan kelompok 31--147 dan 148 hari ke atas, bukan sebagai hasil optimasi baru dari \textit{holdout}.
+
+\begin{table}[H]
+\centering
+\caption{Kesalahan Pipeline DTL Final menurut kanal pemesanan pada \textit{holdout}}
+\label{tab-dtl-error-channel}
+\begin{tabular}{lrrrrr}
+\hline
+\textit{Booking channel} & Jumlah & FP & FN & Luput (\%) & Salah total (\%) \\
+\hline
+Online Travel Agent & 3.475 & 225 & 377 & 29,7 & 17,3 \\
+Offline Agent & 1.603 & 42 & 82 & 17,0 & 7,7 \\
+Corporate & 324 & 2 & 25 & 71,4 & 8,3 \\
+\hline
+\end{tabular}
+\end{table}
+
+Kanal \textit{Online Travel Agent} menyumbang 602 dari 760 kesalahan, termasuk 377 FN dan 225 FP. Tingkat kesalahan 17,3\% juga lebih tinggi daripada 7,7\% pada \textit{Offline Agent}, sehingga perbedaannya tidak hanya berasal dari jumlah pemesanan yang lebih besar. Pada kanal \textit{Corporate}, 25 dari 35 pembatalan aktual terlewat. Tingkat luput 71,4\% tersebut berasal dari kelas positif yang kecil dan tidak cukup untuk menyimpulkan penyebabnya. Dua kanal lain yang masing-masing memuat kurang dari 100 baris tidak ditampilkan pada Tabel~\ref{tab-dtl-error-channel}, tetapi tetap dihitung dalam total kesalahan. Menurut jumlah \textit{special requests}, model juga melewatkan 214 dari 402 pembatalan pada pemesanan dengan satu permintaan, dibandingkan 211 dari 1.129 pembatalan pada pemesanan tanpa permintaan. Perbandingan ini bersifat deskriptif karena waktu kedatangan, kanal, dan permintaan dapat saling berkaitan.
+
+Temuan tersebut mengarahkan optimasi berikutnya pada FN yang tinggi, khususnya untuk pemesanan dekat hari kedatangan dan dengan satu permintaan khusus. Kandidat yang layak diuji ialah penanda nilai kosong untuk \texttt{days\_before\_arrival}, pemeriksaan kalibrasi peluang daun sebelum penyesuaian ambang, serta perluasan kandidat \textit{split} agar model dapat menangkap pola pada kanal pemesanan. Setiap perubahan perlu dibandingkan melalui CV pada bagian latih dengan metrik per kelompok, Macro F1, dan biaya FP terhadap FN yang dinyatakan terlebih dahulu. \textit{Holdout} yang sudah dipakai untuk menganalisis kesalahan tidak boleh digunakan lagi untuk memilih konfigurasi baru. Angka per kelompok dan penyebutnya tersedia di \path{output/experiments/decision_tree/error_slices.csv}.
+
+Satu pemisahan \textit{holdout} belum menunjukkan kestabilan skor terhadap perubahan sampel. Skor CV terbaik juga berasal dari kumpulan kandidat yang dinilai pada \textit{fold} yang sama untuk pemilihan parameter, sehingga tidak dapat diperlakukan sebagai estimasi independen kinerja model terpilih. Pengujian lanjutan dapat memakai evaluasi berulang atau \textit{nested cross-validation} pada data pengembangan, lalu melaporkan sebaran Macro F1 dan tingkat kesalahan per kelompok. Jika konfigurasi diperbarui setelah membaca analisis \textit{holdout} ini, penilaian akhir memerlukan data uji baru yang belum dipakai untuk memilih atau meninjau model.
 
 \section{\textit{Logistic Regression}}
 
@@ -26,6 +168,26 @@
 \section{Hasil Spesifikasi Bonus}
 
 \subsection{Bonus DTL Gambar Percabangan Tree}
+
+Gambar~\ref{fig-bonus-dtl-topn} memperlihatkan keputusan awal CART final setelah dilatih ulang pada seluruh \texttt{train.csv}. Setiap cabang menyatakan syarat yang harus dipenuhi pemesanan untuk mencapai \textit{node} berikutnya. Nilai \texttt{n} menunjukkan banyaknya data latih pada \textit{node}, sedangkan \texttt{p1} menunjukkan proporsi pembatalan pada kelompok tersebut. Cara menghasilkan gambar dijelaskan pada Subbagian~\ref{sec-bonus-dtl-implementasi}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{public/04-hasil-eksperimen-dan-analisis/dtl_tree_top_10.png}
+    \caption{Sepuluh \textit{split} pertama pada CART final setelah \textit{post-pruning}}
+    \label{fig-bonus-dtl-topn}
+\end{figure}
+
+Pemisahan paling awal pada Gambar~\ref{fig-bonus-dtl-topn} didasarkan pada \texttt{days\_before\_arrival}. Dari 27.373 data latih dengan proporsi pembatalan 0,328, kelompok dengan waktu kedatangan paling banyak 147,5 hari memiliki proporsi 0,233 pada 21.921 baris. Kelompok di atas batas tersebut mencatat proporsi 0,708 pada 5.452 baris. Pohon kemudian membedakan kedua kelompok dengan fitur yang berbeda. Di cabang waktu kedatangan yang lebih dekat, pemisahan \texttt{special\_requests} membedakan pemesanan tanpa permintaan khusus dengan proporsi pembatalan 0,331 dari pemesanan yang memiliki permintaan khusus dengan proporsi 0,121. Di cabang waktu kedatangan yang lebih jauh, pemisahan \texttt{nightly\_rate\_idr} membedakan kelompok dengan proporsi 0,568 dan 0,931. Angka-angka ini menggambarkan komposisi data latih dalam masing-masing cabang, bukan pengaruh sebab akibat dari fitur terhadap pembatalan.
+
+Gambar~\ref{fig-bonus-dtl-top3} memperbesar tiga pemisahan awal agar syarat setiap cabang dapat dibaca. Sebagai contoh, pemesanan dengan \texttt{days\_before\_arrival} di atas 147,5 hari dan \texttt{nightly\_rate\_idr} di atas sekitar 1,676 juta rupiah masuk ke kelompok berisi 2.095 baris dengan \texttt{p1} sebesar 0,931. Sebaliknya, pada cabang paling banyak 147,5 hari, pemesanan dengan \texttt{special\_requests} di atas 0,5 masuk ke kelompok berisi 10.228 baris dengan \texttt{p1} sebesar 0,121. Kedua kelompok masih memiliki percabangan lanjutan, sebagaimana ditandai oleh \texttt{cut (more splits)}. Dengan demikian, proporsi pada kotak tersebut tidak boleh dibaca sebagai probabilitas akhir setiap pemesanan atau sebagai hasil evaluasi pada \textit{holdout}. Gambar hanya memperlihatkan sebagian aturan model, sedangkan kinerja prediksinya dinilai melalui metrik pada bagian hasil pengujian.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{public/04-hasil-eksperimen-dan-analisis/dtl_tree_top_3.png}
+    \caption{Tiga \textit{split} pertama dari CART final sebagai tampilan detail}
+    \label{fig-bonus-dtl-top3}
+\end{figure}
 
 \subsection{Bonus Logistic Regression Garis Kontur Fungsi \textit{Loss}}
 

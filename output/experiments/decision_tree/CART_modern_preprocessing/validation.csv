@@ -1,0 +1,2 @@
+model,validation_macro_f1,class_0_precision,class_0_recall,class_0_f1,class_1_precision,class_1_recall,class_1_f1,tn,fp,fn,tp,seconds,configuration
+CART modern preprocessing,0.8321368788405598,0.8812483469981487,0.9051888073892964,0.8930581613508443,0.793978748524203,0.749721293199554,0.7712155963302753,3332,349,449,1345,26.675880399998277,"alpha=0.0001, threshold=0.32, leaves=308"

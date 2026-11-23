@@ -4,7 +4,114 @@
 
 \subsection{DTL}
 
+Implementasi \textit{Decision Tree Learning} (DTL) digunakan untuk \textit{binary classification} pada target \texttt{is\_canceled}. Tiga varian, yaitu ID3, C4.5, dan CART, dibangun \textit{from scratch} melalui kelas \texttt{BaselineTree} yang memakai struktur \textit{node} dan mekanisme \textit{tree growth} yang sama. Perbedaan ketiganya terletak pada \textit{split criterion} dan bentuk \textit{branch} untuk \textit{categorical feature}. \texttt{DecisionTreeClassifier} dari \textit{scikit-learn} hanya digunakan sebagai pembanding dan tidak menjadi bagian dari implementasi \textit{from scratch}. Rumus ketiga \textit{split criterion} telah dijelaskan pada bab landasan teori, sehingga bagian ini berfokus pada penerapannya dalam kode.
+
+Setiap \textit{node} menyimpan \textit{majority class}, \textit{positive-class proportion}, \textit{sample count}, dan \textit{total weight}. \textit{Node} yang melakukan \textit{split} juga menyimpan nama \textit{feature}, jenis \textit{split}, \textit{threshold} atau \textit{category set}, serta \textit{child branches}. Struktur tersebut memungkinkan satu bentuk \textit{node} dipakai untuk \textit{numeric split} maupun \textit{categorical split}. \textit{Positive-class proportion} yang disimpan berasal dari \textit{class frequency} pada \textit{node}, bukan \textit{calibrated probability}. Kode~\ref{lst-dtl-node} memperlihatkan representasinya.
+
+\begin{lstlisting}[caption={Struktur node decision tree from scratch},label={lst-dtl-node}]
+@dataclass
+class Node:
+    prediction: int
+    positive_probability: float
+    n_samples: int
+    weight_sum: float
+    feature: str | None = None
+    kind: str | None = None
+    threshold: float | None = None
+    categories: frozenset | None = None
+    branches: dict | None = None
+\end{lstlisting}
+
+\textit{Decision tree} tumbuh secara rekursif dari \textit{root node}. Pada setiap \textit{node}, \texttt{\_grow} menghitung \textit{majority class}, memeriksa \texttt{max\_depth}, \texttt{min\_samples\_split}, dan \textit{class purity}, lalu memilih kandidat \textit{split} dengan skor terbesar. Kandidat yang tidak menurunkan \textit{impurity} atau menghasilkan \textit{leaf} yang lebih kecil daripada \texttt{min\_samples\_leaf} ditolak. Untuk \textit{numeric feature}, kandidat \textit{threshold} berada di antara dua nilai berbeda yang berurutan setelah \textit{sorting}. Jumlah kandidat \textit{threshold} dibatasi paling banyak 64 agar pencarian tidak membesar mengikuti banyaknya nilai unik.
+
+ID3 menggunakan \textit{information gain} yang dihitung dari \textit{entropy}. C4.5 menghitung \textit{gain ratio} setelah menyaring kandidat yang \textit{information gain}-nya lebih kecil daripada rata-rata \textit{best gain} per \textit{feature}. CART menilai \textit{Gini decrease}. Pemilihan fungsi \textit{impurity} dan \textit{candidate filtering} khusus C4.5 terlihat pada Kode~\ref{lst-dtl-impuritas} dan Kode~\ref{lst-dtl-kriteria}. Langkah tersebut mencegah pemilihan \textit{split} dengan \textit{gain ratio} tinggi, tetapi \textit{information gain} sangat kecil.
+
+\begin{lstlisting}[caption={Pemilihan fungsi impurity pada decision tree},label={lst-dtl-impuritas}]
+def _impurity(self, zero, one):
+    return _gini(zero, one) if self.criterion == "gini" else _entropy(zero, one)
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Penyaringan kandidat dan pemilihan split pada C4.5},label={lst-dtl-kriteria}]
+if self.criterion == "gain_ratio" and candidates:
+    best_gain_by_feature = {}
+    for _, gain, col, *_ in candidates:
+        best_gain_by_feature[col] = max(best_gain_by_feature.get(col, 0.0), gain)
+    mean_gain = np.mean(list(best_gain_by_feature.values()))
+    candidates = [candidate for candidate in candidates if candidate[1] >= mean_gain]
+best = max(candidates, key=lambda candidate: candidate[0], default=None)
+\end{lstlisting}
+
+\textit{Categorical feature} diproses tanpa \textit{ordinal encoding}. ID3 dan C4.5 membuat \textit{multiway split} dengan satu \textit{branch} untuk setiap kategori pada \textit{node}, sedangkan CART menguji \textit{binary partition} kategori. Untuk paling banyak sepuluh kategori, CART menguji \textit{binary partition} unik. Jika kategorinya lebih banyak, kandidat dibatasi menjadi \textit{one-versus-rest} agar jumlah kombinasi tidak meningkat secara eksponensial. Saat prediksi, \textit{decision tree} mengikuti \textit{branch} sesuai nilai \textit{feature} hingga mencapai \textit{leaf}. Jika \textit{branch} pada \textit{multiway split} tidak tersedia, \textit{majority class} pada \textit{node} terakhir digunakan. Perlakuan \textit{unseen category} dijelaskan bersama preprocessing pada optimasi pipeline.
+
 \subsubsection{Optimasi \textit{Pipeline} DTL}
+
+Pipeline DTL final memakai CART \textit{from scratch} dengan pemilihan \textit{growth configuration}, \textit{post-pruning}, dan \textit{prediction threshold} berdasarkan \textit{Macro F1}. Alurnya dimulai dengan \textit{train-validation split}, dilanjutkan preprocessing dan \textit{hyperparameter tuning} pada \textit{training split}, evaluasi pada \textit{holdout}, kemudian \textit{refit} menggunakan seluruh \textit{training data} untuk menghasilkan submission. Varian ID3 dan C4.5 tetap menjadi baseline, tetapi skor \textit{holdout} ketiga varian tidak digunakan untuk memilih ulang pipeline final.
+
+Data \texttt{train.csv} dibagi dengan seed 42 melalui \textit{stratified split}, dengan sekitar 20\% sampel dari setiap kelas masuk ke \textit{holdout}. Kolom \texttt{id} dan target \texttt{is\_canceled} dikeluarkan dari \textit{feature set}. Hanya \textit{training split} yang digunakan untuk \textit{hyperparameter tuning}. Dengan demikian, label pada \textit{holdout} tetap terpisah dari pemilihan \textit{growth configuration} dan hanya dipakai untuk menilai model terpilih.
+
+Preprocessor di-\textit{fit} sesuai \textit{training split} yang sedang digunakan. \textit{Missing values} pada \textit{numeric feature} ditangani dengan \textit{median imputation} dari \textit{training split}, atau \texttt{0.0} bila seluruh kolom kosong. \textit{Missing category} diberi marker \texttt{\_\_MISSING\_\_}, sementara \textit{unseen category} saat \textit{transform} diberi marker \texttt{\_\_UNKNOWN\_\_}. Kategori tetap berupa teks karena \textit{decision tree from scratch} memprosesnya secara langsung. Hanya pembanding \textit{scikit-learn} yang memerlukan \textit{one-hot encoding}. Kode~\ref{lst-dtl-preprocessing} menunjukkan bahwa median dan \textit{category set} disimpan saat \texttt{fit}, kemudian digunakan kembali tanpa mempelajari statistik dari \textit{validation data}. Pipeline CART tidak menambahkan \textit{feature engineering}, \textit{scaling}, \textit{dimensionality reduction}, atau \textit{class weighting}. \textit{Class weighting} diuji pada eksperimen DTL lain, bukan pada pipeline final ini.
+
+\begin{lstlisting}[caption={Median imputation dan categorical handling pada preprocessing DTL},label={lst-dtl-preprocessing}]
+def fit(self, X):
+    self.columns = list(X.columns)
+    self.numeric = [c for c in self.columns if pd.api.types.is_numeric_dtype(X[c])]
+    self.categorical = [c for c in self.columns if c not in self.numeric]
+    self.numeric_fill = {
+        c: X[c].median() if X[c].notna().any() else 0.0
+        for c in self.numeric
+    }
+    self.categories = {
+        c: set(X[c].dropna().astype(str).unique()) for c in self.categorical
+    }
+    return self
+
+def transform(self, X):
+    result = X.reindex(columns=self.columns).copy()
+    for col in self.numeric:
+        result[col] = pd.to_numeric(result[col], errors="coerce").fillna(self.numeric_fill[col])
+    for col in self.categorical:
+        values = result[col].astype("string")
+        values = values.fillna(MISSING)
+        result[col] = values.where(values.isin(self.categories[col]) | values.eq(MISSING), UNKNOWN).astype(object)
+    return result
+\end{lstlisting}
+
+Baseline ketiga varian dibatasi dengan \texttt{max\_depth=8}, \texttt{min\_samples\_split=80}, dan \texttt{min\_samples\_leaf=40}. Pada optimasi CART, \textit{growth configuration} ini dibandingkan dengan \texttt{(None, 2, 1)} dan \texttt{(12, 40, 20)}, yang masing-masing menyatakan \textit{max depth}, \textit{minimum samples to split}, dan \textit{minimum samples per leaf}. \textit{Decision tree} yang lebih besar memberi lebih banyak kandidat \textit{split}, tetapi juga meningkatkan \textit{tree complexity}. Karena itu, \textit{growth configuration} dan nilai \texttt{alpha} dipilih melalui \textit{cross-validation}, bukan dengan menganggap \textit{tree} terbesar selalu lebih baik.
+
+\textit{Hyperparameter tuning} memakai \textit{5-fold stratified cross-validation} pada \textit{training split} dengan seed 42. Pada setiap fold, preprocessor di-\textit{fit} ulang hanya pada \textit{fold training data}, sebagaimana ditunjukkan pada Kode~\ref{lst-dtl-fold}. Setelah CART dilatih untuk setiap \textit{growth configuration}, runner menguji sebelas nilai \texttt{alpha} dan \textit{probability threshold} dari 0,20 sampai 0,80 dengan langkah 0,02. Prediksi setiap sampel berasal dari fold tempat sampel tersebut menjadi \textit{fold validation data}. Kumpulan prediksi \textit{out-of-fold} digunakan untuk menghitung \textit{Macro F1} setiap kandidat. Jika skornya sama, kandidat dengan \textit{mean leaf count} lebih kecil diutamakan, kemudian nilai \texttt{alpha} dan \textit{threshold} yang lebih besar. Hasil tersimpan memilih \texttt{max\_depth=None}, \texttt{min\_samples\_split=2}, \texttt{min\_samples\_leaf=1}, \texttt{alpha=0.0001}, dan \textit{threshold} \texttt{0.62}. Pembahasan skor akhir ditempatkan pada bab hasil eksperimen.
+
+\begin{lstlisting}[caption={Preprocessing yang di-fit ulang pada setiap fold},label={lst-dtl-fold}]
+def prepare_fold(X_train, X_valid):
+    preprocessor = SharedPreprocessor().fit(X_train)
+    return preprocessor.transform(X_train), preprocessor.transform(X_valid)
+\end{lstlisting}
+
+\textit{Post-pruning} dilakukan setelah CART selesai tumbuh. Pada setiap \textit{node}, \textit{weighted misclassification error} jika seluruh \textit{subtree} diganti satu \textit{leaf} dibandingkan dengan jumlah \textit{leaf error} pada \textit{subtree}. Kedua pilihan dikenai \textit{complexity penalty} sebesar \texttt{alpha} untuk setiap \textit{leaf} yang dipertahankan. Bila biaya satu \textit{leaf} tidak lebih besar, \textit{child branches} dihapus pada salinan \textit{tree}. Aturan pada Kode~\ref{lst-dtl-pruning} adalah implementasi \textit{cost-complexity post-pruning} pada \textit{tree from scratch}, bukan pemanggilan \texttt{ccp\_alpha} milik \textit{scikit-learn}. Setelah \textit{pruning}, label kelas 1 diberikan ketika proporsi positif pada \textit{leaf} mencapai atau melampaui \textit{threshold} terpilih.
+
+\begin{lstlisting}[caption={Keputusan cost-complexity post-pruning pada node CART},label={lst-dtl-pruning}]
+if leaf_error + alpha <= subtree_error + alpha * leaves:
+    node.feature = node.kind = node.threshold = node.categories = None
+    node.branches = None
+    return leaf_error, 1
+return subtree_error, leaves
+\end{lstlisting}
+
+Setelah \textit{growth configuration}, \texttt{alpha}, dan \textit{threshold} dipilih, preprocessor serta CART di-\textit{fit} pada seluruh \textit{training split} dari pemisahan awal. \textit{Tree} menjalani \textit{post-pruning}, lalu dievaluasi pada \textit{holdout} yang tidak digunakan saat \textit{hyperparameter tuning}. Untuk submission, preprocessor di-\textit{fit} ulang pada seluruh \texttt{train.csv}, diikuti CART dengan konfigurasi yang sama. Prediksi \texttt{test.csv} dibuat setelah \textit{post-pruning} dan penerapan \textit{threshold}. Sebelum disimpan, urutan \texttt{id} pada \textit{sample submission} diperiksa terhadap \texttt{test.csv} agar prediksi tidak dipasangkan dengan pemesanan yang salah. Kode~\ref{lst-dtl-refit} memperlihatkan tahap \textit{refit} pada seluruh \textit{training data}, bukan pemakaian ulang model yang hanya di-\textit{fit} pada \textit{training split}.
+
+\begin{lstlisting}[caption={Refit CART dan prediksi test data},label={lst-dtl-refit}]
+prep = SharedPreprocessor().fit(train_df[features])
+X_train = prep.transform(train_df[features])
+X_test = prep.transform(test_df[features])
+model = BaselineTree(criterion=VARIANTS[name][0], **{
+    key: configuration[key]
+    for key in ("max_depth", "min_samples_split", "min_samples_leaf")
+}).fit(X_train, y_train)
+if tuning:
+    if "alpha" in tuning:
+        model = model.pruned(tuning["alpha"])
+    probabilities = model.predict_proba(X_test)[:, 1]
+    prediction = threshold_predictions(probabilities, tuning["threshold"])
+\end{lstlisting}
 
 \subsection{\textit{Logistic Regression}}
 
@@ -21,6 +128,33 @@
 \section{Implementasi Spesifikasi Bonus}
 
 \subsection{Bonus DTL Gambar Percabangan Tree}
+\label{sec-bonus-dtl-implementasi}
+
+Bonus DTL meminta gambar percabangan \textit{tree} dengan parameter untuk membatasi jumlah percabangan yang ditampilkan. Notebook final menyediakan \texttt{CFG.TREE\_TOP\_N} untuk menentukan banyaknya \textit{split} yang dibuka dari \textit{root}. Nilai 10 digunakan untuk gambar utama. Pembatasan ini hanya memengaruhi visualisasi, bukan pelatihan atau prediksi model. Kode~\ref{lst-bonus-dtl-topn} menunjukkan parameter tersebut.
+
+\begin{lstlisting}[caption={Parameter jumlah split pada gambar DTL},label={lst-bonus-dtl-topn}]
+TREE_TOP_N = 10  # Number of split nodes to show, breadth-first from the root.
+\end{lstlisting}
+
+Gambar dibuat dari CART \textit{from scratch} setelah \textit{refit} pada seluruh data latih dan \textit{post-pruning}. Pada notebook, \texttt{final\_model} menyimpan pasangan \textit{tree} dan \textit{threshold} prediksi. Renderer membaca \texttt{final\_model[0].root} sehingga \textit{threshold} prediksi tidak mengubah struktur yang digambar.
+
+Pemilihan \textit{split} dimulai dari \textit{root} dan dilanjutkan secara \textit{breadth-first}. Setiap \textit{node} yang dibuka memasukkan cabang anak ke antrean sampai jumlah \textit{split} mencapai batas. Kode~\ref{lst-bonus-dtl-bfs} memperlihatkan bagian pemilihan tersebut. \textit{Node} yang masih memiliki cabang tetapi tidak ikut dibuka diberi label \texttt{cut (more splits)}, sedangkan \textit{leaf} model tetap diberi label \texttt{leaf}. Keduanya dibedakan agar batas visualisasi tidak dianggap sebagai akhir percabangan model.
+
+\begin{lstlisting}[caption={Pemilihan split secara breadth-first},label={lst-bonus-dtl-bfs}]
+queue, shown = [root], set()
+for node in queue:
+    if node.branches is None or len(shown) >= top_n:
+        continue
+    shown.add(id(node))
+    queue.extend(node.branches.values())
+\end{lstlisting}
+
+Renderer menempatkan \textit{node} sesuai kedalaman dan menghubungkan garis cabang langsung ke kotak anak. Aturan cabang numerik atau keanggotaan kategori ditulis pada baris pertama kotak anak. Kategori yang panjang diringkas menjadi kategori pertama dan jumlah kategori lainnya, sementara aturan lengkap disimpan sebagai informasi saat penunjuk diarahkan ke label pada SVG. Setiap kotak juga memuat jumlah sampel \texttt{n} dan proporsi kelas positif \texttt{p1}. Nilai \texttt{p1} berasal dari frekuensi pada \textit{node}, bukan probabilitas yang telah dikalibrasi. Kode~\ref{lst-bonus-dtl-save} menunjukkan penyimpanan gambar dari \textit{tree} final.
+
+\begin{lstlisting}[caption={Penyimpanan gambar dari CART final},label={lst-bonus-dtl-save}]
+tree_image = CFG.MODEL_DIR / f'tree_top_{CFG.TREE_TOP_N}.svg'
+render_tree_svg(final_model[0].root, CFG.TREE_TOP_N, tree_image)
+\end{lstlisting}
 
 \subsection{Bonus Logistic Regression Garis Kontur Fungsi \textit{Loss}}
 
