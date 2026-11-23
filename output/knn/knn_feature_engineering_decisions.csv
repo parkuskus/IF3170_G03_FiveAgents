@@ -1,0 +1,5 @@
+feature_set,baseline_f1,feature_f1,delta,keputusan,alasan
+total_guests,0.841689,0.839597,-0.002092,TOLAK,kenaikan di bawah 0.005
+total_nights,0.841689,0.839443,-0.002246,TOLAK,kenaikan di bawah 0.005
+total_stay_value,0.841689,0.832653,-0.009036,TOLAK,kenaikan di bawah 0.005
+requests_per_guest,0.841689,0.838443,-0.003246,TOLAK,kenaikan di bawah 0.005

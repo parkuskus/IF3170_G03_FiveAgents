@@ -1,4 +1,77 @@
-\section{Metodologi Penelitian}
+\section{k-NN}
+\subsection{Hasil Pengujian}
+
+Evaluasi menggunakan pemisahan terstratifikasi dengan \textit{seed} 42 yang terdiri atas 21.898 baris data latih dan 5.475 baris validasi. Validasi memuat 3.681 reservasi tidak batal dan 1.794 reservasi batal. Macro F1 digunakan sebagai metrik utama agar kinerja pada kedua kelas diperhitungkan secara seimbang. Prapemroses hanya di-\textit{fit} pada data latih, sedangkan label validasi digunakan untuk menghitung metrik kandidat. Pemilihan konfigurasi mengikuti batas adopsi kenaikan Macro F1 sebesar $0{,}005$.
+
+\begin{table}[H]
+    \centering
+    \caption{Hasil pemilihan parameter k-NN pada data validasi}
+    \label{tab-knn-selection}
+    \begin{tabular}{lrrrrl}
+        \hline
+        Tahap                 & Skor acuan & Skor kandidat & Selisih  & Kandidat terpilih & Keputusan \\
+        \hline
+        Grid $k$              & 0,831783   & 0,831783      & 0,000000 & $k=21$            & Pertahankan \\
+        Ambang                & 0,831783   & 0,831783      & 0,000000 & 0,50              & Pertahankan \\
+        Metrik jarak          & 0,831783   & 0,841689      & 0,009906 & Manhattan         & Adopsi \\
+        Bobot kategorikal     & 0,841689   & 0,843450      & 0,001761 & 0,5               & Pertahankan 1,0 \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Tabel~\ref{tab-knn-selection} menunjukkan bahwa perubahan metrik jarak menjadi Manhattan merupakan satu-satunya tahap yang melampaui batas adopsi. Grid $k$ menguji sepuluh nilai dari 13 hingga 41, tetapi tidak menemukan kenaikan atas konfigurasi awal $k=21$. Pencarian ambang dari 0,30 hingga 0,70 dengan langkah 0,01 juga mempertahankan ambang 0,50. Bobot kategorikal 0,5 menghasilkan skor kandidat tertinggi sebesar 0,843450, tetapi kenaikannya terhadap konfigurasi berjalan hanya 0,001761. Sesuai aturan seleksi, bobot final tetap 1,0.
+
+Pengujian pada metrik Manhattan kembali menempatkan $k=21$ sebagai kandidat terbaik dengan Macro F1 0,841689. Kandidat berikutnya, $k=19$ dan $k=15$, masing-masing mencatat 0,840566 dan 0,840106. Eksperimen fitur turunan juga tidak meningkatkan skor dasar. Di antara fitur yang diuji, \texttt{total\_guests} menghasilkan Macro F1 0,839597, \texttt{total\_nights} 0,839443, \texttt{requests\_per\_guest} 0,838443, dan \texttt{total\_stay\_value} 0,832653. Hasil ini mendukung keputusan untuk mempertahankan fitur awal, tetapi tidak membuktikan bahwa rekayasa fitur lain tidak bermanfaat.
+
+Konfigurasi final menggunakan $k=21$, metrik Manhattan, pembobotan berdasarkan jarak, bobot kategorikal 1,0, dan ambang 0,50. Hasil validasi beserta matriks kebingungan disajikan pada Tabel~\ref{tab-knn-final}.
+
+\begin{table}[H]
+    \centering
+    \caption{Kinerja konfigurasi final k-NN pada data validasi}
+    \label{tab-knn-final}
+    \begin{tabular}{lrrrr}
+        \hline
+        Kelas                & Support & Precision & Recall & F1     \\
+        \hline
+        Tidak batal (0)      & 3.681   & 0,8817    & 0,9212 & 0,9010 \\
+        Batal (1)            & 1.794   & 0,8220    & 0,7464 & 0,7824 \\
+        \hline
+        \multicolumn{4}{l}{Macro F1} & 0,841689 \\
+        \hline
+        \multicolumn{5}{c}{TN = 3.391,\quad FP = 290,\quad FN = 455,\quad TP = 1.339} \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Macro F1 validasi sebesar 0,841689 merangkum perbedaan kinerja kedua kelas. Recall kelas batal sebesar 0,7464 lebih rendah daripada recall kelas tidak batal sebesar 0,9212. Matriks kebingungan mencatat 455 pembatalan yang tidak terdeteksi dan 290 reservasi tidak batal yang keliru ditandai sebagai batal. Dengan demikian, model lebih sering melewatkan pembatalan daripada menghasilkan alarm palsu pada pemisahan ini.
+
+Setelah konfigurasi dipilih, model dan prapemroses di-\textit{fit} ulang pada seluruh 27.373 baris data latih. Submission memuat 6.844 baris sesuai urutan \texttt{id} pada \texttt{test.csv}; prediksinya terdiri atas 4.837 kelas 0 dan 2.007 kelas 1. Jumlah prediksi pada data uji tanpa label ini merupakan keluaran submission, bukan ukuran kinerja. Karena rangkaian eksperimen menggunakan satu holdout untuk membandingkan kandidat, skor validasi perlu dibaca sebagai hasil pada split tersebut dan bukan estimasi independen atas generalisasi.
+
+\subsection{Komparasi dengan \texttt{scikit-learn}}
+
+Implementasi dari nol dibandingkan dengan \texttt{KNeighborsClassifier} menggunakan split, fitur hasil prapemrosesan, jumlah tetangga, bobot jarak, metrik Manhattan, dan ambang yang sama. Tabel~\ref{tab-knn-sklearn} merangkum hasil kedua implementasi pada validasi.
+
+\begin{table}[H]
+    \centering
+    \caption{Perbandingan k-NN dari nol dan scikit-learn pada data validasi}
+    \label{tab-knn-sklearn}
+    \begin{tabular}{lrr}
+        \hline
+        Implementasi       & Macro F1 & Beda prediksi \\
+        \hline
+        k-NN dari nol        & 0,841689 & 0                                \\
+        \texttt{scikit-learn} & 0,841689 & 0                               \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Kedua implementasi menghasilkan Macro F1 dan prediksi kelas yang sama pada validasi. Kesesuaian tersebut menunjukkan bahwa implementasi k-NN dari nol mereproduksi hasil pembanding pada konfigurasi dan representasi yang diuji. Hasil ini terbatas pada satu split dan tidak menyatakan bahwa kedua implementasi selalu identik pada data atau aturan pemutusan seri yang berbeda.
+
+\subsection{\textit{Error Analysis}}
+
+Analisis kesalahan konfigurasi final menggunakan 5.475 baris validasi yang sama. Sebanyak 4.730 prediksi benar, sementara 745 prediksi salah terdiri atas 455 \textit{false negative} dan 290 \textit{false positive}. Dari 1.794 reservasi yang benar-benar batal, 25,36\% tidak terdeteksi. Dari 3.681 reservasi yang tidak batal, 7,88\% keliru diprediksi batal. Perbedaan ini selaras dengan recall kelas batal yang lebih rendah pada Tabel~\ref{tab-knn-final}.
+
+Jumlah FN yang lebih besar daripada FP menunjukkan bahwa konfigurasi utama lebih banyak melewatkan reservasi batal pada split ini. Namun, angka agregat tersebut tidak menjelaskan karakteristik reservasi yang salah diklasifikasikan dan tidak cukup untuk menyimpulkan penyebab kesalahan. Analisis berdasarkan kanal pemesanan atau waktu sebelum kedatangan memerlukan tabulasi per kelompok dengan penyebut yang sesuai untuk masing-masing kelas. Selain itu, hasil analisis pada holdout yang sama tidak digunakan untuk mengubah konfigurasi final. Eksperimen biaya kesalahan dengan asumsi biaya FP dua kali FN disajikan terpisah pada bagian bonus.
 
 \section{DTL}
 \subsection{Hasil Pengujian}
@@ -6,77 +79,77 @@
 Evaluasi DTL menggunakan pemisahan stratifikasi yang sama untuk semua varian, yaitu 21.898 baris latih dan 5.475 baris \textit{holdout} dengan \textit{seed} 42. Data \textit{holdout} memuat 3.681 contoh kelas 0 dan 1.794 contoh kelas 1. Statistik imputasi dan kategori dipelajari dari bagian latih saja. Ukuran utama ialah Macro F1, yaitu rata-rata F1 kedua kelas agar kinerja pada kelas yang lebih sedikit tidak tertutup oleh kelas mayoritas. Konfigurasi Pipeline DTL Final dipilih melalui 5-fold \textit{stratified cross-validation} pada bagian latih, kemudian diukur sekali pada \textit{holdout}. Tabel~\ref{tab-dtl-growth} dan Tabel~\ref{tab-dtl-pruning} merupakan ablasi diagnostik pada \textit{holdout} yang sama. Nilai-nilai dalam tabel tersebut tidak digunakan untuk memilih ulang model.
 
 \begin{table}[H]
-\centering
-\caption{Ablasi batas pertumbuhan CART tanpa \textit{pruning} pada ambang 0,50}
-\label{tab-dtl-growth}
-\begin{tabular}{rrrrrr}
-\hline
-\texttt{max\_depth} & \texttt{min\_split} & \texttt{min\_leaf} & Daun & Macro F1 & FN \\
-\hline
-8 & 80 & 40 & 73 & 0,8127 & 496 \\
-12 & 40 & 20 & 161 & 0,8324 & 469 \\
-Tanpa batas & 2 & 1 & 2.986 & 0,8048 & 450 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Ablasi batas pertumbuhan CART tanpa \textit{pruning} pada ambang 0,50}
+    \label{tab-dtl-growth}
+    \begin{tabular}{rrrrrr}
+        \hline
+        \texttt{max\_depth} & \texttt{min\_split} & \texttt{min\_leaf} & Daun  & Macro F1 & FN  \\
+        \hline
+        8                   & 80                  & 40                 & 73    & 0,8127   & 496 \\
+        12                  & 40                  & 20                 & 161   & 0,8324   & 469 \\
+        Tanpa batas         & 2                   & 1                  & 2.986 & 0,8048   & 450 \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Tabel~\ref{tab-dtl-growth} membandingkan konfigurasi pertumbuhan dengan \texttt{alpha=0} dan ambang 0,50. Konfigurasi tanpa batas kedalaman membentuk 2.986 daun, jauh lebih banyak daripada konfigurasi kedalaman 12, tetapi Macro F1-nya lebih rendah. Jumlah \textit{false negative} (FN) turun menjadi 450, sementara \textit{false positive} (FP) naik menjadi 498 dari 322 pada kedalaman 12. Karena Macro F1 memperhitungkan kedua kelas, penurunan FN tersebut tidak cukup untuk menutupi peningkatan FP. Ketiga baris mengubah batas pertumbuhan secara bersamaan. Tabel~\ref{tab-dtl-onefactor} memisahkan perubahan setiap parameter terhadap konfigurasi final.
 
 \begin{table}[H]
-\centering
-\caption{Ablasi satu parameter pertumbuhan dengan \texttt{alpha=0,0001} dan ambang 0,62}
-\label{tab-dtl-onefactor}
-\begin{tabular}{lrrr}
-\hline
-Perubahan dari konfigurasi final & Daun & Macro F1 & FN \\
-\hline
-Final, tanpa batas / 2 / 1 & 268 & 0,8371 & 489 \\
-\texttt{max\_depth=8} & 77 & 0,8080 & 626 \\
-\texttt{max\_depth=12} & 186 & 0,8394 & 482 \\
-\texttt{min\_samples\_split=40} & 161 & 0,8381 & 485 \\
-\texttt{min\_samples\_split=80} & 123 & 0,8223 & 573 \\
-\texttt{min\_samples\_leaf=20} & 120 & 0,8293 & 522 \\
-\texttt{min\_samples\_leaf=40} & 79 & 0,8098 & 615 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Ablasi satu parameter pertumbuhan dengan \texttt{alpha=0,0001} dan ambang 0,62}
+    \label{tab-dtl-onefactor}
+    \begin{tabular}{lrrr}
+        \hline
+        Perubahan dari konfigurasi final & Daun & Macro F1 & FN  \\
+        \hline
+        Final, tanpa batas / 2 / 1       & 268  & 0,8371   & 489 \\
+        \texttt{max\_depth=8}            & 77   & 0,8080   & 626 \\
+        \texttt{max\_depth=12}           & 186  & 0,8394   & 482 \\
+        \texttt{min\_samples\_split=40}  & 161  & 0,8381   & 485 \\
+        \texttt{min\_samples\_split=80}  & 123  & 0,8223   & 573 \\
+        \texttt{min\_samples\_leaf=20}   & 120  & 0,8293   & 522 \\
+        \texttt{min\_samples\_leaf=40}   & 79   & 0,8098   & 615 \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Dengan \textit{pruning} dan ambang tetap, pembatasan kedalaman ke 8 menurunkan Macro F1 dari 0,8371 menjadi 0,8080 dan menambah FN dari 489 menjadi 626. Batas minimum 80 sampel untuk pemisahan atau 40 sampel per daun juga menurunkan skor. Kedalaman 12 dan batas pemisahan 40 justru sedikit melampaui konfigurasi final pada \textit{holdout}. Perbedaan tersebut bersifat diagnostik, bukan alasan mengganti pilihan CV. Seluruh nilai pada Tabel~\ref{tab-dtl-onefactor} mempertahankan dua parameter pertumbuhan lain, \texttt{alpha}, dan ambang.
 
 \begin{table}[H]
-\centering
-\caption{Ablasi \textit{post-pruning} dan ambang pada pertumbuhan CART tanpa batas}
-\label{tab-dtl-pruning}
-\begin{tabular}{rrrrrr}
-\hline
-\texttt{alpha} & Ambang & Daun & Macro F1 & FP & FN \\
-\hline
-0 & 0,62 & 2.986 & 0,8048 & 498 & 450 \\
-0,0001 & 0,50 & 268 & 0,8371 & 276 & 485 \\
-0,0001 & 0,62 & 268 & 0,8371 & 271 & 489 \\
-0,0001 & 0,70 & 268 & 0,8259 & 221 & 573 \\
-0,001 & 0,62 & 20 & 0,7933 & 322 & 628 \\
-0,01 & 0,62 & 5 & 0,6862 & 284 & 1.035 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Ablasi \textit{post-pruning} dan ambang pada pertumbuhan CART tanpa batas}
+    \label{tab-dtl-pruning}
+    \begin{tabular}{rrrrrr}
+        \hline
+        \texttt{alpha} & Ambang & Daun  & Macro F1 & FP  & FN    \\
+        \hline
+        0              & 0,62   & 2.986 & 0,8048   & 498 & 450   \\
+        0,0001         & 0,50   & 268   & 0,8371   & 276 & 485   \\
+        0,0001         & 0,62   & 268   & 0,8371   & 271 & 489   \\
+        0,0001         & 0,70   & 268   & 0,8259   & 221 & 573   \\
+        0,001          & 0,62   & 20    & 0,7933   & 322 & 628   \\
+        0,01           & 0,62   & 5     & 0,6862   & 284 & 1.035 \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Pada konfigurasi pertumbuhan yang dipilih CV, \textit{post-pruning} dengan \texttt{alpha=0,0001} menurunkan jumlah daun dari 2.986 menjadi 268. Pada ambang 0,62, Macro F1 naik dari 0,8048 menjadi 0,8371, sedangkan FP turun dari 498 menjadi 271 meski FN naik dari 450 menjadi 489. \textit{Pruning} yang lebih kuat tidak selalu membantu. Pada \texttt{alpha=0,001}, jumlah daun tinggal 20 dan Macro F1 turun menjadi 0,7933. Ambang yang lebih tinggi pada pohon 268 daun juga menekan FP tetapi menambah FN. Skor 0,837135 pada ambang 0,50 sedikit melampaui 0,837108 pada ambang 0,62 di \textit{holdout}. Selisih tersebut tidak membenarkan perubahan ambang final karena pemilihan berdasarkan \textit{holdout} akan membocorkan informasi evaluasi ke proses optimasi. Konfigurasi final tetap memakai ambang 0,62 hasil CV.
 
 \begin{table}[H]
-\centering
-\caption{Ablasi pendekatan optimasi CART pada \textit{holdout} bersama}
-\label{tab-dtl-method}
-\begin{tabular}{lrrrr}
-\hline
-Pendekatan & Macro F1 & F1 kelas 1 & FP & FN \\
-\hline
-Baseline, kedalaman 8 & 0,8127 & 0,7447 & 394 & 496 \\
-Pertumbuhan tanpa batas, ambang 0,62 & 0,8048 & 0,7393 & 498 & 450 \\
-\textit{Post-pruning} dan ambang CV, Pipeline DTL Final & 0,8371 & 0,7745 & 271 & 489 \\
-Pembobotan kelas dari CV & 0,8127 & 0,7447 & 394 & 496 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Ablasi pendekatan optimasi CART pada \textit{holdout} bersama}
+    \label{tab-dtl-method}
+    \begin{tabular}{lrrrr}
+        \hline
+        Pendekatan                                              & Macro F1 & F1 kelas 1 & FP  & FN  \\
+        \hline
+        Baseline, kedalaman 8                                   & 0,8127   & 0,7447     & 394 & 496 \\
+        Pertumbuhan tanpa batas, ambang 0,62                    & 0,8048   & 0,7393     & 498 & 450 \\
+        \textit{Post-pruning} dan ambang CV, Pipeline DTL Final & 0,8371   & 0,7745     & 271 & 489 \\
+        Pembobotan kelas dari CV                                & 0,8127   & 0,7447     & 394 & 496 \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Tabel~\ref{tab-dtl-method} membedakan pembatasan pertumbuhan, \textit{post-pruning} beserta penyesuaian ambang, dan pembobotan kelas. Pada eksperimen pembobotan kelas, kandidat bobot positif 1,0 sampai 3,0 dibandingkan melalui 5-fold CV dengan ambang prediksi bawaan. CV memilih bobot 1,0 dengan Macro F1 0,8068, sehingga hasil \textit{holdout} sama dengan baseline tanpa bobot. Metode ini tidak memberi bukti bahwa pembobotan kelas memperbaiki model pada rentang yang diuji. Sebaliknya, kombinasi \textit{post-pruning} dan ambang CV meningkatkan Macro F1 sebesar 0,0244 dibandingkan baseline. Baris-baris tersebut tidak mengisolasi satu intervensi tunggal karena konfigurasi pohon dan kebijakan prediksi juga berbeda. Rincian 108 kombinasi diagnostik tersedia di \path{output/experiments/decision_tree/ablation_holdout.csv}, sedangkan kandidat CV pembobotan kelas berada di \path{output/experiments/decision_tree/CART_class_weight/class_weight.csv}.
@@ -86,18 +159,18 @@ Tabel~\ref{tab-dtl-method} membedakan pembatasan pertumbuhan, \textit{post-pruni
 Perbandingan pada Tabel~\ref{tab-dtl-sklearn} menggunakan pemisahan, target, dan imputasi yang sama. Ketiga baseline \textit{from scratch} dan pembanding memakai \texttt{max\_depth=8}, \texttt{min\_samples\_split=80}, serta \texttt{min\_samples\_leaf=40}. Model \textit{from scratch} menerima kategori nominal secara langsung, sedangkan \texttt{DecisionTreeClassifier} menerima kategori hasil \textit{one-hot encoding}. Oleh sebab itu, pembandingan ini menilai kinerja dua pipeline, bukan kesetaraan implementasi yang identik.
 
 \begin{table}[H]
-\centering
-\caption{Macro F1 \textit{holdout} implementasi DTL dan pembanding scikit-learn}
-\label{tab-dtl-sklearn}
-\begin{tabular}{lrrr}
-\hline
-Varian & \textit{From scratch} & scikit-learn & Selisih pembanding \\
-\hline
-ID3 / \textit{entropy} & 0,8086 & 0,8128 & +0,0042 \\
-C4.5 / \textit{entropy} & 0,7030 & 0,8116 & +0,1085 \\
-CART / Gini & 0,8127 & 0,8049 & $-$0,0078 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Macro F1 \textit{holdout} implementasi DTL dan pembanding scikit-learn}
+    \label{tab-dtl-sklearn}
+    \begin{tabular}{lrrr}
+        \hline
+        Varian                  & \textit{From scratch} & scikit-learn & Selisih pembanding \\
+        \hline
+        ID3 / \textit{entropy}  & 0,8086                & 0,8128       & +0,0042            \\
+        C4.5 / \textit{entropy} & 0,7030                & 0,8116       & +0,1085            \\
+        CART / Gini             & 0,8127                & 0,8049       & $-$0,0078          \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Selisih terbesar terdapat pada baris C4.5. Implementasi \textit{from scratch} memakai \textit{gain ratio} dan membagi fitur kategorikal menjadi beberapa cabang, sedangkan pembanding menggunakan \textit{entropy} dengan \texttt{ccp\_alpha=0,001}, bukan algoritma C4.5. Pada \textit{holdout}, C4.5 \textit{from scratch} menghasilkan \textit{recall} kelas 1 sebesar 0,3930 dengan 1.089 FN. Angka ini menjelaskan rendahnya Macro F1 0,7030 tanpa menyimpulkan bahwa C4.5 pada umumnya lebih buruk daripada \textit{entropy}. Pada ID3, \textit{information gain} untuk kategori multi-cabang juga berbeda dari pemisahan biner fitur \textit{one-hot} pada pembanding. CART sama-sama memakai Gini, tetapi representasi kategori dan ruang kandidat \textit{split} tetap berbeda.
@@ -109,36 +182,36 @@ Implementasi \textit{from scratch} membatasi kandidat ambang numerik hingga 64 t
 Analisis kesalahan menggunakan prediksi Pipeline DTL Final pada 5.475 baris \textit{holdout} yang sama dengan Tabel~\ref{tab-dtl-pruning}. Model dilatih hanya pada bagian latih dengan konfigurasi hasil CV, yaitu pertumbuhan tanpa batas kedalaman, \texttt{alpha=0,0001}, dan ambang 0,62. Dari 1.794 pembatalan aktual, 489 diprediksi tidak batal sebagai \textit{false negative} (FN). Dari 3.681 pemesanan yang tidak batal, 271 diprediksi batal sebagai \textit{false positive} (FP). Kesalahan lebih banyak berupa pembatalan yang luput daripada alarm pembatalan palsu. Untuk membandingkan kelompok yang ukurannya berbeda, tingkat luput dihitung sebagai FN dibagi jumlah pembatalan aktual dalam kelompok, sedangkan tingkat alarm palsu dihitung sebagai FP dibagi jumlah pemesanan yang tidak batal dalam kelompok.
 
 \begin{table}[H]
-\centering
-\caption{Kesalahan Pipeline DTL Final menurut waktu sebelum kedatangan pada \textit{holdout}}
-\label{tab-dtl-error-days}
-\begin{tabular}{lrrrrr}
-\hline
-\texttt{days\_before\_arrival} & Jumlah & FP & FN & Luput (\%) & Salah total (\%) \\
-\hline
-0--30 hari & 1.820 & 49 & 164 & 63,1 & 11,7 \\
-31--147 hari & 2.348 & 178 & 237 & 35,0 & 17,7 \\
-148 hari ke atas & 1.093 & 34 & 50 & 6,4 & 7,7 \\
-Kosong & 214 & 10 & 38 & 53,5 & 22,4 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Kesalahan Pipeline DTL Final menurut waktu sebelum kedatangan pada \textit{holdout}}
+    \label{tab-dtl-error-days}
+    \begin{tabular}{lrrrrr}
+        \hline
+        \texttt{days\_before\_arrival} & Jumlah & FP  & FN  & Luput (\%) & Salah total (\%) \\
+        \hline
+        0--30 hari                     & 1.820  & 49  & 164 & 63,1       & 11,7             \\
+        31--147 hari                   & 2.348  & 178 & 237 & 35,0       & 17,7             \\
+        148 hari ke atas               & 1.093  & 34  & 50  & 6,4        & 7,7              \\
+        Kosong                         & 214    & 10  & 38  & 53,5       & 22,4             \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Tabel~\ref{tab-dtl-error-days} memperlihatkan dua pola yang berbeda. Kelompok 31--147 hari memuat kesalahan terbanyak, yaitu 415 dari 760 kesalahan seluruh \textit{holdout}, serta tingkat kesalahan total 17,7\%. Namun, risiko luput tertinggi di antara kelompok waktu yang terisi muncul pada pemesanan 0--30 hari. Model melewatkan 164 dari 260 pembatalan pada kelompok tersebut atau 63,1\%. Kelompok dengan waktu kosong mencatat tingkat kesalahan total 22,4\% pada 214 baris, tetapi ukurannya lebih kecil sehingga angka ini perlu dibaca hati-hati. Pembagian kelompok menggunakan nilai fitur asli. Batas 147,5 dipakai untuk memisahkan kelompok 31--147 dan 148 hari ke atas, bukan sebagai hasil optimasi baru dari \textit{holdout}.
 
 \begin{table}[H]
-\centering
-\caption{Kesalahan Pipeline DTL Final menurut kanal pemesanan pada \textit{holdout}}
-\label{tab-dtl-error-channel}
-\begin{tabular}{lrrrrr}
-\hline
-\textit{Booking channel} & Jumlah & FP & FN & Luput (\%) & Salah total (\%) \\
-\hline
-Online Travel Agent & 3.475 & 225 & 377 & 29,7 & 17,3 \\
-Offline Agent & 1.603 & 42 & 82 & 17,0 & 7,7 \\
-Corporate & 324 & 2 & 25 & 71,4 & 8,3 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Kesalahan Pipeline DTL Final menurut kanal pemesanan pada \textit{holdout}}
+    \label{tab-dtl-error-channel}
+    \begin{tabular}{lrrrrr}
+        \hline
+        \textit{Booking channel} & Jumlah & FP  & FN  & Luput (\%) & Salah total (\%) \\
+        \hline
+        Online Travel Agent      & 3.475  & 225 & 377 & 29,7       & 17,3             \\
+        Offline Agent            & 1.603  & 42  & 82  & 17,0       & 7,7              \\
+        Corporate                & 324    & 2   & 25  & 71,4       & 8,3              \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Kanal \textit{Online Travel Agent} menyumbang 602 dari 760 kesalahan, termasuk 377 FN dan 225 FP. Tingkat kesalahan 17,3\% juga lebih tinggi daripada 7,7\% pada \textit{Offline Agent}, sehingga perbedaannya tidak hanya berasal dari jumlah pemesanan yang lebih besar. Pada kanal \textit{Corporate}, 25 dari 35 pembatalan aktual terlewat. Tingkat luput 71,4\% tersebut berasal dari kelas positif yang kecil dan tidak cukup untuk menyimpulkan penyebabnya. Dua kanal lain yang masing-masing memuat kurang dari 100 baris tidak ditampilkan pada Tabel~\ref{tab-dtl-error-channel}, tetapi tetap dihitung dalam total kesalahan. Menurut jumlah \textit{special requests}, model juga melewatkan 214 dari 402 pembatalan pada pemesanan dengan satu permintaan, dibandingkan 211 dari 1.129 pembatalan pada pemesanan tanpa permintaan. Perbandingan ini bersifat deskriptif karena waktu kedatangan, kanal, dan permintaan dapat saling berkaitan.
@@ -162,15 +235,15 @@ Tabel~\ref{tab:lr-results} menyajikan hasil ketiga regularisasi. Precision dan r
     \label{tab:lr-results}
     \begin{tabular}{llrrrrr}
         \toprule
-        Pipeline & Regularisasi & Macro F1 & Precision 1 & Recall 1 & FP & FN \\
+        Pipeline & Regularisasi & Macro F1              & Precision 1  & Recall 1     & FP  & FN  \\
         \midrule
-        Dasar & L1 & $0{,}737909$ & $0{,}771405$ & $0{,}517280$ & 275 & 866 \\
-        Dasar & L2 & $0{,}742172$ & $0{,}756863$ & $0{,}537904$ & 310 & 829 \\
-        Dasar & Elastic Net & $0{,}740543$ & $0{,}765992$ & $0{,}527313$ & 289 & 848 \\
+        Dasar    & L1           & $0{,}737909$          & $0{,}771405$ & $0{,}517280$ & 275 & 866 \\
+        Dasar    & L2           & $0{,}742172$          & $0{,}756863$ & $0{,}537904$ & 310 & 829 \\
+        Dasar    & Elastic Net  & $0{,}740543$          & $0{,}765992$ & $0{,}527313$ & 289 & 848 \\
         \midrule
-        Akhir & L1 & $0{,}808161$ & $0{,}761707$ & $0{,}716276$ & 402 & 509 \\
-        Akhir & L2 & $0{,}808338$ & $0{,}760780$ & $0{,}717949$ & 405 & 506 \\
-        Akhir & Elastic Net & $\mathbf{0{,}808577}$ & $0{,}760921$ & $0{,}718506$ & 405 & 505 \\
+        Akhir    & L1           & $0{,}808161$          & $0{,}761707$ & $0{,}716276$ & 402 & 509 \\
+        Akhir    & L2           & $0{,}808338$          & $0{,}760780$ & $0{,}717949$ & 405 & 506 \\
+        Akhir    & Elastic Net  & $\mathbf{0{,}808577}$ & $0{,}760921$ & $0{,}718506$ & 405 & 505 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -209,15 +282,15 @@ Pemetaan ini menyesuaikan koefisien penalti pada objektif rata-rata \textit{log-
     \label{tab:lr-sklearn}
     \begin{tabular}{llrrr}
         \toprule
-        Pipeline & Regularisasi & \textit{From scratch} & \texttt{scikit-learn} & Selisih \\
+        Pipeline & Regularisasi & \textit{From scratch} & \texttt{scikit-learn} & Selisih       \\
         \midrule
-        Dasar & L1 & $0{,}737909$ & $0{,}751218$ & $-0{,}013309$ \\
-        Dasar & L2 & $0{,}742172$ & $0{,}753659$ & $-0{,}011487$ \\
-        Dasar & Elastic Net & $0{,}740543$ & $0{,}747588$ & $-0{,}007045$ \\
+        Dasar    & L1           & $0{,}737909$          & $0{,}751218$          & $-0{,}013309$ \\
+        Dasar    & L2           & $0{,}742172$          & $0{,}753659$          & $-0{,}011487$ \\
+        Dasar    & Elastic Net  & $0{,}740543$          & $0{,}747588$          & $-0{,}007045$ \\
         \midrule
-        Akhir & L1 & $0{,}808161$ & $0{,}806411$ & $+0{,}001751$ \\
-        Akhir & L2 & $0{,}808338$ & $0{,}809354$ & $-0{,}001016$ \\
-        Akhir & Elastic Net & $0{,}808577$ & $0{,}808151$ & $+0{,}000426$ \\
+        Akhir    & L1           & $0{,}808161$          & $0{,}806411$          & $+0{,}001751$ \\
+        Akhir    & L2           & $0{,}808338$          & $0{,}809354$          & $-0{,}001016$ \\
+        Akhir    & Elastic Net  & $0{,}808577$          & $0{,}808151$          & $+0{,}000426$ \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -235,21 +308,21 @@ Perbedaan skor pipeline akhir jauh lebih kecil daripada pada model dasar. Pada L
 Seluruh eksperimen SVM menggunakan pembagian data sesuai kontrak kelompok (\texttt{seed=42}, terstratifikasi dengan rasio $80:20$). Data latih (\texttt{train\_idx}) terdiri atas $21.898$ baris, yakni $14.723$ kelas $0$ dan $7.175$ kelas $1$. Data validasi (\texttt{valid\_idx}) terdiri atas $5.475$ baris, yakni $3.681$ kelas $0$ dan $1.794$ kelas $1$. Pengembangan berlangsung dalam tiga iterasi besar yang tercatat dalam riwayat repositori Git. Perubahan skor Macro F1 validasi setelah setiap iterasi prapemrosesan dan optimasi dirangkum pada Tabel~\ref{tab:svm_iter_progression}.
 
 \begin{table}[H]
-\centering
-\caption{Perkembangan performa Macro F1 validasi \texttt{SVMFromScratch} pada setiap iterasi eksperimen.}
-\label{tab:svm_iter_progression}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}llccccc@{}}
-\toprule
-\textbf{Tahap Eksperimen} & \textbf{Karakteristik Pipeline dan Solver} & \textbf{Jml Fitur} & \textbf{Linear} & \textbf{Polynomial} & \textbf{Gaussian RBF} & \textbf{Terbaik Validasi} \\
-\midrule
-Baseline Notebook Utama & Imputasi median/modus, one-hot, 96 fixed landmarks SGD & 31 & 0,7476 & 0,7490 & 0,7505 & 0,7505 \\
-Iterasi 1 (Tahap Awal) & Fitur dasar domain, one-hot, solver mini-batch DCD ($m=1200$) & 51 & 0,7653 & 0,8102 & 0,8048 & 0,8102 \\
-Iterasi 2 (Pipeline Fitur 1 dan 2) & Binning lead time, interaksi OTA, target encoding, threshold tuning & 90 & 0,8568 & 0,8557 & 0,8573 & 0,8573 \\
-Iterasi 3 (Pipeline Final OOF) & Strictly 5-fold OOF, KNN/KDE, Masked Match, Modified Finite Newton & 135 & 0,8763 & 0,8742 & 0,8753 & 0,8763 \\
-\bottomrule
-\end{tabular}%
-}
+    \centering
+    \caption{Perkembangan performa Macro F1 validasi \texttt{SVMFromScratch} pada setiap iterasi eksperimen.}
+    \label{tab:svm_iter_progression}
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{@{}llccccc@{}}
+            \toprule
+            \textbf{Tahap Eksperimen}          & \textbf{Karakteristik Pipeline dan Solver}                          & \textbf{Jml Fitur} & \textbf{Linear} & \textbf{Polynomial} & \textbf{Gaussian RBF} & \textbf{Terbaik Validasi} \\
+            \midrule
+            Baseline Notebook Utama            & Imputasi median/modus, one-hot, 96 fixed landmarks SGD              & 31                 & 0,7476          & 0,7490              & 0,7505                & 0,7505                    \\
+            Iterasi 1 (Tahap Awal)             & Fitur dasar domain, one-hot, solver mini-batch DCD ($m=1200$)       & 51                 & 0,7653          & 0,8102              & 0,8048                & 0,8102                    \\
+            Iterasi 2 (Pipeline Fitur 1 dan 2) & Binning lead time, interaksi OTA, target encoding, threshold tuning & 90                 & 0,8568          & 0,8557              & 0,8573                & 0,8573                    \\
+            Iterasi 3 (Pipeline Final OOF)     & Strictly 5-fold OOF, KNN/KDE, Masked Match, Modified Finite Newton  & 135                & 0,8763          & 0,8742              & 0,8753                & 0,8763                    \\
+            \bottomrule
+        \end{tabular}%
+    }
 \end{table}
 
 Perkembangan setiap iterasi pada Tabel~\ref{tab:svm_iter_progression} dijelaskan sebagai berikut.
@@ -261,35 +334,35 @@ Perkembangan setiap iterasi pada Tabel~\ref{tab:svm_iter_progression} dijelaskan
 \end{enumerate}
 
 \begin{table}[H]
-\centering
-\caption{Hasil lengkap eksperimen 18 kandidat konfigurasi \texttt{SVMFromScratch} pada pipeline final (135 fitur).}
-\label{tab:svm_all_18_candidates}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}clccccccccc@{}}
-\toprule
-\textbf{Rank} & \textbf{Nama Varian} & \textbf{Kernel} & \textbf{C} & \textbf{Deg} & \textbf{Gamma} & \textbf{Class Weight} & \textbf{Default F1} & \textbf{OOF F1} & \textbf{Tuned F1} & \textbf{Fit Time (s)} \\
-\midrule
-1 & \texttt{linear\_c0.01\_none} & linear & 0,010 & 1 & scale & None & 0,8738 & 0,8743 & 0,8763 & 0,28 \\
-2 & \texttt{linear\_c0.05\_none} & linear & 0,050 & 1 & scale & None & 0,8738 & 0,8736 & 0,8761 & 0,28 \\
-3 & \texttt{linear\_c0.005\_none} & linear & 0,005 & 1 & scale & None & 0,8745 & 0,8745 & 0,8760 & 0,29 \\
-4 & \texttt{linear\_c0.02\_none} & linear & 0,020 & 1 & scale & None & 0,8741 & 0,8725 & 0,8760 & 0,32 \\
-5 & \texttt{linear\_c0.005\_bal} & linear & 0,005 & 1 & scale & balanced & 0,8648 & 0,8764 & 0,8758 & 0,30 \\
-6 & \texttt{rbf\_c0.2\_g0.4} & rbf & 0,200 & 3 & scale*0.4 & None & 0,8736 & 0,8751 & 0,8753 & 21,95 \\
-7 & \texttt{linear\_c0.002\_none} & linear & 0,002 & 1 & scale & None & 0,8749 & 0,8743 & 0,8752 & 0,38 \\
-8 & \texttt{rbf\_c0.1\_g0.4} & rbf & 0,100 & 3 & scale*0.4 & None & 0,8726 & 0,8741 & 0,8750 & 19,81 \\
-9 & \texttt{rbf\_c0.1\_bal} & rbf & 0,100 & 3 & scale*0.4 & balanced & 0,8672 & 0,8731 & 0,8747 & 26,31 \\
-10 & \texttt{rbf\_c0.1\_g0.2} & rbf & 0,100 & 3 & scale*0.2 & None & 0,8722 & 0,8736 & 0,8743 & 19,56 \\
-11 & \texttt{poly\_d2\_c0.05\_g0.4} & poly & 0,050 & 2 & scale*0.4 & None & 0,8719 & 0,8734 & 0,8742 & 26,34 \\
-12 & \texttt{rbf\_c0.05\_g0.4} & rbf & 0,050 & 3 & scale*0.4 & None & 0,8725 & 0,8733 & 0,8738 & 20,10 \\
-13 & \texttt{poly\_d2\_c0.02\_g0.4} & poly & 0,020 & 2 & scale*0.4 & None & 0,8715 & 0,8736 & 0,8736 & 16,35 \\
-14 & \texttt{rbf\_c0.1\_scale} & rbf & 0,100 & 3 & scale & None & 0,8730 & 0,8724 & 0,8736 & 20,76 \\
-15 & \texttt{poly\_d2\_c0.01\_bal} & poly & 0,010 & 2 & scale*0.4 & balanced & 0,8675 & 0,8711 & 0,8731 & 20,02 \\
-16 & \texttt{poly\_d2\_c0.01\_g0.4} & poly & 0,010 & 2 & scale*0.4 & None & 0,8690 & 0,8718 & 0,8729 & 15,65 \\
-17 & \texttt{poly\_d3\_c0.01\_g0.2} & poly & 0,010 & 3 & scale*0.2 & None & 0,8689 & 0,8718 & 0,8722 & 22,99 \\
-18 & \texttt{poly\_d2\_c0.005\_g0.4} & poly & 0,005 & 2 & scale*0.4 & None & 0,8683 & 0,8718 & 0,8713 & 18,40 \\
-\bottomrule
-\end{tabular}%
-}
+    \centering
+    \caption{Hasil lengkap eksperimen 18 kandidat konfigurasi \texttt{SVMFromScratch} pada pipeline final (135 fitur).}
+    \label{tab:svm_all_18_candidates}
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{@{}clccccccccc@{}}
+            \toprule
+            \textbf{Rank} & \textbf{Nama Varian}            & \textbf{Kernel} & \textbf{C} & \textbf{Deg} & \textbf{Gamma} & \textbf{Class Weight} & \textbf{Default F1} & \textbf{OOF F1} & \textbf{Tuned F1} & \textbf{Fit Time (s)} \\
+            \midrule
+            1             & \texttt{linear\_c0.01\_none}    & linear          & 0,010      & 1            & scale          & None                  & 0,8738              & 0,8743          & 0,8763            & 0,28                  \\
+            2             & \texttt{linear\_c0.05\_none}    & linear          & 0,050      & 1            & scale          & None                  & 0,8738              & 0,8736          & 0,8761            & 0,28                  \\
+            3             & \texttt{linear\_c0.005\_none}   & linear          & 0,005      & 1            & scale          & None                  & 0,8745              & 0,8745          & 0,8760            & 0,29                  \\
+            4             & \texttt{linear\_c0.02\_none}    & linear          & 0,020      & 1            & scale          & None                  & 0,8741              & 0,8725          & 0,8760            & 0,32                  \\
+            5             & \texttt{linear\_c0.005\_bal}    & linear          & 0,005      & 1            & scale          & balanced              & 0,8648              & 0,8764          & 0,8758            & 0,30                  \\
+            6             & \texttt{rbf\_c0.2\_g0.4}        & rbf             & 0,200      & 3            & scale*0.4      & None                  & 0,8736              & 0,8751          & 0,8753            & 21,95                 \\
+            7             & \texttt{linear\_c0.002\_none}   & linear          & 0,002      & 1            & scale          & None                  & 0,8749              & 0,8743          & 0,8752            & 0,38                  \\
+            8             & \texttt{rbf\_c0.1\_g0.4}        & rbf             & 0,100      & 3            & scale*0.4      & None                  & 0,8726              & 0,8741          & 0,8750            & 19,81                 \\
+            9             & \texttt{rbf\_c0.1\_bal}         & rbf             & 0,100      & 3            & scale*0.4      & balanced              & 0,8672              & 0,8731          & 0,8747            & 26,31                 \\
+            10            & \texttt{rbf\_c0.1\_g0.2}        & rbf             & 0,100      & 3            & scale*0.2      & None                  & 0,8722              & 0,8736          & 0,8743            & 19,56                 \\
+            11            & \texttt{poly\_d2\_c0.05\_g0.4}  & poly            & 0,050      & 2            & scale*0.4      & None                  & 0,8719              & 0,8734          & 0,8742            & 26,34                 \\
+            12            & \texttt{rbf\_c0.05\_g0.4}       & rbf             & 0,050      & 3            & scale*0.4      & None                  & 0,8725              & 0,8733          & 0,8738            & 20,10                 \\
+            13            & \texttt{poly\_d2\_c0.02\_g0.4}  & poly            & 0,020      & 2            & scale*0.4      & None                  & 0,8715              & 0,8736          & 0,8736            & 16,35                 \\
+            14            & \texttt{rbf\_c0.1\_scale}       & rbf             & 0,100      & 3            & scale          & None                  & 0,8730              & 0,8724          & 0,8736            & 20,76                 \\
+            15            & \texttt{poly\_d2\_c0.01\_bal}   & poly            & 0,010      & 2            & scale*0.4      & balanced              & 0,8675              & 0,8711          & 0,8731            & 20,02                 \\
+            16            & \texttt{poly\_d2\_c0.01\_g0.4}  & poly            & 0,010      & 2            & scale*0.4      & None                  & 0,8690              & 0,8718          & 0,8729            & 15,65                 \\
+            17            & \texttt{poly\_d3\_c0.01\_g0.2}  & poly            & 0,010      & 3            & scale*0.2      & None                  & 0,8689              & 0,8718          & 0,8722            & 22,99                 \\
+            18            & \texttt{poly\_d2\_c0.005\_g0.4} & poly            & 0,005      & 2            & scale*0.4      & None                  & 0,8683              & 0,8718          & 0,8713            & 18,40                 \\
+            \bottomrule
+        \end{tabular}%
+    }
 \end{table}
 
 Skor pada tabel merupakan hasil pencarian konfigurasi dan ambang keputusan dengan memanfaatkan label validasi yang sama. Kolom \textit{Default F1} menggunakan ambang nol, \textit{OOF F1} menggunakan ambang yang dipilih dari data latih, sedangkan \textit{Tuned F1} memilih ambang yang memaksimalkan Macro F1 pada data validasi. Karena itu, \textit{Tuned F1} adalah hasil pemilihan eksploratif, bukan estimasi kinerja pada data uji independen. Perbandingan antarkandidat juga tidak dapat diperlakukan sebagai uji perbedaan generalisasi.
@@ -304,20 +377,20 @@ Tabel~\ref{tab:svm_all_18_candidates} menunjukkan pola berikut pada hiperparamet
 Rangkuman perbandingan konfigurasi terbaik dari masing-masing ketiga kernel disajikan pada Tabel~\ref{tab:svm_best_kernels}.
 
 \begin{table}[H]
-\centering
-\caption{Rincian metrik per kelas untuk konfigurasi terbaik tiap kernel \texttt{SVMFromScratch} pada data validasi.}
-\label{tab:svm_best_kernels}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}lccccccccc@{}}
-\toprule
-\textbf{Kernel} & \textbf{Varian Terbaik} & \textbf{Macro F1} & \textbf{Prec (0)} & \textbf{Rec (0)} & \textbf{F1 (0)} & \textbf{Prec (1)} & \textbf{Rec (1)} & \textbf{F1 (1)} & \textbf{Support Vectors} \\
-\midrule
-Linear & \texttt{linear\_c0.01\_none} & 0,8763 & 0,9103 & 0,9318 & 0,9209 & 0,8530 & 0,8116 & 0,8318 & 11.650 \\
-Gaussian RBF & \texttt{rbf\_c0.2\_g0.4} & 0,8753 & 0,9119 & 0,9277 & 0,9197 & 0,8462 & 0,8161 & 0,8309 & 14.207 \\
-Polynomial ($d=2$) & \texttt{poly\_d2\_c0.05\_g0.4} & 0,8742 & 0,9109 & 0,9275 & 0,9191 & 0,8454 & 0,8138 & 0,8293 & 12.669 \\
-\bottomrule
-\end{tabular}%
-}
+    \centering
+    \caption{Rincian metrik per kelas untuk konfigurasi terbaik tiap kernel \texttt{SVMFromScratch} pada data validasi.}
+    \label{tab:svm_best_kernels}
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{@{}lccccccccc@{}}
+            \toprule
+            \textbf{Kernel}    & \textbf{Varian Terbaik}        & \textbf{Macro F1} & \textbf{Prec (0)} & \textbf{Rec (0)} & \textbf{F1 (0)} & \textbf{Prec (1)} & \textbf{Rec (1)} & \textbf{F1 (1)} & \textbf{Support Vectors} \\
+            \midrule
+            Linear             & \texttt{linear\_c0.01\_none}   & 0,8763            & 0,9103            & 0,9318           & 0,9209          & 0,8530            & 0,8116           & 0,8318          & 11.650                   \\
+            Gaussian RBF       & \texttt{rbf\_c0.2\_g0.4}       & 0,8753            & 0,9119            & 0,9277           & 0,9197          & 0,8462            & 0,8161           & 0,8309          & 14.207                   \\
+            Polynomial ($d=2$) & \texttt{poly\_d2\_c0.05\_g0.4} & 0,8742            & 0,9109            & 0,9275           & 0,9191          & 0,8454            & 0,8138           & 0,8293          & 12.669                   \\
+            \bottomrule
+        \end{tabular}%
+    }
 \end{table}
 
 Berdasarkan pencarian pada data validasi, varian \texttt{linear\_c0.01\_none} dipilih sebagai konfigurasi akhir. Skor Macro F1 tercatat sebesar $0{,}8763$ dan waktu pelatihan model pada runner eksperimen sebesar $0{,}28\text{ detik}$. Waktu tersebut tidak mencakup pelatihan prapemrosesan. Pada $5.475$ baris validasi, model memprediksi benar $4.886$ baris ($89{,}24\%$), dengan $\text{TN}=3430$, $\text{TP}=1456$, $\text{FP}=251$, dan $\text{FN}=338$. Analisis profil kesalahan pada notebook bersifat deskriptif. Kemiripan sebagian karakteristik reservasi pada kedua kelas belum cukup untuk memastikan penyebab kesalahan ataupun besar galat yang tidak dapat dihindari. Setelah dilatih ulang pada seluruh $27.373$ baris \texttt{train.csv} dengan ambang OOF ($\text{threshold}=-0{,}007$), model mencatat $14.047$ titik bermargin aktif dan memprediksi $6.844$ baris \texttt{test.csv} sebagai $4.768$ kelas $0$ ($69{,}67\%$) serta $2.076$ kelas $1$ ($30{,}33\%$).
@@ -327,25 +400,25 @@ Berdasarkan pencarian pada data validasi, varian \texttt{linear\_c0.01\_none} di
 Sebagai pembanding empiris, ketiga konfigurasi kernel dibandingkan dengan \texttt{sklearn.svm.SVC} pada matriks fitur $135$ dimensi dan \texttt{valid\_idx} yang sama. Kedua implementasi memiliki fungsi kerugian dan metode optimasi yang berbeda. Ambang keputusan untuk \texttt{SVC} dicari langsung pada label validasi, sebagaimana ambang model dari nol dalam eksperimen kandidat. Perbandingan pada Tabel~\ref{tab:svm_vs_sklearn} bersifat eksploratif dan tidak membuktikan kesetaraan formulasi ataupun perbedaan kinerja pada data yang belum dilihat.
 
 \begin{table}[H]
-\centering
-\caption{Perbandingan lengkap \texttt{SVMFromScratch} dan \texttt{sklearn.svm.SVC} pada ketiga kernel.}
-\label{tab:svm_vs_sklearn}
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{@{}llcccccccc@{}}
-\toprule
-\textbf{Kernel} & \textbf{Implementasi} & \textbf{Macro F1} & \textbf{F1 (0)} & \textbf{F1 (1)} & \textbf{Confusion Matrix [[TN, FP], [FN, TP]]} & \textbf{Jml SV} & \textbf{Slack Valid} & \textbf{Fit (s)} & \textbf{Predict (s)} \\
-\midrule
-Linear & \texttt{SVMFromScratch} & 0,8763 & 0,9209 & 0,8318 & \texttt{[[3430, 251], [338, 1456]]} & 11.650 & 1823,96 & 0,28 & 0,001 \\
-Linear & \texttt{sklearn.svm.SVC} & 0,8745 & 0,9192 & 0,8299 & \texttt{[[3411, 270], [330, 1464]]} & 6.206 & 1467,54 & 34,46 & 4,492 \\
-\midrule
-Gaussian RBF & \texttt{SVMFromScratch} & 0,8753 & 0,9197 & 0,8309 & \texttt{[[3415, 266], [330, 1464]]} & 14.207 & 1799,05 & 21,95 & 0,448 \\
-Gaussian RBF & \texttt{sklearn.svm.SVC} & 0,8746 & 0,9189 & 0,8304 & \texttt{[[3403, 278], [323, 1471]]} & 6.259 & 1396,42 & 35,55 & 7,493 \\
-\midrule
-Polynomial ($d=2$) & \texttt{SVMFromScratch} & 0,8742 & 0,9191 & 0,8293 & \texttt{[[3414, 267], [334, 1460]]} & 12.669 & 1816,02 & 26,34 & 0,208 \\
-Polynomial ($d=2$) & \texttt{sklearn.svm.SVC} & 0,8731 & 0,9169 & 0,8293 & \texttt{[[3376, 305], [307, 1487]]} & 6.482 & 1442,70 & 36,80 & 3,066 \\
-\bottomrule
-\end{tabular}%
-}
+    \centering
+    \caption{Perbandingan lengkap \texttt{SVMFromScratch} dan \texttt{sklearn.svm.SVC} pada ketiga kernel.}
+    \label{tab:svm_vs_sklearn}
+    \resizebox{\textwidth}{!}{%
+        \begin{tabular}{@{}llcccccccc@{}}
+            \toprule
+            \textbf{Kernel}    & \textbf{Implementasi}    & \textbf{Macro F1} & \textbf{F1 (0)} & \textbf{F1 (1)} & \textbf{Confusion Matrix [[TN, FP], [FN, TP]]} & \textbf{Jml SV} & \textbf{Slack Valid} & \textbf{Fit (s)} & \textbf{Predict (s)} \\
+            \midrule
+            Linear             & \texttt{SVMFromScratch}  & 0,8763            & 0,9209          & 0,8318          & \texttt{[[3430, 251], [338, 1456]]}            & 11.650          & 1823,96              & 0,28             & 0,001                \\
+            Linear             & \texttt{sklearn.svm.SVC} & 0,8745            & 0,9192          & 0,8299          & \texttt{[[3411, 270], [330, 1464]]}            & 6.206           & 1467,54              & 34,46            & 4,492                \\
+            \midrule
+            Gaussian RBF       & \texttt{SVMFromScratch}  & 0,8753            & 0,9197          & 0,8309          & \texttt{[[3415, 266], [330, 1464]]}            & 14.207          & 1799,05              & 21,95            & 0,448                \\
+            Gaussian RBF       & \texttt{sklearn.svm.SVC} & 0,8746            & 0,9189          & 0,8304          & \texttt{[[3403, 278], [323, 1471]]}            & 6.259           & 1396,42              & 35,55            & 7,493                \\
+            \midrule
+            Polynomial ($d=2$) & \texttt{SVMFromScratch}  & 0,8742            & 0,9191          & 0,8293          & \texttt{[[3414, 267], [334, 1460]]}            & 12.669          & 1816,02              & 26,34            & 0,208                \\
+            Polynomial ($d=2$) & \texttt{sklearn.svm.SVC} & 0,8731            & 0,9169          & 0,8293          & \texttt{[[3376, 305], [307, 1487]]}            & 6.482           & 1442,70              & 36,80            & 3,066                \\
+            \bottomrule
+        \end{tabular}%
+    }
 \end{table}
 
 Tabel~\ref{tab:svm_vs_sklearn} menunjukkan tiga hal dalam perbandingan implementasi dari nol dengan \texttt{scikit-learn}.
@@ -369,17 +442,17 @@ kategorikal menggunakan Laplace $+1$ dan prediksi MAP dengan ambang $0{,}5$
 \cite{maulidevi2024bayesnet}.
 
 \begin{table}[H]
-\centering
-\caption{Hasil Naive Bayes kategorikal dan pipeline KDB pada holdout}
-\label{tab:nb-results}
-\begin{tabular}{lrrrrrr}
-\hline
-Model & Macro F1 & F1 kelas 0 & F1 kelas 1 & FP & FN & CV Macro F1 \\
-\hline
-Naive Bayes kategorikal & 0,753704 & 0,848669 & 0,658740 & 462 & 686 & 0,746560 \\
-KDB (pipeline final) & \textbf{0,821914} & \textbf{0,887196} & \textbf{0,756632} & 362 & 482 & 0,817709 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Hasil Naive Bayes kategorikal dan pipeline KDB pada holdout}
+    \label{tab:nb-results}
+    \begin{tabular}{lrrrrrr}
+        \hline
+        Model                   & Macro F1          & F1 kelas 0        & F1 kelas 1        & FP  & FN  & CV Macro F1 \\
+        \hline
+        Naive Bayes kategorikal & 0,753704          & 0,848669          & 0,658740          & 462 & 686 & 0,746560    \\
+        KDB (pipeline final)    & \textbf{0,821914} & \textbf{0,887196} & \textbf{0,756632} & 362 & 482 & 0,817709    \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Pipeline KDB meningkatkan Macro F1 holdout sebesar $0{,}068210$ dan Macro F1
@@ -394,17 +467,17 @@ pada data latih. Distribusi tersebut menunjukkan mengapa akurasi saja
 kurang memadai untuk membaca kemampuan model mengenali pembatalan.
 
 \begin{table}[H]
-\centering
-\caption{Confusion matrix holdout untuk baseline dan KDB}
-\label{tab:nb-confusion}
-\begin{tabular}{lrrrr}
-\hline
-Model & TN & FP & FN & TP \\
-\hline
-Naive Bayes kategorikal & 3.219 & 462 & 686 & 1.108 \\
-KDB (pipeline final) & 3.319 & 362 & 482 & 1.312 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Confusion matrix holdout untuk baseline dan KDB}
+    \label{tab:nb-confusion}
+    \begin{tabular}{lrrrr}
+        \hline
+        Model                   & TN    & FP  & FN  & TP    \\
+        \hline
+        Naive Bayes kategorikal & 3.219 & 462 & 686 & 1.108 \\
+        KDB (pipeline final)    & 3.319 & 362 & 482 & 1.312 \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Matriks kebingungan pada Tabel~\ref{tab:nb-confusion} menunjukkan bahwa
@@ -432,27 +505,27 @@ Konfigurasi KDB final mempelajari bobot likelihood dari OOF. Tabel
 artefak. Bobot nol meniadakan kontribusi fitur tersebut pada skor KDB.
 
 \begin{table}[H]
-\centering
-\caption{Bobot likelihood fitur pada KDB final}
-\label{tab:nb-feature-weights}
-\small
-\begin{tabular}{lr|lr}
-\hline
-Fitur & Bobot & Fitur & Bobot \\
-\hline
-\texttt{num\_adults} & 0,75 & \texttt{num\_children} & 0,75 \\
-\texttt{weekend\_nights} & 0,50 & \texttt{weekday\_nights} & 1,00 \\
-\texttt{meal\_package} & 0,25 & \texttt{needs\_parking} & 0,50 \\
-\texttt{room\_category} & 1,00 & \texttt{days\_before\_arrival} & 1,00 \\
-\texttt{arrival\_year} & 1,25 & \texttt{arrival\_month} & 1,00 \\
-\texttt{arrival\_day} & 1,00 & \texttt{booking\_channel} & 0,50 \\
-\texttt{is\_returning\_guest} & 0,75 & \texttt{prior\_cancellations} & 0,00 \\
-\texttt{prior\_completed\_bookings} & 1,00 & \texttt{nightly\_rate\_idr} & 1,00 \\
-\texttt{special\_requests} & 1,50 & \texttt{ota\_x\_requests} & 0,75 \\
-\texttt{rate\_weekend\_req\_ota} & 1,50 & \texttt{lead\_x\_weekend\_req} & 0,75 \\
-\texttt{channel\_x\_meal} & 0,50 & \texttt{is\_offline} & 2,00 \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Bobot likelihood fitur pada KDB final}
+    \label{tab:nb-feature-weights}
+    \small
+    \begin{tabular}{lr|lr}
+        \hline
+        Fitur                               & Bobot & Fitur                          & Bobot \\
+        \hline
+        \texttt{num\_adults}                & 0,75  & \texttt{num\_children}         & 0,75  \\
+        \texttt{weekend\_nights}            & 0,50  & \texttt{weekday\_nights}       & 1,00  \\
+        \texttt{meal\_package}              & 0,25  & \texttt{needs\_parking}        & 0,50  \\
+        \texttt{room\_category}             & 1,00  & \texttt{days\_before\_arrival} & 1,00  \\
+        \texttt{arrival\_year}              & 1,25  & \texttt{arrival\_month}        & 1,00  \\
+        \texttt{arrival\_day}               & 1,00  & \texttt{booking\_channel}      & 0,50  \\
+        \texttt{is\_returning\_guest}       & 0,75  & \texttt{prior\_cancellations}  & 0,00  \\
+        \texttt{prior\_completed\_bookings} & 1,00  & \texttt{nightly\_rate\_idr}    & 1,00  \\
+        \texttt{special\_requests}          & 1,50  & \texttt{ota\_x\_requests}      & 0,75  \\
+        \texttt{rate\_weekend\_req\_ota}    & 1,50  & \texttt{lead\_x\_weekend\_req} & 0,75  \\
+        \texttt{channel\_x\_meal}           & 0,50  & \texttt{is\_offline}           & 2,00  \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Bobot pada Tabel~\ref{tab:nb-feature-weights} mengatur kontribusi
@@ -487,18 +560,18 @@ pembanding pipeline, bukan perbandingan identik implementasi KDB dengan
 algoritma yang sama.
 
 \begin{table}[H]
-\centering
-\caption{Perbandingan Macro F1 Naive Bayes dari nol dan estimator scikit-learn}
-\label{tab:nb-sklearn}
-\begin{tabular}{lrl}
-\hline
-Estimator & Macro F1 & Representasi masukan \\
-\hline
-KDB dari nol (final) & \textbf{0,821914} & 22 fitur kategorikal, KDB \\
-\texttt{CategoricalNB} & 0,794346 & Kategori/binned \\
-\texttt{GaussianNB} & 0,701035 & Numerik dan \textit{one-hot} kategori \\
-\hline
-\end{tabular}
+    \centering
+    \caption{Perbandingan Macro F1 Naive Bayes dari nol dan estimator scikit-learn}
+    \label{tab:nb-sklearn}
+    \begin{tabular}{lrl}
+        \hline
+        Estimator              & Macro F1          & Representasi masukan                  \\
+        \hline
+        KDB dari nol (final)   & \textbf{0,821914} & 22 fitur kategorikal, KDB             \\
+        \texttt{CategoricalNB} & 0,794346          & Kategori/binned                       \\
+        \texttt{GaussianNB}    & 0,701035          & Numerik dan \textit{one-hot} kategori \\
+        \hline
+    \end{tabular}
 \end{table}
 
 Pada pengujian ini KDB mencatat Macro F1 lebih tinggi daripada kedua
@@ -604,3 +677,51 @@ ambang diubah satu per satu. Dasar metode KDB dan pembobotan dijelaskan
 pada Bagian~\ref{sec:implementasi-nb-optimasi}.
 
 \subsection{Cost-Sensitive Classification}
+
+\subsection{Bonus KNN: Cost-sensitive Classification}
+Kelas positif menunjukkan pemesanan batal. False positive (FP) berarti pemesanan
+diprediksi batal, tetapi tamu tetap datang. Penjualan ulang kamar tersebut dapat
+menimbulkan overbooking. Sesuai spesifikasi bonus, biaya relatif ditetapkan
+$C_{FP}=2$ dan $C_{FN}=1$, sehingga objektif evaluasi adalah
+$L=2FP+FN$.
+
+KNN menggunakan $k=21$, Manhattan, distance weighting, dan bobot kategori 1.
+Split validasi mengikuti kelompok (seed 42; 5.475 baris). Preprocessing dipelajari
+hanya dari subset train. Skor validasi dihitung sekali, lalu threshold diuji dari
+0 sampai 1 dengan langkah 0,01, ditambah 0,5 dan $2/3$. Prediksi batal
+diberikan jika skor lebih besar daripada threshold. Biaya seri dipecahkan
+dengan macro F1 terbesar, lalu threshold terkecil.
+
+Jika $p$ adalah probabilitas batal terkalibrasi, biaya prediksi batal adalah
+$2(1-p)$ dan biaya prediksi tidak batal adalah $p$. Maka batas teoritisnya
+$p>2/3$. Skor voting KNN belum tentu terkalibrasi, sehingga batas ini digunakan
+sebagai pembanding terhadap pemilihan empiris.
+
+\begin{center}
+    \begin{tabular}{lrrrrr}
+        \hline
+        Strategi         & Threshold & FP  & FN  & Biaya & Macro F1 \\
+        \hline
+        Baseline         & 0.50      & 290 & 455 & 1035  & 0.841689 \\
+        Teoretis         & $2/3$     & 108 & 746 & 962   & 0.801879 \\
+        Minimum validasi & 0.60      & 158 & 623 & 939   & 0.825069 \\
+        \hline
+    \end{tabular}
+\end{center}
+
+Threshold 0.60 menurunkan biaya dari 1035 menjadi 939,
+atau 9.28\%. FP berkurang tetapi FN bertambah, dan macro F1 turun.
+Keputusan ini menunjukkan trade-off ketika FP lebih mahal. Threshold bonus
+dipilih untuk objektif biaya, sedangkan konfigurasi submission utama tetap
+mengikuti eksperimen macro F1.
+
+\begin{center}
+    \includegraphics[width=0.95\textwidth]{../../output/knn/knn_cost_sensitive.png}
+\end{center}
+
+Pemilihan dan pelaporan threshold dilakukan pada validasi yang sama, sehingga
+penurunan biaya dapat optimistis. Angka tersebut merupakan minimum di antara
+kandidat pada split ini. Evaluasi independen diperlukan untuk mengukur
+generalisasi. Test tanpa label tidak digunakan untuk pemilihan threshold.
+Sumber asumsi biaya adalah spesifikasi Tugas Besar 2 IF3170 2026/2027,
+bagian Bonus poin 7. Batas teoritis diturunkan langsung dari biaya harapan.

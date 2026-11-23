@@ -1,0 +1,11 @@
+{
+  "algorithm": "KNN from scratch",
+  "k": 21,
+  "weights": "distance",
+  "metric": "manhattan",
+  "cat_weight": 1.0,
+  "threshold": 0.5,
+  "seed": 42,
+  "macro_f1_validasi": 0.841689,
+  "feature_engineering": "tidak ada fitur turunan yang diadopsi (Fase 3)"
+}

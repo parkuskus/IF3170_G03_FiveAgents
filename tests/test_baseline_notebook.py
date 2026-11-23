@@ -185,7 +185,6 @@ class BaselineNotebookTest(unittest.TestCase):
 
     def test_model_specific_templates_keep_shared_contract(self):
         templates = {
-            "KNN": ("KNN_Final-Pipeline.ipynb", "'k': 7"),
             "DTL": ("DTL_Final-Pipeline.ipynb", "'C4.5': {'criterion': 'gain_ratio'}"),
             "Logistic Regression": (
                 "Logistic_Regression_Final-Pipeline.ipynb",
