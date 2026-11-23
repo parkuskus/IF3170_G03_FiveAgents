@@ -91,12 +91,13 @@ class SVMPreprocessor:
         self.fitted_prep_steps = {}
         self.is_fitted_ = False
 
-        self._fitted_ids_ = None
+        self._fitted_frame_ = None
         self._train_oof_cache_ = None
 
     def __getstate__(self):
         state = self.__dict__.copy()
         state["_train_oof_cache_"] = None
+        state["_fitted_frame_"] = None
         heavy = {
             "models_": state.pop("models_", {}),
             "sub_nn_": state.pop("sub_nn_", []),
@@ -511,9 +512,7 @@ class SVMPreprocessor:
             "categories": dict(self.categories_),
             "feature_names": list(self.feature_names_),
         }
-        self._fitted_ids_ = df["id"].astype(str).tolist() if "id" in df.columns else None
-        self._fitted_len_ = len(df)
-        self._fitted_rate_sum_ = float(pd.to_numeric(df["nightly_rate_idr"], errors="coerce").fillna(-1.0).sum())
+        self._fitted_frame_ = df
         self._train_oof_cache_ = X_svm_oof
         self.is_fitted_ = True
         return self
@@ -522,17 +521,13 @@ class SVMPreprocessor:
         if not self.is_fitted_:
             raise RuntimeError("preprocessor belum di-fit")
 
-        # kembalikan cache oof terkalibrasi bila dipanggil persis pada df_train
-        if self._train_oof_cache_ is not None and len(df) == getattr(self, "_fitted_len_", len(self._fitted_ids_ or [])):
-            if (
-                self._fitted_ids_ is not None
-                and "id" in df.columns
-                and df["id"].astype(str).tolist() == self._fitted_ids_
-            ):
-                return self._train_oof_cache_.copy()
-            rate_sum = float(pd.to_numeric(df["nightly_rate_idr"], errors="coerce").fillna(-1.0).sum())
-            if abs(rate_sum - getattr(self, "_fitted_rate_sum_", -999.0)) < 1e-3:
-                return self._train_oof_cache_.copy()
+        # Cache OOF hanya berlaku untuk baris latih yang sama dan urutannya identik.
+        if (
+            self._train_oof_cache_ is not None
+            and self._fitted_frame_ is not None
+            and df.reset_index(drop=True).equals(self._fitted_frame_)
+        ):
+            return self._train_oof_cache_.copy()
 
         df = df.copy().reset_index(drop=True)
         out64, outv2, outp_base, keys, subs = self._build_base_blocks(df)
