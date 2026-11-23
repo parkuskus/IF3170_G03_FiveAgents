@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.pipeline import (
     ADOPTION_GAP,
     N_FOLDS,
     OUT_DIR,
@@ -19,8 +15,13 @@ from utils.pipeline import (
     make_split,
     write_json,
 )
-from utils.preprocessing import DEFAULT_BIN_COLS, DEFAULT_CATEGORICAL_NUMERIC, DEFAULT_LOG1P_COLS
+from src.experiments.naive_bayes.utils.preprocessing import (
+    DEFAULT_BIN_COLS,
+    DEFAULT_CATEGORICAL_NUMERIC,
+    DEFAULT_LOG1P_COLS,
+)
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 RESULT_CSV = OUT_DIR / "naive_bayes_preprocessing_results.csv"
 DECISION_CSV = OUT_DIR / "naive_bayes_preprocessing_decisions.csv"
 CONFIG_JSON = OUT_DIR / "naive_bayes_preprocessing_config.json"
@@ -128,7 +129,9 @@ def main():
         "best_f1": round(float(best["cv_macro_f1_mean"]), 6),
         "delta": round(delta, 6),
         "keputusan": "ADOPSI" if adopt else "TOLAK",
-        "alasan": "naik >= 0.005 pada CV" if adopt else "kenaikan di bawah 0.005 pada CV",
+        "alasan": "naik >= 0.005 pada CV"
+        if adopt
+        else "kenaikan di bawah 0.005 pada CV",
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)

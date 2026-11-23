@@ -11,28 +11,16 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
-try:
-    from .cleaning import clean_training_data, mask_invalid_values
-    from .feature_engineering import add_engineered_features
-    from .kdb import KDBClassifier
-    from .naive_bayes import NaiveBayesClassifier
-    from .numpy_utils import PCANP, StandardScalerNP, StratifiedKFoldNP
-    from .preprocessing import (
-        DEFAULT_CATEGORICAL_NUMERIC,
-        DEFAULT_LOG1P_COLS,
-        NaiveBayesPreprocessor,
-    )
-except ImportError:
-    from utils.cleaning import clean_training_data, mask_invalid_values
-    from utils.feature_engineering import add_engineered_features
-    from utils.kdb import KDBClassifier
-    from utils.naive_bayes import NaiveBayesClassifier
-    from utils.numpy_utils import PCANP, StandardScalerNP, StratifiedKFoldNP
-    from utils.preprocessing import (
-        DEFAULT_CATEGORICAL_NUMERIC,
-        DEFAULT_LOG1P_COLS,
-        NaiveBayesPreprocessor,
-    )
+from .cleaning import clean_training_data, mask_invalid_values
+from .feature_engineering import add_engineered_features
+from .kdb import KDBClassifier
+from .naive_bayes import NaiveBayesClassifier
+from .numpy_utils import PCANP, StandardScalerNP, StratifiedKFoldNP
+from .preprocessing import (
+    DEFAULT_CATEGORICAL_NUMERIC,
+    DEFAULT_LOG1P_COLS,
+    NaiveBayesPreprocessor,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 DATA_DIR = REPO_ROOT / "data"
@@ -189,7 +177,8 @@ class StagePipeline:
 
     def _frame(self, X_raw):
         feature_set = self.prep_cfg.get(
-            "feature_set", self.prep_cfg.get("options", {}).get("feature_set", "baseline")
+            "feature_set",
+            self.prep_cfg.get("options", {}).get("feature_set", "baseline"),
         )
         X = feature_frame(mask_invalid_values(X_raw), feature_set)
         if self.selected_features is not None:
@@ -219,9 +208,9 @@ class StagePipeline:
         if not numeric:
             raise ValueError("PCA numerik butuh minimal satu fitur numerik")
         self.scaler_ = StandardScalerNP().fit(Z[:, numeric])
-        self.pca_ = PCANP(
-            n_components=self.dr_cfg["n_components"]
-        ).fit(self.scaler_.transform(Z[:, numeric]))
+        self.pca_ = PCANP(n_components=self.dr_cfg["n_components"]).fit(
+            self.scaler_.transform(Z[:, numeric])
+        )
 
     def _transform_dr(self, Z):
         if self.pca_ is None:
@@ -271,7 +260,9 @@ def model_from_params(pipe, params):
     variant = params.get("variant", "categorical")
     if variant == "kdb":
         if pipe.numeric_indices:
-            raise ValueError("KDB membutuhkan seluruh fitur dalam bentuk kategorikal/binned")
+            raise ValueError(
+                "KDB membutuhkan seluruh fitur dalam bentuk kategorikal/binned"
+            )
         return KDBClassifier(
             k=int(params.get("k", 4)),
             alpha=float(params["alpha"]),
@@ -388,14 +379,14 @@ def threshold_curve(folds, params, thresholds, n_train):
     return per_threshold, oof
 
 
-def holdout_scores(X_raw, y, train_idx, valid_idx, prep_cfg, selected_features, dr_cfg, params):
+def holdout_scores(
+    X_raw, y, train_idx, valid_idx, prep_cfg, selected_features, dr_cfg, params
+):
     X_tr_clean, y_tr_clean, _ = clean_training_data(X_raw.iloc[train_idx], y[train_idx])
     pipe = StagePipeline(prep_cfg, selected_features, dr_cfg).fit(
         X_tr_clean, y_tr_clean
     )
-    model = model_from_params(pipe, params).fit(
-        pipe.transform(X_tr_clean), y_tr_clean
-    )
+    model = model_from_params(pipe, params).fit(pipe.transform(X_tr_clean), y_tr_clean)
     return model.decision_scores(pipe.transform(X_raw.iloc[valid_idx]))
 
 

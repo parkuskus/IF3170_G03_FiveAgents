@@ -1,25 +1,20 @@
 from __future__ import annotations
 
 import copy
-import json
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from utils.feature_engineering import (
+from src.experiments.naive_bayes.utils.feature_engineering import (
     FEATURE_LIBRARY,
     NB_BEST_FEATURES,
     NB_FINAL_FEATURES,
     add_engineered_features,
 )
-from utils.kdb import fit_feature_weights
-from utils.numpy_utils import macro_f1_np
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.kdb import fit_feature_weights
+from src.experiments.naive_bayes.utils.numpy_utils import macro_f1_np
+from src.experiments.naive_bayes.utils.pipeline import (
     N_FOLDS,
     OUT_DIR,
     REFERENCE_PARAMS,
@@ -35,6 +30,7 @@ from utils.pipeline import (
     write_json,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PREP_CONFIG = OUT_DIR / "naive_bayes_preprocessing_config.json"
 FS_CONFIG = OUT_DIR / "naive_bayes_feature_selection_config.json"
 DR_CONFIG = OUT_DIR / "naive_bayes_dimensionality_reduction_config.json"
@@ -313,8 +309,11 @@ def main():
             lambda cfg, value=log1p: cfg["options"].__setitem__("log1p_cols", value),
         )
     if "arrival_day" in prep_cfg["options"].get("bin_cols", []):
+
         def _arrival_day_as_categorical(cfg):
-            bin_cols = [c for c in cfg["options"].get("bin_cols", []) if c != "arrival_day"]
+            bin_cols = [
+                c for c in cfg["options"].get("bin_cols", []) if c != "arrival_day"
+            ]
             cat_cols = list(cfg["options"].get("categorical_numeric_cols", []))
             if "arrival_day" not in cat_cols:
                 cat_cols.append("arrival_day")
@@ -370,8 +369,12 @@ def main():
             "modeling",
             "var_smoothing",
             "N/A",
-            {"cv_macro_f1_mean": current_score, "cv_macro_f1_std": 0.0,
-             "holdout_macro_f1": 0.0, "delta": 0.0},
+            {
+                "cv_macro_f1_mean": current_score,
+                "cv_macro_f1_std": 0.0,
+                "holdout_macro_f1": 0.0,
+                "delta": 0.0,
+            },
             False,
             "tidak ada fitur numerik; var_smoothing tidak berlaku",
         )
@@ -421,9 +424,7 @@ def main():
     oof_lik = np.zeros((len(train_idx), 2, n_features), dtype=np.float64)
     oof_prior = np.zeros((len(train_idx), 2), dtype=np.float64)
     for fold in folds:
-        model = model_from_params(fold["pipe"], params).fit(
-            fold["Ztr"], fold["ytr"]
-        )
+        model = model_from_params(fold["pipe"], params).fit(fold["Ztr"], fold["ytr"])
         oof_lik[fold["va"]] = model.feature_log_likelihood(fold["Zva"])
         oof_prior[fold["va"]] = model.class_log_prior_
 
@@ -436,7 +437,9 @@ def main():
         return macro_f1_np(y_train, (prob[:, 1] > threshold).astype(np.int64))
 
     # 5a. WANBIA-C NumPy Adam optimization.
-    adam_w, adam_b = fit_feature_weights(oof_lik, oof_prior, y_train, lam=1e-3, iters=400, lr=0.5)
+    adam_w, adam_b = fit_feature_weights(
+        oof_lik, oof_prior, y_train, lam=1e-3, iters=400, lr=0.5
+    )
     adam_thr = float(params.get("threshold", 0.5))
     adam_oof = score_weights(adam_w, adam_thr, adam_b)
     for threshold in THRESHOLDS:
@@ -537,14 +540,18 @@ def main():
         "modeling",
         "threshold",
         threshold_best,
-        {"cv_macro_f1_mean": threshold_best_score,
-         "cv_macro_f1_std": 0.0,
-         "holdout_macro_f1": 0.0,
-         "delta": threshold_best_score - current_score},
+        {
+            "cv_macro_f1_mean": threshold_best_score,
+            "cv_macro_f1_std": 0.0,
+            "holdout_macro_f1": 0.0,
+            "delta": threshold_best_score - current_score,
+        },
         threshold_best_score > current_score + ADOPT_GAP,
         "dipilih dari sweep OOF",
     )
-    print(f"  threshold={threshold_best:.2f} oof={threshold_best_score:.6f}", flush=True)
+    print(
+        f"  threshold={threshold_best:.2f} oof={threshold_best_score:.6f}", flush=True
+    )
 
     # 7. Final repeated CV.
     print("\n[7] Verifikasi repeated CV", flush=True)

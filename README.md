@@ -20,12 +20,12 @@ Notebook utama mencakup data understanding, preprocessing, training dan evaluasi
 
 - Python 3.
 - Jupyter Notebook atau JupyterLab untuk menjalankan notebook.
-- Paket Python: NumPy, pandas, scikit-learn, dan Matplotlib.
+- Paket Python: NumPy, pandas, scikit-learn, Matplotlib, dan NetworkX.
 
 Pasang dependensi dengan:
 
 ```bash
-python -m pip install numpy pandas scikit-learn matplotlib jupyter
+python -m pip install numpy pandas scikit-learn matplotlib networkx jupyter
 ```
 
 Competition dataset tersedia di `data/`. Keterangan kolom, format submission, dan sumber data dapat dilihat pada [`data/README.md`](data/README.md).

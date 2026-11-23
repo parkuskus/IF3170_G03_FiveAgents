@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from utils.cleaning import clean_training_data
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.cleaning import clean_training_data
+from src.experiments.naive_bayes.utils.pipeline import (
     OUT_DIR,
     StagePipeline,
     load_data,
@@ -17,8 +13,11 @@ from utils.pipeline import (
     read_json,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_JSON = OUT_DIR / "naive_bayes_final_config.json"
-MODEL_CONFIG_JSON = REPO_ROOT / "output" / "final" / "model" / "naive_bayes" / "konfigurasi.json"
+MODEL_CONFIG_JSON = (
+    REPO_ROOT / "output" / "final" / "model" / "naive_bayes" / "konfigurasi.json"
+)
 SUBMISSION_CSV = OUT_DIR / "submission_naive_bayes.csv"
 
 
@@ -26,7 +25,10 @@ def main():
     assert Path.cwd() == REPO_ROOT, "Jalankan dari akar repo"
     cfg_path = CONFIG_JSON if CONFIG_JSON.exists() else MODEL_CONFIG_JSON
     if not cfg_path.exists():
-        raise SystemExit("Jalankan run_naive_bayes.py atau notebook final terlebih dahulu")
+        raise SystemExit(
+            "Jalankan `python -m src.experiments.naive_bayes.run_naive_bayes` "
+            "atau notebook final terlebih dahulu"
+        )
 
     config = read_json(cfg_path)
     params = config["params"]

@@ -81,7 +81,9 @@ class NaiveBayesClassifier:
             None if numeric_indices is None else tuple(int(i) for i in numeric_indices)
         )
         self.categorical_indices = (
-            None if categorical_indices is None else tuple(int(i) for i in categorical_indices)
+            None
+            if categorical_indices is None
+            else tuple(int(i) for i in categorical_indices)
         )
         self.n_categories = (
             None if n_categories is None else tuple(int(n) for n in n_categories)
@@ -112,16 +114,24 @@ class NaiveBayesClassifier:
             num = np.asarray(self.numeric_indices, dtype=int)
 
         if len(np.intersect1d(num, cat)) > 0:
-            raise ValueError("numeric_indices dan categorical_indices tidak boleh beririsan")
+            raise ValueError(
+                "numeric_indices dan categorical_indices tidak boleh beririsan"
+            )
         combined = np.sort(np.concatenate([num, cat]))
         if not np.array_equal(combined, np.arange(n_features)):
-            raise ValueError("numeric_indices + categorical_indices harus mencakup semua fitur")
+            raise ValueError(
+                "numeric_indices + categorical_indices harus mencakup semua fitur"
+            )
 
         if len(cat) > 0:
             if self.n_categories is None:
-                raise ValueError("n_categories wajib diisi jika ada categorical_indices")
+                raise ValueError(
+                    "n_categories wajib diisi jika ada categorical_indices"
+                )
             if len(self.n_categories) != len(cat):
-                raise ValueError("panjang n_categories harus sama dengan categorical_indices")
+                raise ValueError(
+                    "panjang n_categories harus sama dengan categorical_indices"
+                )
             n_categories = np.asarray(self.n_categories, dtype=int)
             if np.any(n_categories < 1):
                 raise ValueError("setiap nilai n_categories harus >= 1")
@@ -160,12 +170,8 @@ class NaiveBayesClassifier:
                 raise ValueError(
                     "panjang feature_weights harus sama dengan jumlah fitur X"
                 )
-            if any(
-                (not np.isfinite(w)) or w < 0.0 for w in self.feature_weights
-            ):
-                raise ValueError(
-                    "feature_weights harus berisi nilai finite dan >= 0"
-                )
+            if any((not np.isfinite(w)) or w < 0.0 for w in self.feature_weights):
+                raise ValueError("feature_weights harus berisi nilai finite dan >= 0")
         num, cat, n_categories = self._resolve_indices(self.n_features_)
         if self.mode == "baseline" and len(num) > 0:
             raise ValueError(
@@ -298,7 +304,9 @@ class NaiveBayesClassifier:
             "categorical_indices": None
             if categorical is None
             else list(map(int, categorical)),
-            "n_categories": None if n_categories is None else list(map(int, n_categories)),
+            "n_categories": None
+            if n_categories is None
+            else list(map(int, n_categories)),
             "feature_weights": None
             if self.feature_weights is None
             else list(map(float, self.feature_weights)),
@@ -347,7 +355,9 @@ class NaiveBayesClassifier:
         obj.n_features_ = obj.theta_.shape[1] + len(
             params.get("categorical_indices") or []
         )
-        obj.numeric_indices_ = np.asarray(params.get("numeric_indices") or [], dtype=int)
+        obj.numeric_indices_ = np.asarray(
+            params.get("numeric_indices") or [], dtype=int
+        )
         obj.categorical_indices_ = np.asarray(
             params.get("categorical_indices") or [], dtype=int
         )
@@ -373,9 +383,7 @@ class NaiveBayesClassifier:
 
     @classmethod
     def from_dict(cls, d):
-        state = {
-            k: np.asarray(v, dtype=np.float64) for k, v in d["state"].items()
-        }
+        state = {k: np.asarray(v, dtype=np.float64) for k, v in d["state"].items()}
         state["classes"] = state["classes"].astype(np.int64)
         return cls.from_state(d["params"], state)
 

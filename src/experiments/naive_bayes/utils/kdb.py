@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
+from pathlib import Path
+from textwrap import fill
 
 EPS = 1e-12
 
@@ -140,9 +142,7 @@ class KDBClassifier:
             candidates = self.order_[:pos]
             if self.k == 0 or len(candidates) == 0:
                 continue
-            ranked = candidates[
-                np.lexsort((candidates, -cmi[j, candidates]))
-            ]
+            ranked = candidates[np.lexsort((candidates, -cmi[j, candidates]))]
             self.parents_[j] = [int(q) for q in ranked[: self.k]]
 
     def fit(self, X, y):
@@ -305,10 +305,18 @@ class KDBClassifier:
                 prefix = f"f{j}_l{level}_"
                 levels.append(
                     {
-                        "flat_keys": np.asarray(state[prefix + "flat_keys"], dtype=np.int64),
-                        "flat_counts": np.asarray(state[prefix + "flat_counts"], dtype=np.float64),
-                        "parent_keys": np.asarray(state[prefix + "parent_keys"], dtype=np.int64),
-                        "parent_counts": np.asarray(state[prefix + "parent_counts"], dtype=np.float64),
+                        "flat_keys": np.asarray(
+                            state[prefix + "flat_keys"], dtype=np.int64
+                        ),
+                        "flat_counts": np.asarray(
+                            state[prefix + "flat_counts"], dtype=np.float64
+                        ),
+                        "parent_keys": np.asarray(
+                            state[prefix + "parent_keys"], dtype=np.int64
+                        ),
+                        "parent_counts": np.asarray(
+                            state[prefix + "parent_counts"], dtype=np.float64
+                        ),
                     }
                 )
             obj.tables_.append(levels)
@@ -322,6 +330,146 @@ class KDBClassifier:
         for j, pa in enumerate(self.parents_):
             edges.extend((names[q], names[j]) for q in pa)
         return edges
+
+    def directed_graph(self, feature_names=None):
+        """Bangun DiGraph dari struktur induk-anak model."""
+        import networkx as nx
+
+        return nx.DiGraph(self.structure(feature_names))
+
+    def plot_structure(self, output_path, feature_names=None):
+        """Simpan visualisasi graf KDB dan kembalikan figure Matplotlib."""
+        import matplotlib.pyplot as plt
+        import networkx as nx
+        from matplotlib.lines import Line2D
+
+        names = (
+            [f"x{j}" for j in range(self.n_features_)]
+            if feature_names is None
+            else list(feature_names)
+        )
+        if len(names) != self.n_features_:
+            raise ValueError("jumlah feature_names harus sama dengan jumlah fitur")
+
+        ordered_names = [names[j] for j in self.order_]
+        columns = min(5, max(1, self.n_features_))
+        rows = int(np.ceil(self.n_features_ / columns))
+        spacing_x, spacing_y = 4.8, 3.2
+        positions = {
+            name: (
+                (j % columns - (columns - 1) / 2) * spacing_x,
+                (rows - 1 - j // columns) * spacing_y,
+            )
+            for j, name in enumerate(ordered_names)
+        }
+        colors = plt.get_cmap("turbo", max(1, self.n_features_))
+        feature_colors = {name: colors(j) for j, name in enumerate(ordered_names)}
+        class_position = (0.0, rows * spacing_y)
+        positions["C"] = class_position
+        fig, ax = plt.subplots(
+            figsize=(max(14, columns * spacing_x), max(8, (rows + 1) * spacing_y))
+        )
+
+        graph = self.directed_graph(names)
+        class_edges = [
+            (source, target) for source, target in graph.edges if source == "C"
+        ]
+        feature_edges = [
+            (source, target) for source, target in graph.edges if source != "C"
+        ]
+        nx.draw_networkx_edges(
+            graph,
+            positions,
+            ax=ax,
+            edgelist=class_edges,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=24,
+            edge_color="#94a3b8",
+            style="dashed",
+            alpha=0.3,
+            width=1.0,
+            connectionstyle="arc3,rad=0.03",
+            node_size=20000,
+        )
+        nx.draw_networkx_edges(
+            graph,
+            positions,
+            ax=ax,
+            edgelist=feature_edges,
+            arrows=True,
+            arrowstyle="-|>",
+            arrowsize=26,
+            edge_color=[feature_colors[source] for source, _ in feature_edges],
+            alpha=0.8,
+            width=1.3,
+            connectionstyle="arc3,rad=0.08",
+            node_size=20000,
+        )
+
+        nx.draw_networkx_nodes(
+            graph,
+            positions,
+            nodelist=ordered_names,
+            node_shape="s",
+            node_size=20000,
+            node_color="#eff6ff",
+            edgecolors=[feature_colors[name] for name in ordered_names],
+            linewidths=1.2,
+            ax=ax,
+        )
+        nx.draw_networkx_nodes(
+            graph,
+            positions,
+            nodelist=["C"],
+            node_shape="s",
+            node_size=20000,
+            node_color="#fef3c7",
+            edgecolors="#d97706",
+            linewidths=1.4,
+            ax=ax,
+        )
+        nx.draw_networkx_labels(
+            graph,
+            positions,
+            labels={name: fill(name.replace("_", " "), width=22) for name in names},
+            font_size=9,
+            ax=ax,
+        )
+        nx.draw_networkx_labels(
+            graph,
+            positions,
+            labels={"C": "C\nis_canceled"},
+            font_size=9,
+            font_weight="bold",
+            ax=ax,
+        )
+
+        ax.legend(
+            handles=[
+                Line2D(
+                    [0], [0], color="#94a3b8", linestyle="--", label="Kelas → fitur"
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    color="#2563eb",
+                    label="Induk fitur → fitur (warna = simpul asal)",
+                ),
+            ],
+            loc="upper right",
+            frameon=False,
+        )
+        ax.set_title(f"Struktur Bayesian Network KDB (k={self.k})", pad=18)
+        ax.set_xlim(-columns * spacing_x / 2 - 2, columns * spacing_x / 2 + 2)
+        ax.set_ylim(-1, class_position[1] + 1.4)
+        ax.axis("off")
+        fig.tight_layout()
+
+        output_path = Path(output_path)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(output_path, dpi=220, bbox_inches="tight")
+        return fig
 
     def __repr__(self):
         return (
@@ -358,10 +506,10 @@ def fit_feature_weights(oof_lik, oof_prior, y, lam=1e-3, iters=400, lr=0.5):
         vw = 0.999 * vw + 0.001 * (gw * gw)
         mb = 0.9 * mb + 0.1 * gb
         vb = 0.999 * vb + 0.001 * (gb * gb)
-        mw_hat = mw / (1.0 - 0.9 ** t)
-        vw_hat = vw / (1.0 - 0.999 ** t)
-        mb_hat = mb / (1.0 - 0.9 ** t)
-        vb_hat = vb / (1.0 - 0.999 ** t)
+        mw_hat = mw / (1.0 - 0.9**t)
+        vw_hat = vw / (1.0 - 0.999**t)
+        mb_hat = mb / (1.0 - 0.9**t)
+        vb_hat = vb / (1.0 - 0.999**t)
         w = np.maximum(w - step * mw_hat / (np.sqrt(vw_hat) + 1e-8), 0.0)
         b = b - step * mb_hat / (np.sqrt(vb_hat) + 1e-8)
     return w.tolist(), float(b)

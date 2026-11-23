@@ -71,7 +71,7 @@ class PCANP:
         signs = np.sign(vt[np.arange(len(vt)), np.argmax(np.abs(vt), axis=1)])
         signs[signs == 0] = 1.0
         vt = vt * signs[:, None]
-        explained = (s ** 2) / max(n - 1, 1)
+        explained = (s**2) / max(n - 1, 1)
         total = explained.sum() if explained.sum() > 0 else 1.0
         k = self.n_components
         if isinstance(k, float) and 0 < k < 1:
