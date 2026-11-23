@@ -432,7 +432,7 @@ Algoritma~\ref{alg:svm} merangkum estimasi SVM soft-margin dengan menyelesaikan 
 
 \subsubsection{Formulasi Primal \textit{L2-Hinge Loss} dan Pembobotan Kelas}
 
-Formulasi klasik pada Persamaan~\eqref{eq:svm-soft-margin} memakai penalti kesalahan linear (\textit{L1-hinge loss}) $\xi_i = \max(0, 1 - y_i f(x_i))$ yang tidak terdiferensialkan pada titik batas $y_i f(x_i) = 1$. Untuk memungkinkan optimasi berbasis turunan orde dua pada skala besar, digunakan varian \textit{L2-hinge loss} (\textit{squared hinge loss}) yang terdiferensialkan secara kontinu di seluruh ruang parameter \cite{keerthi2005newton}:
+Formulasi klasik pada Persamaan~\eqref{eq:svm-soft-margin} memakai penalti kesalahan linear (\textit{L1-hinge loss}) $\xi_i = \max(0, 1 - y_i f(x_i))$ yang tidak terdiferensialkan pada titik batas $y_i f(x_i) = 1$. Untuk memungkinkan optimasi berbasis turunan orde dua pada skala besar, digunakan varian \textit{L2-hinge loss} (\textit{squared hinge loss}) yang terdiferensialkan secara kontinu di seluruh ruang parameter \cite{keerthi2005newton}.
 \begin{equation}
     \min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|_2^2 + C \sum_{i=1}^{n} c_i \max\left(0,\, 1 - y_i (\mathbf{w}^{\mathsf{T}}\phi(x_i) + b)\right)^2.
     \label{eq:svm-l2-hinge}
@@ -441,11 +441,11 @@ Bobot per sampel $c_i > 0$ memungkinkan penerapan \textit{class weighting} untuk
 
 \subsubsection{Algoritma Optimasi SVM: SMO, \textit{Dual Coordinate Descent}, dan \textit{Modified Finite Newton}}
 
-Penyelesaian masalah kuadratik SVM dengan pemecah umum (\textit{general-purpose QP solver}) memakan memori dan waktu yang tinggi ketika $n$ mencapai puluhan ribu. Oleh karena itu, dikembangkan tiga metode optimasi khusus:
+Penyelesaian masalah kuadratik SVM dengan pemecah umum (\textit{general-purpose QP solver}) memakan memori dan waktu yang tinggi ketika $n$ mencapai puluhan ribu. Oleh karena itu, dikembangkan tiga metode optimasi khusus.
 \begin{enumerate}
     \item \textit{Sequential Minimal Optimization} (SMO) memecah masalah dual pada Persamaan~\eqref{eq:svm-dual} menjadi rangkaian submasalah analitik berukuran dua variabel $(\alpha_i, \alpha_j)$ secara berulang sambil mempertahankan kendala kesetaraan $\sum_{k=1}^n \alpha_k y_k = 0$ serta kendala kotak $0 \le \alpha_k \le C$ tanpa memerlukan pustaka optimasi eksternal \cite{platt1998smo}.
     \item \textit{Dual Coordinate Descent} (DCD) menyelesaikan masalah dual secara primal-dual dengan memperbarui satu pengali $\alpha_i$ per langkah di sepanjang arah gradien koordinat terproyeksi, sehingga sangat efisien untuk pemetaan berdimensi tetap berukuran besar \cite{hsieh2008dcd}.
-    \item \textit{Active-Set Modified Finite Newton} menyelesaikan langsung bentuk primal \textit{L2-hinge loss} pada Persamaan~\eqref{eq:svm-l2-hinge} \cite{keerthi2005newton}. Pada tiap iterasi, himpunan titik aktif yang masih melanggar margin didefinisikan sebagai $I = \{i : y_i (\mathbf{w}^{\mathsf{T}}\mathbf{z}_i + b) < 1\}$. Dengan membentuk matriks augmen $\tilde{\mathbf{z}}_i = [\mathbf{z}_i^{\mathsf{T}}, 1]^{\mathsf{T}}$ dan bobot diagonal $\mathbf{D}_I$, langkah Newton eksak diperoleh melalui sistem persamaan linear tereduksi:
+    \item \textit{Active-Set Modified Finite Newton} menyelesaikan langsung bentuk primal \textit{L2-hinge loss} pada Persamaan~\eqref{eq:svm-l2-hinge} \cite{keerthi2005newton}. Pada tiap iterasi, himpunan titik aktif yang masih melanggar margin didefinisikan sebagai $I = \{i : y_i (\mathbf{w}^{\mathsf{T}}\mathbf{z}_i + b) < 1\}$. Dengan membentuk matriks augmen $\tilde{\mathbf{z}}_i = [\mathbf{z}_i^{\mathsf{T}}, 1]^{\mathsf{T}}$ dan bobot diagonal $\mathbf{D}_I$, langkah Newton eksak diperoleh melalui sistem persamaan linear tereduksi berikut.
     \begin{equation}
         \left(\mathbf{I}_{d+1}' + 2 \tilde{\mathbf{Z}}_I^{\mathsf{T}} \mathbf{D}_I \tilde{\mathbf{Z}}_I\right) \tilde{\mathbf{w}} = 2 \tilde{\mathbf{Z}}_I^{\mathsf{T}} \mathbf{D}_I \mathbf{y}_I,
         \label{eq:svm-newton-step}
@@ -455,7 +455,7 @@ Penyelesaian masalah kuadratik SVM dengan pemecah umum (\textit{general-purpose 
 
 \subsubsection{Aproksimasi Kernel \textit{Cholesky-Nystr\"om} untuk Skala Besar}
 
-Evaluasi langsung matriks kernel penuh $\mathbf{K} \in \mathbb{R}^{n \times n}$ untuk kernel non-linear (seperti polinomial dan RBF) membutuhkan kompleksitas memori $O(n^2)$ yang tidak praktis pada dataset besar. Metode Nystr\"om mengatasi kendala ini dengan memilih $m \ll n$ titik acuan (\textit{landmarks}) secara terstratifikasi untuk membentuk representasi fitur eksplisit peringkat rendah \cite{williams2001nystrom}. Misalkan $\mathbf{K}_{MM} \in \mathbb{R}^{m \times m}$ adalah matriks kernel antar-landmark dan $\mathbf{K}_{NM} \in \mathbb{R}^{n \times m}$ adalah matriks kernel antara seluruh data dan landmark. Melalui faktorisasi Cholesky teratur $\mathbf{K}_{MM} + \lambda \mathbf{I}_m = \mathbf{L}\mathbf{L}^{\mathsf{T}}$ ($\lambda = 10^{-5}$, dengan cadangan dekomposisi nilai eigen apabila matriks mendekati singular), data diproyeksikan ke ruang fitur ortogonal berdimensi $m$:
+Evaluasi langsung matriks kernel penuh $\mathbf{K} \in \mathbb{R}^{n \times n}$ untuk kernel non-linear (seperti polinomial dan RBF) membutuhkan kompleksitas memori $O(n^2)$ yang tidak praktis pada dataset besar. Metode Nystr\"om mengatasi kendala ini dengan memilih $m \ll n$ titik acuan (\textit{landmarks}) secara terstratifikasi untuk membentuk representasi fitur eksplisit peringkat rendah \cite{williams2001nystrom}. Misalkan $\mathbf{K}_{MM} \in \mathbb{R}^{m \times m}$ adalah matriks kernel antar-landmark dan $\mathbf{K}_{NM} \in \mathbb{R}^{n \times m}$ adalah matriks kernel antara seluruh data dan landmark. Melalui faktorisasi Cholesky teratur $\mathbf{K}_{MM} + \lambda \mathbf{I}_m = \mathbf{L}\mathbf{L}^{\mathsf{T}}$ ($\lambda = 10^{-5}$, dengan cadangan dekomposisi nilai eigen apabila matriks mendekati singular), data diproyeksikan ke ruang fitur ortogonal berdimensi $m$.
 \begin{equation}
     \mathbf{Z} = \mathbf{K}_{NM} (\mathbf{L}^{-1})^{\mathsf{T}} \in \mathbb{R}^{n \times m}.
     \label{eq:nystrom-proj}
@@ -464,7 +464,7 @@ Representasi $\mathbf{Z}$ menurunkan kebutuhan memori dari $O(n^2)$ menjadi $O(n
 
 \subsubsection{Kalibrasi Ambang Batas \textit{Out-Of-Fold} dan Teknik Prapemrosesan Pendukung Lanjutan}
 
-Untuk menyesuaikan keluaran SVM dengan metrik evaluasi \textit{Macro F1} pada data timpang serta memperkaya representasi fitur tanpa kebocoran data, diterapkan beberapa konsep pendukung di luar teori dasar SVM:
+Untuk menyesuaikan keluaran SVM dengan metrik evaluasi \textit{Macro F1} pada data timpang serta memperkaya representasi fitur tanpa kebocoran data, diterapkan beberapa konsep pendukung di luar teori dasar SVM.
 \begin{enumerate}
     \item Kalibrasi ambang batas keputusan berbasis \textit{out-of-fold} (OOF) menggantikan ambang baku $0$ pada $\hat{y} = \mathbb{I}[f(x) \ge \tau]$. Nilai $\tau^*$ dipilih dari pencarian garis di atas skor keputusan validasi silang $K$-lipatan pada data latih saja sehingga memaksimalkan $\frac{1}{2}(\mathrm{F1}_0 + \mathrm{F1}_1)$ tanpa mengintip data validasi maupun uji.
     \item Skema \textit{strictly out-of-fold} pada fitur berbasis target memastikan bahwa nilai fitur untuk setiap lipatan latih ke-$k$ hanya dihitung dari $K-1$ lipatan lainnya, sehingga mencegah \textit{in-sample memorization} dan menjaga kesetaraan distribusi antara fitur latih, validasi, dan uji \cite{scikitlearn_pitfalls}.

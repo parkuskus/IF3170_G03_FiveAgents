@@ -292,7 +292,7 @@ Hasil eksperimen menunjukkan pentingnya representasi fitur bagi kinerja SVM. Kel
     \item Pembersihan dan rekayasa fitur domain perhotelan membentuk blok dasar sebanyak $64$ fitur ditambah variasi rasio interaksi. Informasi nilai kosong pada delapan kolom ($\sim 39\%$ baris) dicatat terlebih dahulu ke dalam kolom indikator biner \texttt{miss\_*} dan jumlah kolom kosong per baris (\texttt{n\_missing}), lalu diisi dengan median atau modus data latih. Selanjutnya dibuat fitur turunan domain meliputi total malam menginap, total tamu, rasio malam akhir pekan, estimasi biaya total, tarif per tamu per malam (\texttt{rate\_per\_guest\_night}), transformasi logaritmik \texttt{log1p} pada waktu tunggu dan tarif kamar, rasio riwayat pembatalan, selisih dan skor-$z$ tarif terhadap median bulan-kamar, hingga transformasi sinus dan kosinus hari dalam setahun (\texttt{arr\_doy\_sin}, \texttt{arr\_doy\_cos}).
     \item Imputasi prediktif terawasi (\texttt{imp\_*}) ditambahkan untuk memulihkan nilai kosong pada tiga fitur numerik terpenting, yakni \texttt{days\_before\_arrival}, \texttt{nightly\_rate\_idr}, dan \texttt{special\_requests}. Pada saat \texttt{fit} di data latih, model regresi \texttt{HistGradientBoostingRegressor} dilatih khusus pada baris-baris yang nilainya tidak kosong (dengan mengeluarkan kolom turunan dari fitur yang sedang diprediksi agar tidak bocor), lalu hasil taksirannya disimpan sebagai kolom fitur tambahan \texttt{imp\_days\_before\_arrival}, \texttt{imp\_nightly\_rate\_idr}, dan \texttt{imp\_special\_requests}.
     \item Skema \textit{out-of-fold} (OOF) menggunakan validasi silang terstratifikasi lima lipatan di dalam data latih untuk membatasi penggunaan label baris sendiri dalam pembentukan fitur berbasis target. Setiap lipatan menerima statistik dari empat lipatan lainnya. Matriks fitur latih hasilnya disimpan pada atribut \texttt{\_train\_oof\_cache\_}. Data validasi dan uji menggunakan transformasi dari model yang dilatih pada seluruh data latih. Skema ini mengurangi perbedaan antara fitur latih yang dihitung \textit{in-sample} dan fitur pada data baru, tetapi tidak menjamin kesamaan distribusinya.
-    \item Estimasi target encoding bertingkat dan kemiripan lingkungan lokal dibangun di atas skema OOF tersebut. Bagian ini mencakup \textit{Hierarchical Empirical Bayes Target Encoding} (\texttt{te\_*}) dengan faktor penghalus $m \in [1{,}5; 12{,}0]$, estimasi kepadatan lokal kelas pembatalan menggunakan \textit{K-Nearest Neighbors} ($k \in \{3, 9, 25\}$) dan \textit{Parzen Window Kernel Density Estimation} (KDE) pada tiga subruang fitur (profil pemesanan, tarif dan rombongan tamu, serta kalender), serta fitur \textit{Masked Exact Match} (\texttt{masked\_*}) yang mencocokkan baris identik pada seluruh kolom non-null.
+    \item Estimasi target encoding bertingkat dan kemiripan lingkungan lokal dibangun di atas skema OOF tersebut. Bagian ini mencakup \textit{Hierarchical Empirical Bayes Target Encoding} (\texttt{te\_*}) dengan faktor penghalus $1{,}5 \le m \le 12{,}0$, estimasi kepadatan lokal kelas pembatalan menggunakan \textit{K-Nearest Neighbors} ($k \in \{3, 9, 25\}$) dan \textit{Parzen Window Kernel Density Estimation} (KDE) pada tiga subruang fitur (profil pemesanan, tarif dan rombongan tamu, serta kalender), serta fitur \textit{Masked Exact Match} (\texttt{masked\_*}) yang mencocokkan baris identik pada seluruh kolom non-null.
     \item Proyeksi logit interaksi nonlinear, pembobotan subruang, dan kompresi serialisasi menjadi tahap penutup di dalam \texttt{SVMPreprocessor}. Empat fitur skor logit ($\ln(p / (1-p))$) diekstraksi secara OOF dari estimator pohon \texttt{rf64}, \texttt{rfv2}, \texttt{et}, dan \texttt{hgb}. Kedalaman daunnya dibatasi dengan \texttt{min\_samples\_leaf=4..5} dan \texttt{max\_depth=24}. Seluruh blok fitur distandardisasi menggunakan \texttt{StandardScaler} yang di-\textit{fit} hanya pada data latih. Bobot subruang yang digunakan ialah \texttt{[X\_pure * 0.40, X\_manifold * 0.80, X\_emb * 2.50]}. Bundel \texttt{svm\_pipeline.pkl} berukuran $40{,}94\text{ MB}$ setelah dikompresi dengan \texttt{zlib} level $6$ pada \texttt{\_\_getstate\_\_}.
 \end{enumerate}
 
@@ -511,7 +511,7 @@ Naive Bayes independen dengan dependensi terbatas antarf fitur.
 \subsection{Bonus DTL Gambar Percabangan Tree}
 \label{sec-bonus-dtl-implementasi}
 
-Bonus DTL meminta gambar percabangan \textit{tree} dengan parameter untuk membatasi jumlah percabangan yang ditampilkan. Notebook final menyediakan \texttt{CFG.TREE\_TOP\_N} untuk menentukan banyaknya \textit{split} yang dibuka dari \textit{root}. Nilai 10 digunakan untuk gambar utama. Pembatasan ini hanya memengaruhi visualisasi, bukan pelatihan atau prediksi model. Kode~\ref{lst-bonus-dtl-topn} menunjukkan parameter tersebut.
+Gambar percabangan pohon menggunakan parameter untuk membatasi jumlah pemisahan yang ditampilkan. Notebook final menyediakan \texttt{CFG.TREE\_TOP\_N} untuk menentukan banyaknya \textit{split} yang dibuka dari \textit{root}. Nilai 10 digunakan untuk gambar utama. Pembatasan ini hanya memengaruhi visualisasi, bukan pelatihan atau prediksi model. Kode~\ref{lst-bonus-dtl-topn} menunjukkan parameter tersebut.
 
 \begin{lstlisting}[caption={Parameter jumlah split pada gambar DTL},label={lst-bonus-dtl-topn}]
 TREE_TOP_N = 10  # Number of split nodes to show, breadth-first from the root.
@@ -559,7 +559,19 @@ atau mengubah prediksi.
 
 \subsubsection{DTL}
 
+Pohon CART akhir dipangkas setelah pertumbuhan dengan membandingkan
+galat tertimbang setiap subpohon terhadap penalti jumlah daun.
+Nilai $\alpha$ dan ambang klasifikasi dipilih melalui validasi silang
+pada bagian latih. Perbandingan dengan pemangkasan yang dibahas dalam
+teori serta hasil ablasi dijelaskan pada bab hasil.
+
 \subsubsection{SVM}
+
+Model linear akhir memakai langkah Newton pada contoh yang melanggar
+margin. Kandidat dengan kernel nonlinear menggunakan pendekatan
+Nystr\"om untuk menghindari pembentukan matriks kernel penuh.
+Perbedaan kedua prosedur dari formulasi margin dasar dan hasil
+perbandingannya dijelaskan pada bab hasil.
 
 \subsubsection{Naive Bayes}
 
