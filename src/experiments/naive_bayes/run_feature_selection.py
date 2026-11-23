@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from src.experiments.naive_bayes.utils.numpy_utils import (
+    chi2_scores,
+    mutual_info_scores,
+)
 
-from utils.numpy_utils import chi2_scores, mutual_info_scores
-
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.pipeline import (
     ADOPTION_GAP,
     N_FOLDS,
     OUT_DIR,
@@ -23,8 +22,9 @@ from utils.pipeline import (
     read_json,
     write_json,
 )
-from utils.preprocessing import MISSING_SUFFIX
+from src.experiments.naive_bayes.utils.preprocessing import MISSING_SUFFIX
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PREP_CONFIG = OUT_DIR / "naive_bayes_preprocessing_config.json"
 RESULT_CSV = OUT_DIR / "naive_bayes_feature_selection_results.csv"
 DECISION_CSV = OUT_DIR / "naive_bayes_feature_selection_decisions.csv"
@@ -89,11 +89,23 @@ def select_correlation_prune(pipe, Z, mi_scores, all_features):
             if np.isfinite(value) and abs(value) > 0.95:
                 left = pipe.pre_.feature_names_[numeric[i]]
                 right = pipe.pre_.feature_names_[numeric[j]]
-                left = left[: -len(MISSING_SUFFIX)] if left.endswith(MISSING_SUFFIX) else left
-                right = right[: -len(MISSING_SUFFIX)] if right.endswith(MISSING_SUFFIX) else right
+                left = (
+                    left[: -len(MISSING_SUFFIX)]
+                    if left.endswith(MISSING_SUFFIX)
+                    else left
+                )
+                right = (
+                    right[: -len(MISSING_SUFFIX)]
+                    if right.endswith(MISSING_SUFFIX)
+                    else right
+                )
                 if left == right:
                     continue
-                drop = left if mi_scores.get(left, 0.0) < mi_scores.get(right, 0.0) else right
+                drop = (
+                    left
+                    if mi_scores.get(left, 0.0) < mi_scores.get(right, 0.0)
+                    else right
+                )
                 dropped.add(drop)
     selected = [f for f in all_features if f not in dropped]
     return selected or list(all_features)
@@ -148,7 +160,9 @@ def select_wrapper_backward(
 def main():
     assert Path.cwd() == REPO_ROOT, "Jalankan dari akar repo"
     if not PREP_CONFIG.exists():
-        raise SystemExit("Jalankan run_preprocessing.py terlebih dahulu")
+        raise SystemExit(
+            "Jalankan python -m src.experiments.naive_bayes.run_preprocessing terlebih dahulu"
+        )
 
     prep_config = read_json(PREP_CONFIG)
     prep_cfg = prep_config["chosen"]
@@ -262,13 +276,15 @@ def main():
         "best_f1": round(float(best["cv_macro_f1_mean"]), 6),
         "delta": round(delta, 6),
         "keputusan": "ADOPSI" if adopt else "TOLAK",
-        "alasan": "naik >= 0.005 pada CV" if adopt else "kenaikan di bawah 0.005 pada CV",
+        "alasan": "naik >= 0.005 pada CV"
+        if adopt
+        else "kenaikan di bawah 0.005 pada CV",
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    result.sort_values(
-        ["cv_macro_f1_mean", "method"], ascending=[False, True]
-    ).to_csv(RESULT_CSV, index=False)
+    result.sort_values(["cv_macro_f1_mean", "method"], ascending=[False, True]).to_csv(
+        RESULT_CSV, index=False
+    )
     pd.DataFrame([decision]).to_csv(DECISION_CSV, index=False)
 
     config = {

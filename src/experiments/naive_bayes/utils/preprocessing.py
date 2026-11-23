@@ -59,7 +59,9 @@ class NaiveBayesPreprocessor:
         bin_strategy="quantile",
     ):
         if bin_strategy not in VALID_BIN_STRATEGIES:
-            raise ValueError(f"bin_strategy harus salah satu dari {VALID_BIN_STRATEGIES}")
+            raise ValueError(
+                f"bin_strategy harus salah satu dari {VALID_BIN_STRATEGIES}"
+            )
         if int(n_bins) < 2:
             raise ValueError("n_bins harus >= 2")
         self.standardize = bool(standardize)
@@ -127,9 +129,7 @@ class NaiveBayesPreprocessor:
         self.categories = {}
         for c in self.cat_cols:
             if c in self.bin_cols_:
-                values = sorted(
-                    self._binned_strings(X, c).dropna().unique().tolist()
-                )
+                values = sorted(self._binned_strings(X, c).dropna().unique().tolist())
             else:
                 values = sorted(
                     self._category_values(X, c).dropna().astype(str).unique().tolist()
@@ -149,7 +149,9 @@ class NaiveBayesPreprocessor:
         n_num = len(self.num_cols)
         n_cat = len(self.cat_cols)
         self.numeric_indices_ = list(range(n_num))
-        self.categorical_indices_ = list(range(n_num, n_num + n_cat + len(self.indicator_cols)))
+        self.categorical_indices_ = list(
+            range(n_num, n_num + n_cat + len(self.indicator_cols))
+        )
         self.n_categories_ = [len(self.categories[c]) for c in self.cat_cols] + [
             2 for _ in self.indicator_cols
         ]
@@ -166,8 +168,10 @@ class NaiveBayesPreprocessor:
 
         parts = []
         for c in self.num_cols:
-            col = self._numeric_values(X, c).fillna(self.medians[c]).to_numpy(
-                dtype=np.float64
+            col = (
+                self._numeric_values(X, c)
+                .fillna(self.medians[c])
+                .to_numpy(dtype=np.float64)
             )
             if self.standardize:
                 col = (col - self.means[c]) / self.stds[c]
@@ -210,9 +214,9 @@ class NaiveBayesPreprocessor:
             return np.array([-np.inf, np.inf], dtype=np.float64)
         if self.bin_strategy == "quantile":
             try:
-                edges = pd.qcut(
-                    valid, q=self.n_bins, duplicates="drop", retbins=True
-                )[1]
+                edges = pd.qcut(valid, q=self.n_bins, duplicates="drop", retbins=True)[
+                    1
+                ]
             except ValueError:
                 edges = np.array([-np.inf, np.inf], dtype=np.float64)
         else:

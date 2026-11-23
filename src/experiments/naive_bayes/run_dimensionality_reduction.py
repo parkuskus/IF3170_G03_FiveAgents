@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.pipeline import (
     ADOPTION_GAP,
     N_FOLDS,
     OUT_DIR,
@@ -21,6 +17,7 @@ from utils.pipeline import (
     write_json,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PREP_CONFIG = OUT_DIR / "naive_bayes_preprocessing_config.json"
 FS_CONFIG = OUT_DIR / "naive_bayes_feature_selection_config.json"
 RESULT_CSV = OUT_DIR / "naive_bayes_dimensionality_reduction_results.csv"
@@ -53,9 +50,13 @@ def pca_candidates(n_numeric):
 def main():
     assert Path.cwd() == REPO_ROOT, "Jalankan dari akar repo"
     if not PREP_CONFIG.exists():
-        raise SystemExit("Jalankan run_preprocessing.py terlebih dahulu")
+        raise SystemExit(
+            "Jalankan python -m src.experiments.naive_bayes.run_preprocessing terlebih dahulu"
+        )
     if not FS_CONFIG.exists():
-        raise SystemExit("Jalankan run_feature_selection.py terlebih dahulu")
+        raise SystemExit(
+            "Jalankan python -m src.experiments.naive_bayes.run_feature_selection terlebih dahulu"
+        )
 
     prep_config = read_json(PREP_CONFIG)
     fs_config = read_json(FS_CONFIG)
@@ -71,7 +72,9 @@ def main():
     )
     n_numeric = len(probe.numeric_indices)
     print(f"fitur numerik setelah preprocessing: {n_numeric}", flush=True)
-    candidates = pca_candidates(n_numeric) if n_numeric else [{"name": "none", "method": "none"}]
+    candidates = (
+        pca_candidates(n_numeric) if n_numeric else [{"name": "none", "method": "none"}]
+    )
 
     rows = []
     for cand in candidates:
@@ -138,9 +141,9 @@ def main():
     }
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    result.sort_values(
-        ["cv_macro_f1_mean", "name"], ascending=[False, True]
-    ).to_csv(RESULT_CSV, index=False)
+    result.sort_values(["cv_macro_f1_mean", "name"], ascending=[False, True]).to_csv(
+        RESULT_CSV, index=False
+    )
     pd.DataFrame([decision]).to_csv(DECISION_CSV, index=False)
 
     chosen_cfg = {"method": chosen_candidate["method"]}

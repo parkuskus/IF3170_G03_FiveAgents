@@ -1,15 +1,11 @@
 from __future__ import annotations
 
 import copy
-import sys
 from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.pipeline import (
     ADOPTION_GAP,
     N_FOLDS,
     OUT_DIR,
@@ -19,13 +15,14 @@ from utils.pipeline import (
     read_json,
     write_json,
 )
-from utils.feature_engineering import (
+from src.experiments.naive_bayes.utils.feature_engineering import (
     FEATURE_DESCRIPTIONS,
     FEATURE_LIBRARY,
     FEATURE_SETS,
     NB_BEST_FEATURES,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 TEXT_FEATURES = {
     "dup_channel",
     "dup_returning",
@@ -43,7 +40,9 @@ CONFIG_JSON = OUT_DIR / "naive_bayes_feature_engineering_config.json"
 def main():
     assert Path.cwd() == REPO_ROOT, "Jalankan dari akar repo"
     if not PREP_CONFIG.exists():
-        raise SystemExit("Jalankan run_preprocessing.py terlebih dahulu")
+        raise SystemExit(
+            "Jalankan python -m src.experiments.naive_bayes.run_preprocessing terlebih dahulu"
+        )
 
     prep_stage = read_json(PREP_CONFIG)
     base_prep = prep_stage["chosen"]
@@ -58,9 +57,7 @@ def main():
         trial_prep["feature_set"] = feature_set
         options = trial_prep.setdefault("options", {})
         categorical = list(options.get("categorical_numeric_cols", ()))
-        names = (
-            list(NB_BEST_FEATURES) if feature_set == "nb_best" else [feature_set]
-        )
+        names = list(NB_BEST_FEATURES) if feature_set == "nb_best" else [feature_set]
         for name in names:
             if (
                 name in FEATURE_LIBRARY

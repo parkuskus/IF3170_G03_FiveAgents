@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,11 +7,8 @@ import pandas as pd
 from sklearn.metrics import f1_score
 from sklearn.naive_bayes import CategoricalNB, GaussianNB
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from utils.cleaning import clean_training_data
-from utils.pipeline import (
+from src.experiments.naive_bayes.utils.cleaning import clean_training_data
+from src.experiments.naive_bayes.utils.pipeline import (
     N_FOLDS,
     OUT_DIR,
     REFERENCE_PARAMS,
@@ -33,12 +29,13 @@ from utils.pipeline import (
     threshold_curve,
     write_json,
 )
-from utils.preprocessing import (
+from src.experiments.naive_bayes.utils.preprocessing import (
     DEFAULT_BIN_COLS,
     DEFAULT_CATEGORICAL_NUMERIC,
     DEFAULT_LOG1P_COLS,
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PREP_CONFIG = OUT_DIR / "naive_bayes_preprocessing_config.json"
 FS_CONFIG = OUT_DIR / "naive_bayes_feature_selection_config.json"
 DR_CONFIG = OUT_DIR / "naive_bayes_dimensionality_reduction_config.json"
@@ -71,15 +68,14 @@ DEFAULT_PREP_CFG = {
 
 def load_stage_configs():
     missing = [
-        str(path)
-        for path in (PREP_CONFIG, FS_CONFIG, DR_CONFIG)
-        if not path.exists()
+        str(path) for path in (PREP_CONFIG, FS_CONFIG, DR_CONFIG) if not path.exists()
     ]
     if missing:
         raise SystemExit(
-            "Jalankan run_preprocessing.py, run_feature_selection.py, dan "
-            "run_dimensionality_reduction.py terlebih dahulu. Hilang: "
-            + ", ".join(missing)
+            "Jalankan python -m src.experiments.naive_bayes.run_preprocessing, "
+            "python -m src.experiments.naive_bayes.run_feature_selection, dan "
+            "python -m src.experiments.naive_bayes.run_dimensionality_reduction "
+            "terlebih dahulu. Hilang: " + ", ".join(missing)
         )
     return read_json(PREP_CONFIG), read_json(FS_CONFIG), read_json(DR_CONFIG)
 
@@ -141,9 +137,7 @@ def _gaussian_comparison(
     Ztr = pipe.transform(X_raw.iloc[train_idx])
     Zva = pipe.transform(X_raw.iloc[valid_idx])
     Xtr, Xva = _build_comparison_features(pipe, Ztr, Zva)
-    model = GaussianNB(var_smoothing=params["var_smoothing"]).fit(
-        Xtr, y[train_idx]
-    )
+    model = GaussianNB(var_smoothing=params["var_smoothing"]).fit(Xtr, y[train_idx])
     return model.predict(Xva)
 
 
@@ -173,9 +167,7 @@ def _categorical_comparison(
             train_col = Ztr[:, j]
             valid_col = Zva[:, j]
             try:
-                edges = pd.qcut(
-                    train_col, q=8, duplicates="drop", retbins=True
-                )[1]
+                edges = pd.qcut(train_col, q=8, duplicates="drop", retbins=True)[1]
             except ValueError:
                 edges = np.array([-np.inf, np.inf])
             if len(edges) < 3:
@@ -183,17 +175,13 @@ def _categorical_comparison(
                 va_codes = np.zeros(len(Zva), dtype=np.int64)
             else:
                 tr_codes = (
-                    pd.cut(
-                        train_col, bins=edges, labels=False, include_lowest=True
-                    )
+                    pd.cut(train_col, bins=edges, labels=False, include_lowest=True)
                     .fillna(0)
                     .astype(np.int64)
                     .to_numpy()
                 )
                 va_codes = (
-                    pd.cut(
-                        valid_col, bins=edges, labels=False, include_lowest=True
-                    )
+                    pd.cut(valid_col, bins=edges, labels=False, include_lowest=True)
                     .fillna(0)
                     .astype(np.int64)
                     .to_numpy()
@@ -211,9 +199,7 @@ def _categorical_comparison(
         tr_parts.append(tr_codes[:, None])
         va_parts.append(va_codes[:, None])
 
-    model = CategoricalNB(alpha=params["alpha"]).fit(
-        np.hstack(tr_parts), y[train_idx]
-    )
+    model = CategoricalNB(alpha=params["alpha"]).fit(np.hstack(tr_parts), y[train_idx])
     return model.predict(np.hstack(va_parts))
 
 
@@ -240,9 +226,7 @@ def save_artifacts(X_raw, y, prep_cfg, selected, dr_cfg, params, config):
     Z = pipe.transform(X_clean)
     model = model_from_params(pipe, params).fit(Z, y_clean)
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        MODEL_DIR / "naive_bayes_model.npz", **model.export_state()
-    )
+    np.savez_compressed(MODEL_DIR / "naive_bayes_model.npz", **model.export_state())
     write_json(MODEL_DIR / "preprocessing.json", pipe.pre_.to_dict())
     artifact_config = dict(config)
     artifact_config["cleaning"] = {"dropped_train_duplicates": n_dropped}
@@ -416,9 +400,7 @@ def main_from_greedy(greedy_path):
         },
         "preprocessing": prep_cfg,
         "feature_engineering": {
-            "selected_derived_features": greedy.get(
-                "selected_derived_features", []
-            )
+            "selected_derived_features": greedy.get("selected_derived_features", [])
         },
         "feature_selection": {
             "method": greedy["feature_selection"].get("method", "none"),
@@ -575,7 +557,10 @@ def main():
         )
     best_row, best_trial = max(
         alpha_rows,
-        key=lambda item: (item[0]["cv_macro_f1_mean"], -ALPHA_GRID.index(item[1]["alpha"])),
+        key=lambda item: (
+            item[0]["cv_macro_f1_mean"],
+            -ALPHA_GRID.index(item[1]["alpha"]),
+        ),
     )
     best_for_decision = {
         "macro_f1": best_row["cv_macro_f1_mean"],
@@ -591,9 +576,7 @@ def main():
     folds = precompute_folds(
         X_raw, y, train_idx, prep_cfg, selected, dr_cfg, n_splits=N_FOLDS
     )
-    per_threshold, oof = threshold_curve(
-        folds, params, THRESHOLDS, len(train_idx)
-    )
+    per_threshold, oof = threshold_curve(folds, params, THRESHOLDS, len(train_idx))
     holdout = holdout_scores(
         X_raw, y, train_idx, valid_idx, prep_cfg, selected, dr_cfg, params
     )
@@ -631,9 +614,7 @@ def main():
         row.update(
             {
                 f"holdout_{k}": v
-                for k, v in metrics_from_scores(
-                    holdout, y_valid, threshold
-                ).items()
+                for k, v in metrics_from_scores(holdout, y_valid, threshold).items()
                 if k != "macro_f1"
             }
         )
