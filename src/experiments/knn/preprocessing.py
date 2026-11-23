@@ -23,8 +23,8 @@ class KNNPreprocessor:
 
     def fit(self, X: pd.DataFrame) -> "KNNPreprocessor":
         X = X.copy()
-        self.num_cols = [c for c in X.columns if X[c].dtype != object]
-        self.cat_cols = [c for c in X.columns if X[c].dtype == object]
+        self.num_cols = [c for c in X.columns if pd.api.types.is_numeric_dtype(X[c])]
+        self.cat_cols = [c for c in X.columns if c not in self.num_cols]
         self.medians = {c: float(X[c].median()) for c in self.num_cols}
         self.thresholds = {}
         for c in self.num_cols:
@@ -61,7 +61,7 @@ class KNNPreprocessor:
             col = X[c].fillna(self.medians[c]).to_numpy(dtype=np.float64)
             parts.append((col > self.thresholds[c]).astype(np.float64)[:, None])
         for c in self.cat_cols:
-            col = X[c].fillna(MISSING_TOKEN).astype(str).to_numpy()
+            col = X[c].astype("string").fillna(MISSING_TOKEN).to_numpy()
             cats = self.categories[c]
             index = {v: i for i, v in enumerate(cats)}
             block = np.zeros((len(col), len(cats) + 1), dtype=np.float64)
