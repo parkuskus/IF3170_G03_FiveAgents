@@ -114,8 +114,99 @@ if tuning:
 \end{lstlisting}
 
 \subsection{\textit{Logistic Regression}}
+\label{sec:implementasi-lr}
 
-\subsubsection{Optimasi \textit{Pipeline Logistic Regression} }
+Implementasi Logistic Regression mencakup regularisasi L1, L2, dan Elastic Net. Ketiganya menggunakan model probabilitas yang sama, tetapi berbeda pada penalti terhadap bobot. Nilai target 1 menyatakan reservasi dibatalkan, sedangkan target 0 menyatakan reservasi tidak dibatalkan. Untuk vektor fitur $x_i$, model menghitung $z_i=w^T x_i+b$ dan probabilitas pembatalan $p_i=\sigma(z_i)$.
+
+Fungsi objektif yang digunakan berupa rata-rata \textit{log-loss} dengan tambahan regularisasi sebagai berikut.
+\begin{equation}
+    J(w,b)=\frac{1}{n}\sum_{i=1}^{n}\left[\log(1+e^{z_i})-y_i z_i\right]
+    +\lambda\left[\rho\lVert w\rVert_1+\frac{1-\rho}{2}\lVert w\rVert_2^2\right].
+    \label{eq:lr-objective}
+\end{equation}
+Parameter $\lambda$ mengatur kekuatan regularisasi. Nilai $\rho=1$ menghasilkan L1, $\rho=0$ menghasilkan L2, dan $\rho=0{,}5$ digunakan untuk Elastic Net. Bias $b$ tidak dikenai penalti. Bentuk penalti tersebut mengikuti formulasi regularisasi Logistic Regression \cite{scikitlearn_logistic}.
+
+Model dasar pada notebook kelompok diimplementasikan dalam kelas \texttt{LogisticBaseline}. Bobot dan bias diinisialisasi dengan nol. Pada setiap \textit{epoch}, probabilitas dihitung untuk seluruh data latih, kemudian gradien rata-rata digunakan untuk memperbarui parameter. Komponen L2 dimasukkan ke dalam gradien, sedangkan komponen L1 ditangani dengan \textit{soft-thresholding} \cite{parikh2014proximal}. Pembaruan parameternya dinyatakan sebagai
+\begin{equation}
+    w_j\leftarrow\operatorname{sign}(u_j)\max\left(|u_j|-\eta\lambda\rho,0\right),
+    \qquad
+    u=w-\eta\left[\frac{X^T(p-y)}{n}+\lambda(1-\rho)w\right].
+\end{equation}
+Untuk L2, langkah ini menjadi pembaruan gradien biasa karena $\rho=0$. Bias diperbarui menggunakan rata-rata selisih probabilitas dengan label. Nilai logit dibatasi pada rentang $[-30,30]$ sebelum fungsi sigmoid dihitung untuk menghindari luapan numerik. Prediksi kelas menggunakan ambang probabilitas $0{,}5$.
+
+Preprocessing model dasar menggunakan median dan indikator nilai hilang untuk fitur numerik, kemudian \texttt{StandardScaler}. Fitur kategorikal diisi dengan modus dan diubah melalui \textit{one-hot encoding}. Kolom \texttt{id} dan target tidak digunakan sebagai fitur. Pada pembagian data yang dipakai, 17 fitur awal menghasilkan 36 kolom setelah preprocessing. Perhitungan bobot, gradien, penalti, dan prediksi ditulis sendiri menggunakan NumPy. Pustaka \texttt{scikit-learn} digunakan untuk preprocessing, evaluasi, dan model pembanding.
+
+\subsubsection{Optimasi \textit{Pipeline Logistic Regression}}
+\label{sec:pipeline-lr}
+
+Pipeline akhir tetap menggunakan Logistic Regression \textit{from scratch}. Perubahan dilakukan pada representasi fitur, cara pembaruan bobot, kekuatan regularisasi, dan ambang klasifikasi. Alur lengkapnya didokumentasikan pada notebook final LR di folder \texttt{notebooks}. Implementasi terdiri atas tiga berkas. Berkas \texttt{logistic\_regression.py} memuat model, \texttt{preprocessing.py} memuat transformasi fitur, dan \texttt{experiments.py} memuat evaluasi, penyimpanan model, serta pembuatan submisi.
+
+\textbf{Representasi fitur.}
+Hubungan antara fitur awal dengan peluang pembatalan tidak harus memiliki kemiringan yang sama pada seluruh rentang nilainya. Karena itu, pipeline menambahkan fungsi basis linier sepotong dan interaksi fitur. Model tetap linier terhadap bobotnya, tetapi dapat membentuk hubungan yang lebih fleksibel terhadap fitur awal. Pendekatan fungsi basis ini mengacu pada pembahasan metode nonlinier dalam \cite{james2021islr}.
+
+Fitur yang digunakan pada pipeline akhir meliputi kelompok berikut.
+\begin{enumerate}
+    \item \textbf{Karakteristik reservasi.} Ditambahkan total malam menginap, indikator adanya anak, permintaan khusus, dan malam akhir pekan. Jumlah permintaan, tamu dewasa, anak, malam akhir pekan, dan malam hari kerja juga direpresentasikan sebagai kategori, dengan batas atas masing-masing 3, 3, 2, 3, dan 7. Nilai di atas batas tersebut digabungkan agar kategorinya tidak terlalu terpecah.
+    \item \textbf{Jarak pemesanan dan tarif.} Ditambahkan indikator jarak pemesanan lebih dari 7, 30, 90, dan 180 hari. Fitur \textit{hinge} berbentuk $h_k(x)=\max(x-k,0)$ digunakan pada jarak pemesanan dengan titik 3, 7, 14, 30, 60, 90, 120, 180, dan 270 hari. Untuk tarif dalam juta rupiah, titiknya adalah $0{,}75$, $1$, $1{,}25$, $1{,}5$, $1{,}75$, $2$, $2{,}5$, dan $3$.
+    \item \textbf{Interaksi kanal pemesanan.} Indikator kanal \textit{Online Travel Agent} dikalikan dengan jarak pemesanan, tarif, dan jumlah permintaan khusus. Selain itu, kategori kanal digabungkan dengan kelompok jarak pemesanan, kelompok tarif, serta kategori permintaan khusus. Kelompok jarak pemesanan memakai batas 1, 7, 14, 30, 60, 90, 120, 180, dan 270 hari. Kelompok tarif memakai batas yang sama dengan titik \textit{hinge} tarif. Kelompok jarak pemesanan juga digabungkan dengan kategori permintaan khusus.
+    \item \textbf{Waktu kedatangan.} Bulan diperlakukan sebagai kategori dan digabungkan dengan kanal pemesanan maupun tahun kedatangan. Kolom tanggal dalam bulan, yaitu \texttt{arrival\_day}, tidak digunakan.
+\end{enumerate}
+
+Setelah fitur dibentuk, nilai numerik dibatasi pada kuantil $0{,}5\%$ dan $99{,}5\%$ dari data latih, diisi dengan median, lalu distandardisasi. Dua fitur biner, yaitu kebutuhan parkir dan status tamu berulang, diisi dengan modus tanpa standardisasi. Nilai kategorikal yang hilang diberi kategori \texttt{Missing}, kemudian diubah dengan \textit{one-hot encoding}. Kategori baru saat prediksi diabaikan oleh encoder. Pada split validasi, representasi akhir berisi 333 kolom.
+
+Batas kuantil, nilai imputasi, skala, dan daftar kategori hanya dipelajari dari bagian data latih. Transformasi yang sudah diperoleh kemudian diterapkan pada data validasi. Pada validasi silang, preprocessing dilatih ulang di setiap \textit{fold}. Pemisahan ini mencegah statistik preprocessing dipelajari dari data yang sedang dievaluasi \cite{scikitlearn_pitfalls}.
+
+\textbf{Pelatihan model.}
+Kelas \texttt{LogisticRegressionScratch} pada pipeline akhir menggunakan \textit{Stochastic Gradient Ascent} (SGA), sesuai pendekatan materi kuliah \cite{khodra2021sga}. Berbeda dari model dasar yang menggunakan gradien seluruh data, SGA memperbarui parameter setelah setiap sampel. Urutan sampel diacak pada setiap \textit{epoch} dengan \textit{seed} tetap. Arah pembaruan adalah gradien \textit{log-likelihood} dikurangi gradien penalti, sehingga setara dengan menurunkan objektif pada Persamaan~\ref{eq:lr-objective}. Pembaruannya dirumuskan sebagai berikut.
+\begin{align}
+    w &\leftarrow w+\eta\left[(y_i-p_i)x_i-\lambda\left((1-\rho)w+\rho\operatorname{sign}(w)\right)\right],\\
+    b &\leftarrow b+\eta(y_i-p_i).
+\end{align}
+Bagian L1 menggunakan subgradien dengan $\operatorname{sign}(0)=0$ \cite{boyd2003subgradient}. Berbeda dari \textit{soft-thresholding} pada model dasar, pembaruan ini tidak menjamin bobot menjadi tepat nol. Karena itu, L1 pada pipeline akhir tidak diklaim melakukan seleksi fitur secara eksplisit.
+
+Kode~\ref{lst:lr-sga} memperlihatkan inti pembaruan parameter. Fungsi sigmoid dihitung dengan bentuk yang stabil secara numerik, sedangkan \textit{log-loss} dihitung melalui \texttt{np.logaddexp}. Nilai objektif disimpan setiap \textit{epoch} untuk memantau pelatihan. Pelatihan berhenti setelah jumlah \textit{epoch} yang ditentukan.
+
+\begin{lstlisting}[float=htbp,caption={Pembaruan bobot dan bias per sampel pada pipeline akhir LR.},label={lst:lr-sga}]
+xi = X[i]
+z = float(xi @ w + b)
+q = exp(-abs(z))
+probability = 1.0 / (1.0 + q) if z >= 0 else q / (1.0 + q)
+error = y[i] - probability
+direction = error * xi
+if l2:
+    direction -= l2 * w
+if l1:
+    direction -= l1 * np.sign(w)
+w += eta * direction
+b += eta * error
+\end{lstlisting}
+
+\begin{table}[htbp]
+    \centering
+    \caption{Konfigurasi pelatihan Logistic Regression.}
+    \label{tab:lr-config}
+    \begin{tabular}{lll}
+        \toprule
+        Parameter & Model dasar & Pipeline akhir \\
+        \midrule
+        Pembaruan parameter & Batch + \textit{soft-thresholding} & SGA per sampel \\
+        \textit{Learning rate} $\eta$ & $0{,}1$ & $0{,}001$ \\
+        Jumlah \textit{epoch} & 250 & 200 \\
+        Regularisasi $\lambda$ & $0{,}01$ & $0{,}0001$ \\
+        Ambang klasifikasi & $0{,}5$ & $0{,}47$ \\
+        Rasio L1 pada Elastic Net & $0{,}5$ & $0{,}5$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Konfigurasi akhir pada Tabel~\ref{tab:lr-config} digunakan untuk ketiga regularisasi. Hanya nilai $\rho$ yang berbeda. Regularisasi dibuat lebih kecil agar bobot fitur tambahan tidak terlalu ditekan. Ambang $0{,}47$ dipilih dari evaluasi kandidat ambang untuk menyeimbangkan precision dan recall pada metrik Macro F1. Jumlah \textit{epoch} tidak langsung menunjukkan banyaknya pembaruan karena satu \textit{epoch} SGA melakukan pembaruan sebanyak jumlah sampel latih.
+
+Evaluasi tambahan menggunakan validasi silang terstratifikasi tiga \textit{fold} di dalam bagian data latih, dengan \textit{seed} 43. Prediksi \textit{out-of-fold} digabungkan untuk menghitung satu Macro F1. Notebook akhir mengevaluasi konfigurasi yang sudah ditetapkan, kemudian memilih varian dengan Macro F1 validasi tertinggi. Perubahan fitur, parameter, ambang, dan metode pelatihan diterapkan bersama, sehingga selisih terhadap model dasar tidak dapat dianggap sebagai dampak satu perubahan saja.
+
+\textbf{Penyimpanan model dan submisi.}
+Setelah evaluasi, setiap varian dilatih ulang menggunakan seluruh \texttt{train.csv}. Preprocessing ikut dilatih ulang pada data tersebut. Bobot, bias, konfigurasi, dan objek preprocessing disimpan dalam \texttt{model\_bundle.pkl}. Model dimuat kembali untuk memprediksi \texttt{test.csv}, lalu menghasilkan \texttt{submission.csv} dengan kolom \texttt{id} dan \texttt{is\_canceled}. Konsistensi prediksi sebelum dan sesudah pemuatan diperiksa, termasuk melalui proses Python terpisah.
+
+Seluruh keluaran ditempatkan di dalam direktori \path{output/final/model/logistic_regression/}. Setiap varian memiliki subfolder masing-masing, yaitu \texttt{l1}, \texttt{l2}, dan \texttt{elasticnet}. Folder utama juga memuat \texttt{validation.csv} dan satu \texttt{submission.csv} dari varian terpilih. Seluruh proses prediksi akhir menggunakan model \textit{from scratch} tanpa ensemble.
 
 \subsection{SVM}
 
@@ -156,8 +247,6 @@ tree_image = CFG.MODEL_DIR / f'tree_top_{CFG.TREE_TOP_N}.svg'
 render_tree_svg(final_model[0].root, CFG.TREE_TOP_N, tree_image)
 \end{lstlisting}
 
-\subsection{Bonus Logistic Regression Garis Kontur Fungsi \textit{Loss}}
-
 \subsection{Bonus SVM Visualisasi Bidang Pemisah}
 
 \subsection{Bayesian Network Graf Antarfitur}
@@ -165,8 +254,6 @@ render_tree_svg(final_model[0].root, CFG.TREE_TOP_N, tree_image)
 \subsection{Algoritma Optimasi Model}
 
 \subsubsection{DTL}
-
-\subsubsection{\textit{Logistic Regression}}
 
 \subsubsection{SVM}
 

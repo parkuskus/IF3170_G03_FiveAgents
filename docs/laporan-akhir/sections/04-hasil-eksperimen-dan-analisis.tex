@@ -148,10 +148,85 @@ Temuan tersebut mengarahkan optimasi berikutnya pada FN yang tinggi, khususnya u
 Satu pemisahan \textit{holdout} belum menunjukkan kestabilan skor terhadap perubahan sampel. Skor CV terbaik juga berasal dari kumpulan kandidat yang dinilai pada \textit{fold} yang sama untuk pemilihan parameter, sehingga tidak dapat diperlakukan sebagai estimasi independen kinerja model terpilih. Pengujian lanjutan dapat memakai evaluasi berulang atau \textit{nested cross-validation} pada data pengembangan, lalu melaporkan sebaran Macro F1 dan tingkat kesalahan per kelompok. Jika konfigurasi diperbarui setelah membaca analisis \textit{holdout} ini, penilaian akhir memerlukan data uji baru yang belum dipakai untuk memilih atau meninjau model.
 
 \section{\textit{Logistic Regression}}
+\label{sec:hasil-lr}
 
 \subsection{Hasil Pengujian}
 
+Pengujian model dasar dan pipeline akhir menggunakan pembagian data yang sama, yaitu 21.898 baris untuk pelatihan dan 5.475 baris untuk validasi. Pembagian dilakukan secara terstratifikasi dengan \textit{seed} 42. Data validasi memuat 3.681 reservasi tidak batal dan 1.794 reservasi batal. Macro F1 digunakan sebagai metrik utama agar kedua kelas memiliki bobot yang sama dalam penilaian.
+
+Tabel~\ref{tab:lr-results} menyajikan hasil ketiga regularisasi. Precision dan recall pada tabel dihitung untuk kelas batal ($y=1$). FP menyatakan reservasi tidak batal yang diprediksi batal, sedangkan FN menyatakan reservasi batal yang diprediksi tidak batal. Angka-angka ini merupakan hasil validasi lokal, bukan skor \textit{leaderboard} Kaggle.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Hasil validasi model dasar dan pipeline akhir LR.}
+    \label{tab:lr-results}
+    \begin{tabular}{llrrrrr}
+        \toprule
+        Pipeline & Regularisasi & Macro F1 & Precision 1 & Recall 1 & FP & FN \\
+        \midrule
+        Dasar & L1 & $0{,}737909$ & $0{,}771405$ & $0{,}517280$ & 275 & 866 \\
+        Dasar & L2 & $0{,}742172$ & $0{,}756863$ & $0{,}537904$ & 310 & 829 \\
+        Dasar & Elastic Net & $0{,}740543$ & $0{,}765992$ & $0{,}527313$ & 289 & 848 \\
+        \midrule
+        Akhir & L1 & $0{,}808161$ & $0{,}761707$ & $0{,}716276$ & 402 & 509 \\
+        Akhir & L2 & $0{,}808338$ & $0{,}760780$ & $0{,}717949$ & 405 & 506 \\
+        Akhir & Elastic Net & $\mathbf{0{,}808577}$ & $0{,}760921$ & $0{,}718506$ & 405 & 505 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Pada model dasar, L2 memberikan Macro F1 tertinggi sebesar $0{,}742172$. Seluruh varian dasar memiliki recall kelas batal di bawah $0{,}56$. Artinya, masih banyak reservasi yang benar-benar batal tetapi belum berhasil dikenali. Setelah pipeline dioptimasi, ketiga varian mencapai Macro F1 sekitar $0{,}808$. Dibandingkan model dasar dengan regularisasi yang sama, kenaikannya sekitar $0{,}0703$ untuk L1, $0{,}0662$ untuk L2, dan $0{,}0680$ untuk Elastic Net.
+
+Elastic Net dipilih untuk submisi utama karena memiliki Macro F1 validasi tertinggi. Namun, selisihnya terhadap L2 hanya sekitar $0{,}000240$, sehingga hasil ini belum menunjukkan keunggulan yang kuat untuk satu jenis regularisasi. Pada validasi silang internal tiga \textit{fold}, Macro F1 dari gabungan prediksi \textit{out-of-fold} adalah $0{,}797905$ untuk L1, $0{,}798069$ untuk L2, dan $0{,}798426$ untuk Elastic Net. Urutannya sama dengan hasil validasi, dengan selisih yang juga kecil.
+
+\textbf{Analisis kesalahan.}
+Gambar~\ref{fig:lr-confusion} membandingkan varian terbaik pada model dasar dan pipeline akhir. Jumlah pembatalan yang berhasil terdeteksi naik dari 965 menjadi 1.289. Dengan demikian, FN berkurang sebanyak 324 kasus. Di sisi lain, FP bertambah dari 310 menjadi 405 kasus. Total kesalahan tetap turun dari 1.139 menjadi 910 kasus. Perubahan ini menunjukkan peningkatan deteksi kelas batal dengan konsekuensi lebih banyak reservasi tidak batal yang diberi peringatan pembatalan.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.98\linewidth]{public/04-hasil-eksperimen-dan-analisis/lr-confusion-matrix.png}
+    \caption{Confusion matrix model dasar L2 dan pipeline akhir Elastic Net pada data validasi yang sama. Baris menyatakan kelas aktual dan kolom menyatakan prediksi.}
+    \label{fig:lr-confusion}
+\end{figure}
+
+Pada Elastic Net akhir, F1 kelas tidak batal adalah $0{,}878049$, sedangkan F1 kelas batal sebesar $0{,}739106$. Sebanyak 505 dari 1.794 pembatalan masih terlewat, atau sekitar $28{,}15\%$. Recall kelas batal masih menjadi bagian yang perlu diperbaiki. Perbedaan kemampuan mengenali kedua kelas tersebut juga menjelaskan mengapa akurasi saja kurang memadai untuk menilai hasil model.
+
+Pemeriksaan menurut kanal pemesanan menunjukkan 643 kesalahan dari 3.475 reservasi \textit{Online Travel Agent} ($18{,}50\%$), dibandingkan 237 dari 1.603 reservasi \textit{Offline Agent} ($14{,}78\%$). Jadi, jumlah kesalahan pada kanal daring yang lebih besar juga disertai tingkat kesalahan yang lebih tinggi. Untuk jarak pemesanan lebih dari 90 sampai 180 hari, tingkat kesalahannya mencapai $23{,}08\%$, sedangkan pada lebih dari 7 sampai 30 hari sebesar $12{,}42\%$. Perhitungan per kelompok jarak pemesanan hanya mencakup baris dengan nilai jarak yang tersedia. Temuan ini menunjukkan kelompok yang masih sulit diprediksi. Penyebab kesalahan individual tidak dapat dipastikan hanya dari pengelompokan tersebut.
+
+Hasil ini memiliki batasan. Set validasi sudah digunakan selama rangkaian eksperimen, sehingga hasil akhirnya bukan estimasi dari satu set uji baru yang sama sekali belum pernah dilihat. Selain itu, pembagian per baris menghasilkan 25 baris validasi dengan kombinasi fitur awal yang juga muncul pada data latih. Pembagian dipertahankan agar perbandingan konsisten, tetapi belum mengukur generalisasi pada kelompok fitur yang sepenuhnya terpisah atau pada periode kedatangan yang baru.
+
 \subsection{Komparasi dengan \texttt{scikit-learn}}
+
+Model pembanding memakai kelas \texttt{LogisticRegression} dari \texttt{scikit-learn}. Pada masing-masing pipeline, split data dan matriks fitur disamakan dengan model \textit{from scratch}. Ambang klasifikasi ditetapkan sebesar $0{,}5$ untuk model dasar dan $0{,}47$ untuk pipeline akhir, sama dengan ambang implementasi sendiri. Kekuatan regularisasi dipetakan menggunakan
+\begin{equation}
+    C=\frac{1}{n_{\mathrm{train}}\lambda}.
+\end{equation}
+Pemetaan ini menyesuaikan koefisien penalti pada objektif rata-rata \textit{log-loss} tanpa pembobotan sampel \cite{scikitlearn_logistic}.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Perbandingan Macro F1 LR dengan \texttt{scikit-learn}. Selisih dihitung sebagai skor \textit{from scratch} dikurangi skor \texttt{scikit-learn}.}
+    \label{tab:lr-sklearn}
+    \begin{tabular}{llrrr}
+        \toprule
+        Pipeline & Regularisasi & \textit{From scratch} & \texttt{scikit-learn} & Selisih \\
+        \midrule
+        Dasar & L1 & $0{,}737909$ & $0{,}751218$ & $-0{,}013309$ \\
+        Dasar & L2 & $0{,}742172$ & $0{,}753659$ & $-0{,}011487$ \\
+        Dasar & Elastic Net & $0{,}740543$ & $0{,}747588$ & $-0{,}007045$ \\
+        \midrule
+        Akhir & L1 & $0{,}808161$ & $0{,}806411$ & $+0{,}001751$ \\
+        Akhir & L2 & $0{,}808338$ & $0{,}809354$ & $-0{,}001016$ \\
+        Akhir & Elastic Net & $0{,}808577$ & $0{,}808151$ & $+0{,}000426$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Pada model dasar, pembanding menggunakan \texttt{liblinear} untuk L1 dan L2, serta \texttt{saga} untuk Elastic Net, dengan batas 300 iterasi. Seluruh skor pembanding lebih tinggi daripada implementasi dasar. Perbedaan penyelesaian optimasi dapat menjelaskan sebagian selisih tersebut. Model dasar hanya menjalankan 250 langkah gradien batch dengan \textit{learning rate} tetap, sedangkan pustaka memakai solver dengan kriteria konvergensi. Selain itu, \texttt{liblinear} ikut meregularisasi intersep, sementara implementasi dasar tidak. Jadi, penyamaan nilai $C$ belum membuat kedua masalah optimasi tersebut sepenuhnya identik \cite{scikitlearn_logistic_api}.
+
+Pada pipeline akhir, pembanding menggunakan \texttt{lbfgs} untuk L2 dan \texttt{saga} untuk L1 serta Elastic Net. Ketiganya dibatasi hingga 10.000 iterasi. Toleransi L1 adalah $10^{-4}$, sedangkan L2 dan Elastic Net menggunakan $10^{-7}$. Pemilihan solver menyesuaikan dukungan terhadap masing-masing penalti \cite{scikitlearn_logistic_api}. Implementasi SGA menggunakan 200 \textit{epoch} dengan langkah tetap dan subgradien untuk L1. Akibatnya, bobot akhirnya dapat berbeda dari hasil solver pustaka meskipun bentuk objektif dan preprocessing sudah disamakan.
+
+Perbedaan skor pipeline akhir jauh lebih kecil daripada pada model dasar. Pada L2, pembanding mengurangi FN dari 506 menjadi 501, dengan tambahan satu FP. Pada L1, implementasi sendiri menghasilkan 11 FP lebih sedikit dengan satu FN tambahan. Pada Elastic Net, implementasi sendiri menghasilkan lima FP lebih sedikit dengan dua FN tambahan. Pergeseran beberapa prediksi di sekitar ambang sudah cukup untuk menjelaskan selisih Macro F1 tersebut. Nilai objektif pelatihan yang lebih rendah juga tidak selalu menghasilkan Macro F1 yang lebih tinggi, karena Macro F1 dihitung dari keputusan kelas setelah ambang diterapkan. Hasil ini menunjukkan performa yang berdekatan, tanpa dasar untuk menyimpulkan bahwa implementasi sendiri selalu lebih baik daripada pustaka.
 
 \section{SVM}
 
@@ -169,28 +244,6 @@ Satu pemisahan \textit{holdout} belum menunjukkan kestabilan skor terhadap perub
 
 \subsection{Bonus DTL Gambar Percabangan Tree}
 
-Gambar~\ref{fig-bonus-dtl-topn} memperlihatkan keputusan awal CART final setelah dilatih ulang pada seluruh \texttt{train.csv}. Setiap cabang menyatakan syarat yang harus dipenuhi pemesanan untuk mencapai \textit{node} berikutnya. Nilai \texttt{n} menunjukkan banyaknya data latih pada \textit{node}, sedangkan \texttt{p1} menunjukkan proporsi pembatalan pada kelompok tersebut. Cara menghasilkan gambar dijelaskan pada Subbagian~\ref{sec-bonus-dtl-implementasi}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{public/04-hasil-eksperimen-dan-analisis/dtl_tree_top_10.png}
-    \caption{Sepuluh \textit{split} pertama pada CART final setelah \textit{post-pruning}}
-    \label{fig-bonus-dtl-topn}
-\end{figure}
-
-Pemisahan paling awal pada Gambar~\ref{fig-bonus-dtl-topn} didasarkan pada \texttt{days\_before\_arrival}. Dari 27.373 data latih dengan proporsi pembatalan 0,328, kelompok dengan waktu kedatangan paling banyak 147,5 hari memiliki proporsi 0,233 pada 21.921 baris. Kelompok di atas batas tersebut mencatat proporsi 0,708 pada 5.452 baris. Pohon kemudian membedakan kedua kelompok dengan fitur yang berbeda. Di cabang waktu kedatangan yang lebih dekat, pemisahan \texttt{special\_requests} membedakan pemesanan tanpa permintaan khusus dengan proporsi pembatalan 0,331 dari pemesanan yang memiliki permintaan khusus dengan proporsi 0,121. Di cabang waktu kedatangan yang lebih jauh, pemisahan \texttt{nightly\_rate\_idr} membedakan kelompok dengan proporsi 0,568 dan 0,931. Angka-angka ini menggambarkan komposisi data latih dalam masing-masing cabang, bukan pengaruh sebab akibat dari fitur terhadap pembatalan.
-
-Gambar~\ref{fig-bonus-dtl-top3} memperbesar tiga pemisahan awal agar syarat setiap cabang dapat dibaca. Sebagai contoh, pemesanan dengan \texttt{days\_before\_arrival} di atas 147,5 hari dan \texttt{nightly\_rate\_idr} di atas sekitar 1,676 juta rupiah masuk ke kelompok berisi 2.095 baris dengan \texttt{p1} sebesar 0,931. Sebaliknya, pada cabang paling banyak 147,5 hari, pemesanan dengan \texttt{special\_requests} di atas 0,5 masuk ke kelompok berisi 10.228 baris dengan \texttt{p1} sebesar 0,121. Kedua kelompok masih memiliki percabangan lanjutan, sebagaimana ditandai oleh \texttt{cut (more splits)}. Dengan demikian, proporsi pada kotak tersebut tidak boleh dibaca sebagai probabilitas akhir setiap pemesanan atau sebagai hasil evaluasi pada \textit{holdout}. Gambar hanya memperlihatkan sebagian aturan model, sedangkan kinerja prediksinya dinilai melalui metrik pada bagian hasil pengujian.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{public/04-hasil-eksperimen-dan-analisis/dtl_tree_top_3.png}
-    \caption{Tiga \textit{split} pertama dari CART final sebagai tampilan detail}
-    \label{fig-bonus-dtl-top3}
-\end{figure}
-
-\subsection{Bonus Logistic Regression Garis Kontur Fungsi \textit{Loss}}
-
 \subsection{Bonus SVM Visualisasi Bidang Pemisah}
 
 \subsection{Bayesian Network Graf Antarfitur}
@@ -199,8 +252,6 @@ Gambar~\ref{fig-bonus-dtl-top3} memperbesar tiga pemisahan awal agar syarat seti
 \subsection{Algoritma Optimasi Model}
 
 \subsubsection{DTL}
-
-\subsubsection{\textit{Logistic Regression}}
 
 \subsubsection{SVM}
 
