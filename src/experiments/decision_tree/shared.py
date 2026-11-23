@@ -88,9 +88,10 @@ class BaselineTree:
         self.columns = list(X.columns)
         self.numeric = [c for c in self.columns if pd.api.types.is_numeric_dtype(X[c])]
         self.values = {c: X[c].to_numpy() for c in self.columns}
-        self.y = np.asarray(y, dtype=np.int8)
+        self.y = np.asarray(y)
         if set(np.unique(self.y)) - {0, 1}:
             raise ValueError("BaselineTree expects binary labels 0/1")
+        self.y = self.y.astype(np.int8)
         class_weight = class_weight or {}
         if any(label not in {0, 1} or not np.isfinite(weight) or weight <= 0 for label, weight in class_weight.items()):
             raise ValueError("class_weight must map binary labels to finite positive weights")

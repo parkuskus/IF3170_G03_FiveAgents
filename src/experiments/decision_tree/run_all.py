@@ -1,5 +1,6 @@
 from pathlib import Path
 import filecmp
+import json
 import shutil
 import time
 
@@ -29,6 +30,18 @@ CART_TREE_CONFIGS = (
     (8, 80, 40),
 )
 CART_POSITIVE_WEIGHTS = (1.0, 1.5, 2.0, 2.05, 2.5, 3.0)
+# DTL-v08 is the final pipeline: CV-selected CART growth, post-pruning and threshold.
+EXPERIMENTS = {
+    "ID3 from scratch": ("DTL-v01", "baseline"),
+    "ID3 scikit-learn": ("DTL-v02", "comparator"),
+    "C4.5 from scratch": ("DTL-v03", "baseline"),
+    "C4.5 scikit-learn": ("DTL-v04", "comparator"),
+    "CART from scratch": ("DTL-v05", "baseline"),
+    "CART scikit-learn": ("DTL-v06", "comparator"),
+    "CART selected growth configuration (no pruning)": ("DTL-v07", "experiment"),
+    "CART selected growth configuration + cost-complexity pruning": ("DTL-v08", "FINAL"),
+    "CART class-weighted": ("DTL-v09", "experiment"),
+}
 
 
 def validation_indices(y):
@@ -124,6 +137,8 @@ def score_row(name, y_true, prediction, seconds, detail):
     )
     matrix = confusion_matrix(y_true, prediction, labels=[0, 1])
     return {
+        "experiment_version": EXPERIMENTS[name][0],
+        "pipeline_role": EXPERIMENTS[name][1],
         "model": name,
         "validation_macro_f1": f1_score(y_true, prediction, labels=[0, 1], average="macro", zero_division=0),
         "class_0_precision": precision[0],
@@ -138,7 +153,11 @@ def score_row(name, y_true, prediction, seconds, detail):
     }
 
 
-def build_submission(template, predictions):
+def build_submission(template, predictions, test_ids=None):
+    if test_ids is not None and (
+        "id" not in template or template["id"].reset_index(drop=True).tolist() != list(test_ids)
+    ):
+        raise ValueError("Submission template IDs must match test.csv in row order")
     submission = template.copy()
     submission["is_canceled"] = predictions
     return submission
@@ -165,7 +184,7 @@ def archive_current_submission(destination):
     return None
 
 
-def save_submission_version(submission, destination):
+def save_submission_version(submission, destination, experiment=None):
     destination = Path(destination)
     versions = destination / "versions"
     versions.mkdir(parents=True, exist_ok=True)
@@ -177,6 +196,10 @@ def save_submission_version(submission, destination):
     version_path = versions / f"submission_v{max(numbers, default=0) + 1:03}.csv"
     submission.to_csv(version_path, index=False)
     shutil.copy2(version_path, current)
+    if experiment is not None:
+        metadata = json.dumps(experiment, indent=2) + "\n"
+        version_path.with_suffix(".json").write_text(metadata, encoding="utf-8")
+        (destination / "submission.json").write_text(metadata, encoding="utf-8")
     return version_path
 
 
@@ -202,10 +225,24 @@ def write_submission(name, train_df, tuning=None):
     else:
         prediction = model.predict(X_test)
     template = pd.read_csv(ROOT / "data" / "sample_submission.csv", dtype={"id": str})
-    submission = build_submission(template, prediction)
+    submission = build_submission(template, prediction, test_df["id"])
     destination = OUTPUT / name
     destination.mkdir(parents=True, exist_ok=True)
-    save_submission_version(submission, destination)
+    model_name = (
+        "CART selected growth configuration + cost-complexity pruning"
+        if name == "CART" else f"{name} from scratch"
+    )
+    experiment = {
+        "experiment_version": EXPERIMENTS[model_name][0],
+        "pipeline_role": EXPERIMENTS[model_name][1],
+        "model": model_name,
+        "configuration": {
+            "criterion": VARIANTS[name][0],
+            **{key: configuration[key] for key in ("max_depth", "min_samples_split", "min_samples_leaf")},
+            **({"alpha": tuning["alpha"], "threshold": tuning["threshold"]} if tuning else {}),
+        },
+    }
+    save_submission_version(submission, destination, experiment)
 
 
 def run_tuned_cart(train_df, train_idx, valid_idx, baseline_score):
@@ -288,6 +325,7 @@ def run_weighted_cart(train_df, train_idx, valid_idx):
     results.to_csv(destination / "class_weight.csv", index=False)
     (destination / "class_weight.md").write_text(
         "# CART class weighting\n\n"
+        "DTL-v09 — eksperimen, bukan pipeline final (DTL-v08).\n\n"
         "Positive-class weight is selected by 5-fold stratified CV on the training partition; each fold fits preprocessing and a weighted CART from scratch. The shared validation split is used only once for final evaluation. No submission is written.\n\n"
         f"Selected positive class weight: **{best['positive_weight']}**; CV macro F1: **{best['macro_f1']:.4f}**; "
         f"mean leaves: **{best['mean_leaves']:.1f}**.\n\n"
@@ -362,12 +400,17 @@ def main(only=None):
         "",
         f"Split: {len(train_idx)} baris latih, {len(valid_idx)} baris validasi. Target validasi: 0={int((train_df.iloc[valid_idx]['is_canceled'] == 0).sum())}, 1={int((train_df.iloc[valid_idx]['is_canceled'] == 1).sum())}.",
         "",
-        "| Model | Macro F1 | Precision kelas 0 | Recall kelas 0 | Precision kelas 1 | Recall kelas 1 | TN | FP | FN | TP | Detik |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Versi | Peran | Model | Macro F1 | Precision kelas 0 | Recall kelas 0 | Precision kelas 1 | Recall kelas 1 | TN | FP | FN | TP | Detik |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
+    if only is None or only == "CART":
+        lines[2:2] = [
+            "**Pipeline final: DTL-v08 — CART dengan cost-complexity post-pruning dan threshold hasil 5-fold CV.**",
+            "",
+        ]
     for row in results.to_dict(orient="records"):
         lines.append(
-            f"| {row['model']} | {row['validation_macro_f1']:.4f} | {row['class_0_precision']:.4f} | {row['class_0_recall']:.4f} | {row['class_1_precision']:.4f} | {row['class_1_recall']:.4f} | {row['tn']} | {row['fp']} | {row['fn']} | {row['tp']} | {row['seconds']:.2f} |"
+            f"| {row['experiment_version']} | {row['pipeline_role']} | {row['model']} | {row['validation_macro_f1']:.4f} | {row['class_0_precision']:.4f} | {row['class_0_recall']:.4f} | {row['class_1_precision']:.4f} | {row['class_1_recall']:.4f} | {row['tn']} | {row['fp']} | {row['fn']} | {row['tp']} | {row['seconds']:.2f} |"
         )
     lines += ["", "## Preprocessing bersama", "", "Imputasi median numerik dan penanda kategori kosong/asing dipelajari hanya dari bagian latih. `id` tidak menjadi fitur. Tiga baseline scratch memakai `max_depth=8`, `min_samples_split=80`, dan `min_samples_leaf=40`; eksperimen CART tambahan membandingkan tiga konfigurasi pertumbuhan, pruning, serta threshold dengan target macro F1.", "", "## Definisi baseline", "", "- ID3: information gain, kategori nominal multi-cabang, fitur numerik dengan threshold biner.", "- C4.5: gain ratio, kategori nominal multi-cabang, fitur numerik dengan threshold biner. Pembanding scikit-learn memakai entropy dan `ccp_alpha=0.001` sesuai spesifikasi.", "- CART: Gini, split kategori biner, fitur numerik dengan threshold biner. Eksperimen tambahan memilih konfigurasi pertumbuhan, cost-complexity pruning, dan threshold dengan macro F1 melalui 5-fold stratified CV.", "", "Skor dan konfigurasi tiap model ada di `validation.csv`; kandidat tuning ada di `CART/pruning.csv`.", ""]
     (output / "validation.md").write_text("\n".join(lines), encoding="utf-8")

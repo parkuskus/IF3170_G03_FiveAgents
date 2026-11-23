@@ -11,6 +11,7 @@ from src.experiments.decision_tree.run_all import (
     build_submission,
     prepare_fold,
     save_submission_version,
+    score_row,
     tune_cart_class_weight,
     tune_cart_pruning,
     threshold_predictions,
@@ -77,6 +78,17 @@ class DecisionTreeBaselineTest(unittest.TestCase):
         result = build_submission(template, [1, 0])
         self.assertEqual(result.to_dict(orient="list"), {"id": ["a", "b"], "is_canceled": [1, 0]})
 
+    def test_submission_rejects_template_with_different_test_ids_or_order(self):
+        for ids in (["b", "a"], ["a", "c"], ["a"]):
+            with self.subTest(ids=ids), self.assertRaises(ValueError):
+                build_submission(pd.DataFrame({"id": ids, "is_canceled": 0}), [1, 0], test_ids=["a", "b"])
+
+    def test_tree_rejects_labels_that_overflow_int8(self):
+        X = pd.DataFrame({"number": [0, 1]})
+        for labels in (np.array([0, 256], dtype=np.int16), np.array([1, 257], dtype=np.int16)):
+            with self.subTest(labels=labels), self.assertRaises(ValueError):
+                BaselineTree(max_depth=0).fit(X, labels)
+
     def test_submission_versions_preserve_previous_latest_and_increment(self):
         with TemporaryDirectory() as directory:
             output = Path(directory)
@@ -93,6 +105,50 @@ class DecisionTreeBaselineTest(unittest.TestCase):
 
             second = pd.DataFrame({"id": ["a"], "is_canceled": [0]})
             self.assertEqual(save_submission_version(second, output).name, "submission_v003.csv")
+
+    def test_new_submission_version_records_experiment_without_rewriting_legacy_versions(self):
+        with TemporaryDirectory() as directory:
+            output = Path(directory)
+            old = pd.DataFrame({"id": ["a"], "is_canceled": [0]})
+            old.to_csv(output / "submission.csv", index=False)
+            new = pd.DataFrame({"id": ["a"], "is_canceled": [1]})
+            experiment = {
+                "experiment_version": "DTL-v08",
+                "pipeline_role": "FINAL",
+                "model": "CART selected growth configuration + cost-complexity pruning",
+                "configuration": {"alpha": 0.0001, "threshold": 0.62},
+            }
+
+            version = save_submission_version(new, output, experiment)
+
+            self.assertEqual(version.name, "submission_v002.csv")
+            self.assertEqual(
+                json.loads(version.with_suffix(".json").read_text(encoding="utf-8")),
+                experiment,
+            )
+            self.assertEqual(
+                json.loads((output / "submission.json").read_text(encoding="utf-8")),
+                experiment,
+            )
+            self.assertFalse((output / "versions" / "submission_v001.json").exists())
+            self.assertEqual(pd.read_csv(output / "versions" / "submission_v001.csv").is_canceled.tolist(), [0])
+
+    def test_validation_rows_identify_final_pruned_cart_and_other_experiments(self):
+        y = [0, 1]
+        for name, version, role in (
+            ("ID3 from scratch", "DTL-v01", "baseline"),
+            ("ID3 scikit-learn", "DTL-v02", "comparator"),
+            ("C4.5 from scratch", "DTL-v03", "baseline"),
+            ("C4.5 scikit-learn", "DTL-v04", "comparator"),
+            ("CART from scratch", "DTL-v05", "baseline"),
+            ("CART scikit-learn", "DTL-v06", "comparator"),
+            ("CART selected growth configuration (no pruning)", "DTL-v07", "experiment"),
+            ("CART selected growth configuration + cost-complexity pruning", "DTL-v08", "FINAL"),
+            ("CART class-weighted", "DTL-v09", "experiment"),
+        ):
+            with self.subTest(name=name):
+                row = score_row(name, y, y, 0, "test")
+                self.assertEqual((row["experiment_version"], row["pipeline_role"]), (version, role))
 
     def test_shared_preprocessing_fits_statistics_on_train_and_handles_unknowns(self):
         train = pd.DataFrame({"number": [1.0, None, 3.0], "category": ["a", None, "a"]})
