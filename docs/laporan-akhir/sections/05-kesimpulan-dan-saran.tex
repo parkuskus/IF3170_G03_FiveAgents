@@ -1,4 +1,7 @@
 \section{Kesimpulan}
 
+Kelima algoritma berhasil diimplementasikan dari nol, dibandingkan dengan \texttt{scikit-learn}, dan diuji pada data validasi yang sama; optimasi \textit{pipeline} meningkatkan hasil dibandingkan konfigurasi dasar, dengan SVM linear mencapai Macro F1 tertinggi pada evaluasi yang dilaporkan. Eksperimen biaya menunjukkan bahwa menaikkan ambang keputusan dapat menurunkan biaya asumtif $3FP+FN$, tetapi meningkatkan jumlah \textit{false negative} dan tidak selalu mempertahankan Macro F1.
 
 \section{Saran}
+
+Sebelum diterapkan untuk keputusan operasional, rasio biaya perlu ditetapkan berdasarkan kerugian nyata, skor prediksi perlu diperiksa kalibrasinya, dan ambang serta ketahanan model perlu diuji kembali pada data baru yang terpisah dari proses pemilihan model.

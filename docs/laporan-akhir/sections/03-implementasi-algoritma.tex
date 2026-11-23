@@ -1,5 +1,11 @@
 \section{Implementasi Data Preprocessing Umum}
 
+Notebook utama tugas besar menyiapkan prapemrosesan dasar untuk membandingkan lima algoritma pada pembagian data yang sama. Kolom \texttt{id} dipertahankan untuk identitas baris, sedangkan \texttt{is\_canceled} digunakan sebagai label dan tidak dimasukkan sebagai fitur. Data latih dipisahkan secara terstratifikasi menjadi bagian pelatihan dan validasi sebelum statistik prapemrosesan dihitung. Data uji tidak digunakan untuk mempelajari transformasi atau memilih model.
+
+Pada jalur dasar k-NN, regresi logistik, SVM, dan Gaussian Naive Bayes, kolom numerik dan kategorikal diproses terpisah dengan \texttt{ColumnTransformer}. Nilai kosong numerik diisi menggunakan median bagian pelatihan sambil menambahkan indikator nilai kosong melalui \texttt{SimpleImputer(add\_indicator=True)}, lalu distandardisasi dengan \texttt{StandardScaler}. Nilai kosong kategorikal diisi menggunakan kategori tersering pada bagian pelatihan, kemudian diubah menjadi fitur biner dengan \texttt{OneHotEncoder(handle\_unknown='ignore')}; kategori baru pada validasi tidak menyebabkan kegagalan transformasi. Prapemroses di-\textit{fit} hanya pada bagian pelatihan, sedangkan validasi hanya ditransformasi. Hasilnya diperiksa agar seluruh nilai fitur numerik berhingga.
+
+Berbeda dari keempat model tersebut, CART \textit{from scratch} pada notebook utama menerima 17 kolom fitur mentah agar pemisahan fitur numerik, kategorikal, dan nilai kosong ditangani oleh pohon itu sendiri. Prapemrosesan umum ini merupakan dasar perbandingan, bukan prapemrosesan akhir yang seragam bagi semua model; perubahan khusus masing-masing model dijelaskan pada bagian optimasi \textit{pipeline} berikutnya.
+
 \section{Implementasi \textit{Modelling}}
 
 \subsection{k-NN}
@@ -589,3 +595,11 @@ memilih struktur atau parameter.
 
 \newpage
 \subsection{Cost-Sensitive Classification}
+
+Implementasi eksperimen biaya berada pada \path{src/experiments/cost_sensitive.py} dan dijalankan untuk tiap model melalui \path{src/experiments/cost_sensitive_runner.py}. Skenario bersama menetapkan biaya \textit{false positive} $C_{FP}=3$ dan \textit{false negative} $C_{FN}=1$. Prediksi kelas batal dibuat jika skor model $s(x)>\tau$; skor yang tepat sama dengan ambang diprediksi sebagai kelas tidak batal. Fungsi biaya yang diminimalkan ialah
+\begin{equation}
+    L(\tau)=3\,FP(\tau)+FN(\tau).
+\end{equation}
+Nilai biaya merupakan asumsi eksperimen, bukan estimasi kerugian finansial hotel. Keluaran SVM berupa margin, sedangkan skor model lain berada pada rentang nol hingga satu; karena skor-skor tersebut belum tentu terkalibrasi, ambang dipilih dari data latih dan tidak ditetapkan langsung dari rasio biaya.
+
+Untuk mencegah penggunaan \textit{holdout} sebagai data pemilihan ambang, runner melatih ulang prapemroses dan model konfigurasi akhir pada setiap lipatan dari tiga lipatan data latih. Prediksi \textit{out-of-fold} digabungkan untuk menghitung $L(\tau)$ pada setiap kandidat ambang. Kandidat mencakup skor minimum yang digeser ke bawah agar seluruh prediksi positif terwakili, semua skor unik jika jumlahnya tidak lebih dari 101, atau 101 kuantil skor jika jumlahnya lebih banyak. \texttt{choose\_threshold} memilih biaya terendah; jika seri, dipilih Macro F1 tertinggi, kemudian ambang terkecil. Model dilatih kembali pada seluruh bagian latih dan \texttt{compare\_holdout} membandingkan ambang terpilih dengan ambang utama pada \textit{holdout} yang sama. Eksperimen ini hanya mengubah aturan keputusan untuk evaluasi biaya, bukan konfigurasi atau berkas \textit{submission} utama.
