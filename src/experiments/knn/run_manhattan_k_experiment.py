@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix, f1_score
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from knn import KNNClassifier
-from preprocessing import KNNPreprocessor
+from src.experiments.knn.knn import KNNClassifier
+from src.experiments.knn.preprocessing import KNNPreprocessor
 
 SEED = 42
 K_VALUES = [13, 15, 17, 19, 21, 23, 25, 27, 35, 41]
@@ -23,7 +22,7 @@ BATCH = 2000
 ADOPTION_GAP = 0.005
 
 DATA_DIR = REPO_ROOT / "data"
-OUT_DIR = REPO_ROOT / "output"
+OUT_DIR = REPO_ROOT / "output" / "knn"
 RESULT_CSV = OUT_DIR / "knn_manhattan_k_results.csv"
 DECISION_CSV = OUT_DIR / "knn_manhattan_k_decision.csv"
 
@@ -40,7 +39,7 @@ def make_split(y):
 
 def main():
     assert Path.cwd() == REPO_ROOT, "Jalankan dari akar repo"
-    # Bisa dipecah beberapa invokasi: python eksperimen_manhattan_k.py 13 15 17
+    # Bisa dipecah beberapa invokasi: python -m src.experiments.knn.run_manhattan_k_experiment 13 15 17
     # Hasil tiap invokasi di-append ke CSV yang sama; --finalize yang menghitung keputusan.
     args = sys.argv[1:]
     finalize = "--finalize" in args
@@ -75,7 +74,7 @@ def main():
         print(f"k={k:>2}: macro_f1={f1:.6f}", flush=True)
 
     result = pd.DataFrame(rows).sort_values(["macro_f1", "k"], ascending=[False, True]).reset_index(drop=True)
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     if RESULT_CSV.exists():
         prev = pd.read_csv(RESULT_CSV)
         result = pd.concat([prev, result], ignore_index=True).drop_duplicates(subset="k")
@@ -101,7 +100,7 @@ def main():
         "alasan": "naik >= 0.005" if adopted else "kenaikan di bawah 0.005; pertahankan k=21",
     }])
 
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     result.to_csv(RESULT_CSV, index=False)
     decision.to_csv(DECISION_CSV, index=False)
     print("\n=== KEPUTUSAN GRID K MANHATTAN ===", flush=True)

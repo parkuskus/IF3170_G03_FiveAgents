@@ -2,6 +2,56 @@
 
 \section{Implementasi \textit{Modelling}}
 
+\subsection{k-NN}
+
+Implementasi k-NN untuk klasifikasi \texttt{is\_canceled} dibangun dari nol pada kelas \texttt{KNNClassifier} di direktori \path{src/experiments/knn/}, pada berkas \texttt{knn.py}. Model menyimpan matriks fitur dan label data latih, lalu menentukan kelas suatu reservasi dari label tetangga terdekat. Dua metrik jarak tersedia, yaitu Euclidean dan Manhattan. Pustaka \texttt{scikit-learn} hanya digunakan sebagai pembanding, bukan sebagai implementasi model utama.
+
+Jarak antara vektor fitur $x$ dan data latih $x_i$ dihitung dengan salah satu bentuk berikut.
+\begin{align}
+    d_E(x,x_i) &= \sqrt{\sum_{j=1}^{p}(x_j-x_{ij})^2}, \\
+    d_M(x,x_i) &= \sum_{j=1}^{p}|x_j-x_{ij}|.
+    \label{eq:knn-distance}
+\end{align}
+Sebanyak $k$ data dengan jarak terkecil membentuk himpunan tetangga $\mathcal{N}_k(x)$. Skor kelas batal merupakan proporsi label positif berbobot pada himpunan tersebut.
+\begin{equation}
+    s_1(x)=
+    \frac{\sum_{i\in\mathcal{N}_k(x)} w_i\,\mathbb{1}(y_i=1)}
+         {\sum_{i\in\mathcal{N}_k(x)} w_i},
+    \qquad
+    \widehat{y}(x)=
+    \begin{cases}
+        1, & s_1(x)>\tau,\\
+        0, & s_1(x)\leq\tau.
+    \end{cases}
+    \label{eq:knn-vote}
+\end{equation}
+Pada bobot seragam, $w_i=1$. Pada pembobotan berdasarkan jarak, bobot dihitung sebagai $w_i=1/(d(x,x_i)+\epsilon)$ dengan $\epsilon=10^{-10}$ untuk menjaga pembagian tetap terdefinisi. Implementasi menggunakan pertidaksamaan ketat pada ambang $\tau$, sehingga skor yang sama dengan ambang diprediksi sebagai kelas 0. Potongan Kode~\ref{lst-knn-vote} menunjukkan pembentukan skor kelas 1.
+
+\begin{lstlisting}[caption={Skor pemungutan suara berbobot pada KNNClassifier},label={lst-knn-vote}]
+if self.weights == "uniform":
+    weights = np.ones_like(distances)
+else:
+    weights = 1.0 / (distances + EPS)
+total_weight = weights.sum(axis=1)
+class_1_weight = np.where(labels == 1, weights, 0.0).sum(axis=1)
+scores[start:stop] = class_1_weight / np.maximum(total_weight, EPS)
+\end{lstlisting}
+
+Pencarian tetangga menggunakan pemrosesan bertahap agar matriks jarak tidak harus disimpan sekaligus untuk seluruh data validasi dan data latih. Untuk metrik Manhattan, data latih juga diproses dalam potongan berukuran 256 baris. Jika beberapa baris memiliki jarak yang sama pada batas tetangga, urutannya ditentukan oleh indeks baris data latih. Aturan ini membuat pemilihan tetangga deterministik. Skor yang dihasilkan berada pada rentang $[0,1]$, tetapi tidak otomatis merupakan probabilitas yang terkalibrasi.
+
+\subsubsection{Optimasi \textit{Pipeline} k-NN}
+
+Pipeline k-NN final menggunakan prapemroses \texttt{KNNPreprocessor} pada direktori \path{src/experiments/knn/}, di dalam berkas \texttt{preprocessing.py}. Prapemrosesan diperlukan karena perhitungan jarak peka terhadap skala fitur, sementara fitur numerik, kategorikal, dan nilai hilang memiliki bentuk yang berbeda. Statistik transformasi dipelajari hanya dari data latih pada setiap evaluasi, kemudian digunakan kembali untuk mengubah data validasi.
+
+Fitur numerik yang hilang diisi dengan median data latih. Dua fitur riwayat, yaitu \texttt{prior\_cancellations} dan \texttt{prior\_completed\_bookings}, diubah menjadi indikator yang membandingkan nilainya dengan median data latih. Fitur numerik lainnya distandardisasi menggunakan rata-rata dan simpangan baku populasi dari data latih. Fitur kategorikal diubah menjadi indikator biner untuk setiap kategori yang ditemukan, ditambah satu kolom untuk nilai hilang atau kategori yang tidak ditemukan saat pelatihan. Bobot \texttt{cat\_weight} mengalikan seluruh blok kategorikal sebelum jarak dihitung. Pada konfigurasi final, nilainya $1{,}0$ sehingga blok tersebut tidak diperbesar atau diperkecil.
+
+Pemisahan data menggunakan \textit{stratified holdout} dengan \textit{seed} 42. Sebanyak 20\% sampel dari setiap kelas ditempatkan pada validasi, menghasilkan 21.898 baris data latih dan 5.475 baris validasi dari 27.373 baris \texttt{train.csv}. Kolom \texttt{id} dan target \texttt{is\_canceled} dikeluarkan dari fitur. Data validasi dipakai untuk membandingkan kandidat, sedangkan \texttt{test.csv} tidak digunakan untuk pemilihan parameter.
+
+Pemilihan konfigurasi dilakukan bertahap menggunakan Macro F1 dan batas adopsi kenaikan sebesar $0{,}005$. Nilai $k$, ambang prediksi, metrik jarak, dan bobot kategorikal diuji secara berurutan. Perubahan hanya diterapkan jika kenaikan skor mencapai batas tersebut. Setelah konfigurasi ditetapkan, beberapa fitur turunan diuji terpisah dengan aturan yang sama. Tidak ada fitur turunan yang diadopsi. Rincian konfigurasi terpilih dan dampaknya terhadap skor dibahas pada Bab~4.
+
+Model final menggunakan $k=21$, pembobotan berdasarkan jarak, metrik Manhattan, \texttt{cat\_weight=1{,}0}, dan ambang $\tau=0{,}5$. Untuk menghasilkan submission, prapemroses di-\textit{fit} ulang pada seluruh \texttt{train.csv}, kemudian model dilatih menggunakan representasi tersebut. Prediksi \texttt{test.csv} disimpan bersama kolom \texttt{id} dengan urutan yang sama seperti data masukan. Matriks fitur terproses, label data latih, konfigurasi, dan keadaan prapemrosesan disimpan agar prediksi dapat direkonstruksi. Pemeriksaan pemuatan ulang memastikan hasil prediksi tetap identik.
+
+
 \subsection{DTL}
 
 Implementasi \textit{Decision Tree Learning} (DTL) digunakan untuk \textit{binary classification} pada target \texttt{is\_canceled}. Tiga varian, yaitu ID3, C4.5, dan CART, dibangun \textit{from scratch} melalui kelas \texttt{BaselineTree} yang memakai struktur \textit{node} dan mekanisme \textit{tree growth} yang sama. Perbedaan ketiganya terletak pada \textit{split criterion} dan bentuk \textit{branch} untuk \textit{categorical feature}. \texttt{DecisionTreeClassifier} dari \textit{scikit-learn} hanya digunakan sebagai pembanding dan tidak menjadi bagian dari implementasi \textit{from scratch}. Rumus ketiga \textit{split criterion} telah dijelaskan pada bab landasan teori, sehingga bagian ini berfokus pada penerapannya dalam kode.
@@ -159,8 +209,8 @@ Batas kuantil, nilai imputasi, skala, dan daftar kategori hanya dipelajari dari 
 \textbf{Pelatihan model.}
 Kelas \texttt{LogisticRegressionScratch} pada pipeline akhir menggunakan \textit{Stochastic Gradient Ascent} (SGA), sesuai pendekatan materi kuliah \cite{khodra2021sga}. Berbeda dari model dasar yang menggunakan gradien seluruh data, SGA memperbarui parameter setelah setiap sampel. Urutan sampel diacak pada setiap \textit{epoch} dengan \textit{seed} tetap. Arah pembaruan adalah gradien \textit{log-likelihood} dikurangi gradien penalti, sehingga setara dengan menurunkan objektif pada Persamaan~\ref{eq:lr-objective}. Pembaruannya dirumuskan sebagai berikut.
 \begin{align}
-    w &\leftarrow w+\eta\left[(y_i-p_i)x_i-\lambda\left((1-\rho)w+\rho\operatorname{sign}(w)\right)\right],\\
-    b &\leftarrow b+\eta(y_i-p_i).
+    w & \leftarrow w+\eta\left[(y_i-p_i)x_i-\lambda\left((1-\rho)w+\rho\operatorname{sign}(w)\right)\right], \\
+    b & \leftarrow b+\eta(y_i-p_i).
 \end{align}
 Bagian L1 menggunakan subgradien dengan $\operatorname{sign}(0)=0$ \cite{boyd2003subgradient}. Berbeda dari \textit{soft-thresholding} pada model dasar, pembaruan ini tidak menjamin bobot menjadi tepat nol. Karena itu, L1 pada pipeline akhir tidak diklaim melakukan seleksi fitur secara eksplisit.
 
@@ -187,14 +237,14 @@ b += eta * error
     \label{tab:lr-config}
     \begin{tabular}{lll}
         \toprule
-        Parameter & Model dasar & Pipeline akhir \\
+        Parameter                     & Model dasar                        & Pipeline akhir \\
         \midrule
-        Pembaruan parameter & Batch + \textit{soft-thresholding} & SGA per sampel \\
-        \textit{Learning rate} $\eta$ & $0{,}1$ & $0{,}001$ \\
-        Jumlah \textit{epoch} & 250 & 200 \\
-        Regularisasi $\lambda$ & $0{,}01$ & $0{,}0001$ \\
-        Ambang klasifikasi & $0{,}5$ & $0{,}47$ \\
-        Rasio L1 pada Elastic Net & $0{,}5$ & $0{,}5$ \\
+        Pembaruan parameter           & Batch + \textit{soft-thresholding} & SGA per sampel \\
+        \textit{Learning rate} $\eta$ & $0{,}1$                            & $0{,}001$      \\
+        Jumlah \textit{epoch}         & 250                                & 200            \\
+        Regularisasi $\lambda$        & $0{,}01$                           & $0{,}0001$     \\
+        Ambang klasifikasi            & $0{,}5$                            & $0{,}47$       \\
+        Rasio L1 pada Elastic Net     & $0{,}5$                            & $0{,}5$        \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -214,7 +264,7 @@ Implementasi klasifikator Support Vector Machine (SVM) dari nol ditempatkan pada
 
 Solver utama \texttt{SVMFromScratch} menggunakan formulasi \textit{soft-margin} dengan kerugian kuadratik (\textit{L2-hinge loss}) dan regularisasi $L_2$ sebagaimana dinyatakan dalam persamaan berikut.
 \begin{equation}
-\min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|_2^2 + C \sum_{i=1}^{N} c_i \max\left(0, 1 - y_i (\mathbf{w}^\top \phi(\mathbf{x}_i) + b)\right)^2
+    \min_{\mathbf{w}, b} \frac{1}{2}\|\mathbf{w}\|_2^2 + C \sum_{i=1}^{N} c_i \max\left(0, 1 - y_i (\mathbf{w}^\top \phi(\mathbf{x}_i) + b)\right)^2
 \end{equation}
 Pemilihan bentuk kuadratik pada pelanggaran margin ($\max(0, 1 - y_i f(\mathbf{x}_i))^2$) bertujuan agar fungsi objektif menjadi terdiferensialkan secara kontinu pada turunan pertama dan memiliki matriks Hessian sepotong-sepotong (\textit{piecewise quadratic}). Parameter $C$ mengatur seberapa besar penalti yang diberikan terhadap titik data yang melanggar batas margin, sedangkan bobot per sampel $c_i$ mendukung pengaturan \texttt{class\_weight} baik bernilai seragam (\texttt{None}), otomatis seimbang berbanding terbalik terhadap frekuensi kelas (\texttt{"balanced"}), maupun bobot kustom berbentuk kamus.
 
@@ -366,10 +416,10 @@ atau tidak pernah muncul. Estimasi KDB menyusutkan
 probabilitas kondisional tingkat induk lebih banyak menuju estimasi dengan
 induk lebih sedikit menggunakan $m$-estimate. Bentuk rekurensinya adalah
 \[
- \widehat{P}_{r}(x_j\mid c,\boldsymbol{u}_{1:r}) =
- \frac{N(x_j,\boldsymbol{u}_{1:r},c)
- +m\,\widehat{P}_{r-1}(x_j\mid c,\boldsymbol{u}_{1:r-1})}
- {N(\boldsymbol{u}_{1:r},c)+m}.
+    \widehat{P}_{r}(x_j\mid c,\boldsymbol{u}_{1:r}) =
+    \frac{N(x_j,\boldsymbol{u}_{1:r},c)
+        +m\,\widehat{P}_{r-1}(x_j\mid c,\boldsymbol{u}_{1:r-1})}
+    {N(\boldsymbol{u}_{1:r},c)+m}.
 \]
 Dengan demikian, ketika jumlah contoh untuk suatu konfigurasi induk kecil,
 estimasi tidak langsung bergantung pada frekuensi yang sangat jarang.

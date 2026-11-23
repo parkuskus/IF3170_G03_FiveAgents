@@ -1,28 +1,26 @@
 """Fase 4: generate submission_knn.csv dari parameter final Fase 1.
 
-Parameter final (dari output/knn_decisions.csv):
+Parameter final (dari output/knn/knn_decisions.csv):
     k = 21, weights = distance, metric = manhattan,
     cat_weight = 1.0, threshold = 0.50
 
 Alur: fit preprocessing + KNN pada SELURUH train.csv, prediksi test.csv,
-tulis output/submission_knn.csv dengan format id,is_canceled.
+tulis output/knn/submission_knn.csv dengan format id,is_canceled.
 """
 from __future__ import annotations
-import sys
 from pathlib import Path
 import pandas as pd
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from knn import KNNClassifier
-from preprocessing import KNNPreprocessor
+from src.experiments.knn.knn import KNNClassifier
+from src.experiments.knn.preprocessing import KNNPreprocessor
 
 FINAL = {"k": 21, "weights": "distance", "metric": "manhattan",
          "cat_weight": 1.0, "threshold": 0.50}
 BATCH = 2000
 
 DATA_DIR = REPO_ROOT / "data"
-OUT_DIR = REPO_ROOT / "output"
+OUT_DIR = REPO_ROOT / "output" / "knn"
 SUBMISSION_CSV = OUT_DIR / "submission_knn.csv"
 
 
@@ -46,7 +44,7 @@ def main():
     pred = (scores > FINAL["threshold"]).astype(int)
 
     sub = pd.DataFrame({"id": test["id"], "is_canceled": pred})
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     sub.to_csv(SUBMISSION_CSV, index=False)
 
     # Validasi format submission (kontrak repo).

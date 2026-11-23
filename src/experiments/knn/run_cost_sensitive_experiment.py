@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from eksperimen_knn import make_split, metrics
-from knn import KNNClassifier
-from preprocessing import KNNPreprocessor
+from src.experiments.knn.run_experiments import make_split, metrics
+from src.experiments.knn.knn import KNNClassifier
+from src.experiments.knn.preprocessing import KNNPreprocessor
 
 
 def evaluate_cost_sensitive(y_valid, scores, output_dir):
@@ -62,7 +62,9 @@ def main():
     )
     print("Menghitung skor validasi bonus...", flush=True)
     scores = model.decision_scores(pre.transform(X.iloc[valid_idx]), batch_size=256)
-    _, comparison = evaluate_cost_sensitive(y[valid_idx], scores, root / "output")
+    _, comparison = evaluate_cost_sensitive(
+        y[valid_idx], scores, root / "output" / "knn"
+    )
     print(comparison.to_string(index=False), flush=True)
 
 

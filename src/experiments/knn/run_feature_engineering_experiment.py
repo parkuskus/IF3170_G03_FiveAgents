@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -8,11 +7,10 @@ import pandas as pd
 from sklearn.metrics import f1_score
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from feature_engineering import FEATURE_SETS, add_engineered_features
-from knn import KNNClassifier
-from preprocessing import KNNPreprocessor
+from src.experiments.knn.feature_engineering import FEATURE_SETS, add_engineered_features
+from src.experiments.knn.knn import KNNClassifier
+from src.experiments.knn.preprocessing import KNNPreprocessor
 
 SEED = 42
 BATCH = 2000
@@ -25,7 +23,7 @@ FINAL_PARAMS = {
     "threshold": 0.5,
 }
 DATA_DIR = REPO_ROOT / "data"
-OUT_DIR = REPO_ROOT / "output"
+OUT_DIR = REPO_ROOT / "output" / "knn"
 RESULT_CSV = OUT_DIR / "knn_feature_engineering_results.csv"
 DECISIONS_CSV = OUT_DIR / "knn_feature_engineering_decisions.csv"
 
@@ -102,7 +100,7 @@ def main():
         for r in rows[1:]
     ]
 
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     result.sort_values(["macro_f1", "feature_set"], ascending=[False, True]).to_csv(RESULT_CSV, index=False)
     pd.DataFrame(decisions).to_csv(DECISIONS_CSV, index=False)
     print("\n=== FASE 3 ===", flush=True)

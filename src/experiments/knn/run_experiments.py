@@ -1,14 +1,12 @@
 from __future__ import annotations
-import sys
 from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score, confusion_matrix, precision_recall_fscore_support
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from knn import KNNClassifier
-from preprocessing import KNNPreprocessor
+from src.experiments.knn.knn import KNNClassifier
+from src.experiments.knn.preprocessing import KNNPreprocessor
 
 SEED = 42
 K_VALUES = [13, 15, 17, 19, 21, 23, 25, 27, 35, 41]
@@ -19,7 +17,7 @@ ADOPTION_GAP = 0.005
 BATCH = 2000
 
 DATA_DIR = REPO_ROOT / "data"
-OUT_DIR = REPO_ROOT / "output"
+OUT_DIR = REPO_ROOT / "output" / "knn"
 RESULT_CSV = OUT_DIR / "knn_experiment_results.csv"
 DECISIONS_CSV = OUT_DIR / "knn_decisions.csv"
 
@@ -147,7 +145,7 @@ def main():
     baseline_f1, adopt = decide(decisions, "cat_weight", "cat_weight", best, baseline_f1)
     if adopt: params["cat_weight"] = best["cat_weight"]
 
-    OUT_DIR.mkdir(exist_ok=True)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).sort_values(["macro_f1", "config"], ascending=[False, True]).to_csv(RESULT_CSV, index=False)
     pd.DataFrame(decisions).to_csv(DECISIONS_CSV, index=False)
     print("\n=== PARAMETER AKHIR ===", flush=True)

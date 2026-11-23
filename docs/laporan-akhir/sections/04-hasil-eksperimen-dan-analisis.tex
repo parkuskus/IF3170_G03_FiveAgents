@@ -1,52 +1,77 @@
+\section{k-NN}
+\subsection{Hasil Pengujian}
 
-\subsection{Bonus KNN: Cost-sensitive Classification}
-Kelas positif menunjukkan pemesanan batal. False positive (FP) berarti pemesanan
-diprediksi batal, tetapi tamu tetap datang. Penjualan ulang kamar tersebut dapat
-menimbulkan overbooking. Sesuai spesifikasi bonus, biaya relatif ditetapkan
-$C_{FP}=2$ dan $C_{FN}=1$, sehingga objektif evaluasi adalah
-$L=2FP+FN$.
+Evaluasi menggunakan pemisahan terstratifikasi dengan \textit{seed} 42 yang terdiri atas 21.898 baris data latih dan 5.475 baris validasi. Validasi memuat 3.681 reservasi tidak batal dan 1.794 reservasi batal. Macro F1 digunakan sebagai metrik utama agar kinerja pada kedua kelas diperhitungkan secara seimbang. Prapemroses hanya di-\textit{fit} pada data latih, sedangkan label validasi digunakan untuk menghitung metrik kandidat. Pemilihan konfigurasi mengikuti batas adopsi kenaikan Macro F1 sebesar $0{,}005$.
 
-KNN menggunakan $k=21$, Manhattan, distance weighting, dan bobot kategori 1.
-Split validasi mengikuti kelompok (seed 42; 5.475 baris). Preprocessing dipelajari
-hanya dari subset train. Skor validasi dihitung sekali, lalu threshold diuji dari
-0 sampai 1 dengan langkah 0,01, ditambah 0,5 dan $2/3$. Prediksi batal
-diberikan jika skor lebih besar daripada threshold. Biaya seri dipecahkan
-dengan macro F1 terbesar, lalu threshold terkecil.
-
-Jika $p$ adalah probabilitas batal terkalibrasi, biaya prediksi batal adalah
-$2(1-p)$ dan biaya prediksi tidak batal adalah $p$. Maka batas teoritisnya
-$p>2/3$. Skor voting KNN belum tentu terkalibrasi, sehingga batas ini digunakan
-sebagai pembanding terhadap pemilihan empiris.
-
-\begin{center}
-    \begin{tabular}{lrrrrr}
+\begin{table}[H]
+    \centering
+    \caption{Hasil pemilihan parameter k-NN pada data validasi}
+    \label{tab-knn-selection}
+    \begin{tabular}{lrrrrl}
         \hline
-        Strategi         & Threshold & FP  & FN  & Biaya & Macro F1 \\
+        Tahap                 & Skor acuan & Skor kandidat & Selisih  & Kandidat terpilih & Keputusan \\
         \hline
-        Baseline         & 0.50      & 290 & 455 & 1035  & 0.841689 \\
-        Teoretis         & $2/3$     & 108 & 746 & 962   & 0.801879 \\
-        Minimum validasi & 0.60      & 158 & 623 & 939   & 0.825069 \\
+        Grid $k$              & 0,831783   & 0,831783      & 0,000000 & $k=21$            & Pertahankan \\
+        Ambang                & 0,831783   & 0,831783      & 0,000000 & 0,50              & Pertahankan \\
+        Metrik jarak          & 0,831783   & 0,841689      & 0,009906 & Manhattan         & Adopsi \\
+        Bobot kategorikal     & 0,841689   & 0,843450      & 0,001761 & 0,5               & Pertahankan 1,0 \\
         \hline
     \end{tabular}
-\end{center}
+\end{table}
 
-Threshold 0.60 menurunkan biaya dari 1035 menjadi 939,
-atau 9.28\%. FP berkurang tetapi FN bertambah, dan macro F1 turun.
-Keputusan ini menunjukkan trade-off ketika FP lebih mahal. Threshold bonus
-dipilih untuk objektif biaya, sedangkan konfigurasi submission utama tetap
-mengikuti eksperimen macro F1.
+Tabel~\ref{tab-knn-selection} menunjukkan bahwa perubahan metrik jarak menjadi Manhattan merupakan satu-satunya tahap yang melampaui batas adopsi. Grid $k$ menguji sepuluh nilai dari 13 hingga 41, tetapi tidak menemukan kenaikan atas konfigurasi awal $k=21$. Pencarian ambang dari 0,30 hingga 0,70 dengan langkah 0,01 juga mempertahankan ambang 0,50. Bobot kategorikal 0,5 menghasilkan skor kandidat tertinggi sebesar 0,843450, tetapi kenaikannya terhadap konfigurasi berjalan hanya 0,001761. Sesuai aturan seleksi, bobot final tetap 1,0.
 
-\begin{center}
-    \includegraphics[width=0.95\textwidth]{../../output/knn_cost_sensitive.png}
-\end{center}
+Pengujian pada metrik Manhattan kembali menempatkan $k=21$ sebagai kandidat terbaik dengan Macro F1 0,841689. Kandidat berikutnya, $k=19$ dan $k=15$, masing-masing mencatat 0,840566 dan 0,840106. Eksperimen fitur turunan juga tidak meningkatkan skor dasar. Di antara fitur yang diuji, \texttt{total\_guests} menghasilkan Macro F1 0,839597, \texttt{total\_nights} 0,839443, \texttt{requests\_per\_guest} 0,838443, dan \texttt{total\_stay\_value} 0,832653. Hasil ini mendukung keputusan untuk mempertahankan fitur awal, tetapi tidak membuktikan bahwa rekayasa fitur lain tidak bermanfaat.
 
-Pemilihan dan pelaporan threshold dilakukan pada validasi yang sama, sehingga
-penurunan biaya dapat optimistis. Angka tersebut merupakan minimum di antara
-kandidat pada split ini. Evaluasi independen diperlukan untuk mengukur
-generalisasi. Test tanpa label tidak digunakan untuk pemilihan threshold.
-Sumber asumsi biaya adalah spesifikasi Tugas Besar 2 IF3170 2026/2027,
-bagian Bonus poin 7. Batas teoritis diturunkan langsung dari biaya harapan.
-\section{Metodologi Penelitian}
+Konfigurasi final menggunakan $k=21$, metrik Manhattan, pembobotan berdasarkan jarak, bobot kategorikal 1,0, dan ambang 0,50. Hasil validasi beserta matriks kebingungan disajikan pada Tabel~\ref{tab-knn-final}.
+
+\begin{table}[H]
+    \centering
+    \caption{Kinerja konfigurasi final k-NN pada data validasi}
+    \label{tab-knn-final}
+    \begin{tabular}{lrrrr}
+        \hline
+        Kelas                & Support & Precision & Recall & F1     \\
+        \hline
+        Tidak batal (0)      & 3.681   & 0,8817    & 0,9212 & 0,9010 \\
+        Batal (1)            & 1.794   & 0,8220    & 0,7464 & 0,7824 \\
+        \hline
+        \multicolumn{4}{l}{Macro F1} & 0,841689 \\
+        \hline
+        \multicolumn{5}{c}{TN = 3.391,\quad FP = 290,\quad FN = 455,\quad TP = 1.339} \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Macro F1 validasi sebesar 0,841689 merangkum perbedaan kinerja kedua kelas. Recall kelas batal sebesar 0,7464 lebih rendah daripada recall kelas tidak batal sebesar 0,9212. Matriks kebingungan mencatat 455 pembatalan yang tidak terdeteksi dan 290 reservasi tidak batal yang keliru ditandai sebagai batal. Dengan demikian, model lebih sering melewatkan pembatalan daripada menghasilkan alarm palsu pada pemisahan ini.
+
+Setelah konfigurasi dipilih, model dan prapemroses di-\textit{fit} ulang pada seluruh 27.373 baris data latih. Submission memuat 6.844 baris sesuai urutan \texttt{id} pada \texttt{test.csv}; prediksinya terdiri atas 4.837 kelas 0 dan 2.007 kelas 1. Jumlah prediksi pada data uji tanpa label ini merupakan keluaran submission, bukan ukuran kinerja. Karena rangkaian eksperimen menggunakan satu holdout untuk membandingkan kandidat, skor validasi perlu dibaca sebagai hasil pada split tersebut dan bukan estimasi independen atas generalisasi.
+
+\subsection{Komparasi dengan \texttt{scikit-learn}}
+
+Implementasi dari nol dibandingkan dengan \texttt{KNeighborsClassifier} menggunakan split, fitur hasil prapemrosesan, jumlah tetangga, bobot jarak, metrik Manhattan, dan ambang yang sama. Tabel~\ref{tab-knn-sklearn} merangkum hasil kedua implementasi pada validasi.
+
+\begin{table}[H]
+    \centering
+    \caption{Perbandingan k-NN dari nol dan scikit-learn pada data validasi}
+    \label{tab-knn-sklearn}
+    \begin{tabular}{lrr}
+        \hline
+        Implementasi       & Macro F1 & Beda prediksi \\
+        \hline
+        k-NN dari nol        & 0,841689 & 0                                \\
+        \texttt{scikit-learn} & 0,841689 & 0                               \\
+        \hline
+    \end{tabular}
+\end{table}
+
+Kedua implementasi menghasilkan Macro F1 dan prediksi kelas yang sama pada validasi. Kesesuaian tersebut menunjukkan bahwa implementasi k-NN dari nol mereproduksi hasil pembanding pada konfigurasi dan representasi yang diuji. Hasil ini terbatas pada satu split dan tidak menyatakan bahwa kedua implementasi selalu identik pada data atau aturan pemutusan seri yang berbeda.
+
+\subsection{\textit{Error Analysis}}
+
+Analisis kesalahan konfigurasi final menggunakan 5.475 baris validasi yang sama. Sebanyak 4.730 prediksi benar, sementara 745 prediksi salah terdiri atas 455 \textit{false negative} dan 290 \textit{false positive}. Dari 1.794 reservasi yang benar-benar batal, 25,36\% tidak terdeteksi. Dari 3.681 reservasi yang tidak batal, 7,88\% keliru diprediksi batal. Perbedaan ini selaras dengan recall kelas batal yang lebih rendah pada Tabel~\ref{tab-knn-final}.
+
+Jumlah FN yang lebih besar daripada FP menunjukkan bahwa konfigurasi utama lebih banyak melewatkan reservasi batal pada split ini. Namun, angka agregat tersebut tidak menjelaskan karakteristik reservasi yang salah diklasifikasikan dan tidak cukup untuk menyimpulkan penyebab kesalahan. Analisis berdasarkan kanal pemesanan atau waktu sebelum kedatangan memerlukan tabulasi per kelompok dengan penyebut yang sesuai untuk masing-masing kelas. Selain itu, hasil analisis pada holdout yang sama tidak digunakan untuk mengubah konfigurasi final. Eksperimen biaya kesalahan dengan asumsi biaya FP dua kali FN disajikan terpisah pada bagian bonus.
 
 \section{DTL}
 \subsection{Hasil Pengujian}
@@ -691,7 +716,7 @@ dipilih untuk objektif biaya, sedangkan konfigurasi submission utama tetap
 mengikuti eksperimen macro F1.
 
 \begin{center}
-    \includegraphics[width=0.95\textwidth]{../../output/knn_cost_sensitive.png}
+    \includegraphics[width=0.95\textwidth]{../../output/knn/knn_cost_sensitive.png}
 \end{center}
 
 Pemilihan dan pelaporan threshold dilakukan pada validasi yang sama, sehingga
