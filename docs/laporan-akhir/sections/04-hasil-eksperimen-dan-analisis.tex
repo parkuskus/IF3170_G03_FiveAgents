@@ -359,8 +359,159 @@ Tabel~\ref{tab:svm_vs_sklearn} menunjukkan tiga hal dalam perbandingan implement
 
 \subsection{Hasil Pengujian}
 
+Evaluasi menggunakan 21.898 baris data latih dan 5.475 baris holdout dengan
+\textit{seed} 42 dan pembagian terstratifikasi. Holdout terdiri atas 3.681
+reservasi tidak batal (kelas 0) dan 1.794 reservasi batal (kelas 1).
+Macro F1 menjadi metrik utama karena merata-ratakan F1 tiap kelas.
+Preprocessing dan pemilihan parameter hanya menggunakan data latih.
+Holdout tidak digunakan untuk memilih konfigurasi. Model Naive Bayes
+kategorikal menggunakan Laplace $+1$ dan prediksi MAP dengan ambang $0{,}5$
+\cite{maulidevi2024bayesnet}.
+
+\begin{table}[H]
+\centering
+\caption{Hasil Naive Bayes kategorikal dan pipeline KDB pada holdout}
+\label{tab:nb-results}
+\begin{tabular}{lrrrrrr}
+\hline
+Model & Macro F1 & F1 kelas 0 & F1 kelas 1 & FP & FN & CV Macro F1 \\
+\hline
+Naive Bayes kategorikal & 0,753704 & 0,848669 & 0,658740 & 462 & 686 & 0,746560 \\
+KDB (pipeline final) & \textbf{0,821914} & \textbf{0,887196} & \textbf{0,756632} & 362 & 482 & 0,817709 \\
+\hline
+\end{tabular}
+\end{table}
+
+Pipeline KDB meningkatkan Macro F1 holdout sebesar $0{,}068210$ dan Macro F1
+CV tiga seed sebesar $0{,}071149$ dibandingkan Naive Bayes kategorikal. Pada
+holdout, F1 kelas batal naik dari $0{,}658740$ menjadi $0{,}756632$,
+sedangkan F1 kelas tidak batal naik dari $0{,}848669$ menjadi $0{,}887196$.
+Kenaikan F1 kelas batal lebih besar, yaitu $0{,}097892$ dibandingkan
+$0{,}038527$ pada kelas tidak batal. Kedua kelas membaik meskipun jumlah
+reservasi batal lebih sedikit. Model kategorikal memiliki prior kelas
+$P(Y=0)=0{,}6725$ dan $P(Y=1)=0{,}3275$, yang dihitung dari frekuensi kelas
+pada data latih. Distribusi tersebut menunjukkan mengapa akurasi saja
+kurang memadai untuk membaca kemampuan model mengenali pembatalan.
+
+\begin{table}[H]
+\centering
+\caption{Confusion matrix holdout untuk baseline dan KDB}
+\label{tab:nb-confusion}
+\begin{tabular}{lrrrr}
+\hline
+Model & TN & FP & FN & TP \\
+\hline
+Naive Bayes kategorikal & 3.219 & 462 & 686 & 1.108 \\
+KDB (pipeline final) & 3.319 & 362 & 482 & 1.312 \\
+\hline
+\end{tabular}
+\end{table}
+
+Matriks kebingungan pada Tabel~\ref{tab:nb-confusion} menunjukkan bahwa
+model kategorikal melewatkan 686 dari 1.794 pembatalan aktual. KDB
+menurunkan jumlah tersebut menjadi 482, sehingga 204 pembatalan tambahan
+berhasil dikenali. \textit{Recall} kelas batal naik dari $61{,}76\%$
+menjadi $73{,}13\%$. Di antara reservasi yang diprediksi batal,
+\textit{precision} juga naik dari $70{,}57\%$ menjadi $78{,}38\%$.
+Peningkatan \textit{recall} ini tidak disertai pertambahan alarm palsu.
+Jumlah FP justru turun dari 462 menjadi 362 pada 3.681 reservasi yang
+tidak batal, sementara jumlah prediksi benar untuk kelas tersebut naik
+dari 3.219 menjadi 3.319.
+
+Kesalahan total berkurang dari 1.148 menjadi 844 reservasi pada
+\textit{holdout} yang sama. Penurunan 304 kesalahan ini terdiri atas 204
+FN dan 100 FP. FN tetap lebih banyak daripada FP pada kedua model.
+Dengan demikian, meskipun kemampuan mendeteksi pembatalan meningkat,
+KDB masih melewatkan 482 dari 1.794 pembatalan aktual. Tabel agregat
+tidak menunjukkan apakah kesalahan tersebut terkonsentrasi pada kanal
+pemesanan atau rentang waktu tertentu. Penjelasan tentang karakteristik
+reservasi yang sulit diprediksi memerlukan analisis per kelompok.
+
+Konfigurasi KDB final mempelajari bobot likelihood dari OOF. Tabel
+~\ref{tab:nb-feature-weights} mencatat seluruh bobot sesuai urutan fitur pada
+artefak. Bobot nol meniadakan kontribusi fitur tersebut pada skor KDB.
+
+\begin{table}[H]
+\centering
+\caption{Bobot likelihood fitur pada KDB final}
+\label{tab:nb-feature-weights}
+\small
+\begin{tabular}{lr|lr}
+\hline
+Fitur & Bobot & Fitur & Bobot \\
+\hline
+\texttt{num\_adults} & 0,75 & \texttt{num\_children} & 0,75 \\
+\texttt{weekend\_nights} & 0,50 & \texttt{weekday\_nights} & 1,00 \\
+\texttt{meal\_package} & 0,25 & \texttt{needs\_parking} & 0,50 \\
+\texttt{room\_category} & 1,00 & \texttt{days\_before\_arrival} & 1,00 \\
+\texttt{arrival\_year} & 1,25 & \texttt{arrival\_month} & 1,00 \\
+\texttt{arrival\_day} & 1,00 & \texttt{booking\_channel} & 0,50 \\
+\texttt{is\_returning\_guest} & 0,75 & \texttt{prior\_cancellations} & 0,00 \\
+\texttt{prior\_completed\_bookings} & 1,00 & \texttt{nightly\_rate\_idr} & 1,00 \\
+\texttt{special\_requests} & 1,50 & \texttt{ota\_x\_requests} & 0,75 \\
+\texttt{rate\_weekend\_req\_ota} & 1,50 & \texttt{lead\_x\_weekend\_req} & 0,75 \\
+\texttt{channel\_x\_meal} & 0,50 & \texttt{is\_offline} & 2,00 \\
+\hline
+\end{tabular}
+\end{table}
+
+Bobot pada Tabel~\ref{tab:nb-feature-weights} mengatur kontribusi
+likelihood fitur dalam skor model, bukan besar pengaruh kausal fitur
+terhadap pembatalan. Fitur \texttt{is\_offline} memperoleh bobot $2{,}00$,
+sedangkan \texttt{special\_requests} dan
+\texttt{rate\_weekend\_req\_ota} masing-masing memperoleh $1{,}50$.
+Sebaliknya, bobot \texttt{prior\_cancellations} bernilai nol, sehingga
+likelihood fitur itu tidak langsung menyumbang skor akhir. Nilai tersebut
+tidak berarti riwayat pembatalan tidak berkaitan dengan target atau
+tidak terlibat dalam struktur dependensi fitur lain. Bobot dipelajari
+bersama representasi dan struktur yang digunakan KDB.
+
+Skor CV pada Tabel~\ref{tab:nb-results} bergerak searah dengan hasil
+holdout. Namun, rata-rata CV KDB sebesar $0{,}817709$ lebih rendah
+$0{,}004205$ daripada skor holdout $0{,}821914$. Selisih ini tidak
+menunjukkan bahwa satu prosedur evaluasi lebih benar karena pembagian
+datanya berbeda. Selain itu, CV digunakan dalam pencarian konfigurasi,
+sehingga nilainya bukan pengujian independen atas konfigurasi terpilih.
+Holdout tidak dipakai untuk memilih parameter, tetapi telah menjadi
+bagian dari rangkaian analisis eksperimen. Estimasi generalisasi setelah
+peninjauan hasil tersebut memerlukan data uji baru.
+
 \subsection{Komparasi dengan \texttt{scikit-learn}}
 
+Tabel~\ref{tab:nb-sklearn} membandingkan KDB dengan dua estimator
+\texttt{scikit-learn} pada holdout yang sama. Pembanding kategorikal
+menggunakan masukan yang dibinning, sementara GaussianNB menerima
+representasi numerik dan \textit{one-hot}.
+Perbedaan representasi dan asumsi likelihood membuat angka ini menjadi
+pembanding pipeline, bukan perbandingan identik implementasi KDB dengan
+algoritma yang sama.
+
+\begin{table}[H]
+\centering
+\caption{Perbandingan Macro F1 Naive Bayes dari nol dan estimator scikit-learn}
+\label{tab:nb-sklearn}
+\begin{tabular}{lrl}
+\hline
+Estimator & Macro F1 & Representasi masukan \\
+\hline
+KDB dari nol (final) & \textbf{0,821914} & 22 fitur kategorikal, KDB \\
+\texttt{CategoricalNB} & 0,794346 & Kategori/binned \\
+\texttt{GaussianNB} & 0,701035 & Numerik dan \textit{one-hot} kategori \\
+\hline
+\end{tabular}
+\end{table}
+
+Pada pengujian ini KDB mencatat Macro F1 lebih tinggi daripada kedua
+pembanding. Selisih terhadap \texttt{CategoricalNB} adalah $0{,}027568$,
+sedangkan terhadap \texttt{GaussianNB} adalah $0{,}120879$. Perbandingan
+dengan \texttt{CategoricalNB} lebih dekat dari segi penggunaan kategori,
+tetapi KDB mengizinkan dependensi antarf fitur dan memakai representasi
+serta ambang hasil pencarian. \texttt{GaussianNB} menerima masukan numerik
+dan kategori hasil \textit{one-hot}, dengan asumsi likelihood numerik
+yang berbeda. Karena representasi dan konfigurasi tidak disetarakan,
+selisih skor tidak dapat ditafsirkan sebagai pengaruh algoritma KDB
+semata atau bukti keunggulannya secara umum. Evaluasi pada data uji baru
+diperlukan untuk mengukur generalisasi setelah seluruh keputusan eksperimen.
 \section{Hasil Spesifikasi Bonus}
 
 \subsection{Bonus DTL Gambar Percabangan Tree}
@@ -383,7 +534,35 @@ Gambar~\ref{fig:svm_2d_boundary} memperlihatkan perbedaan geometri pemisahan kel
     \item Kernel Gaussian RBF (panel ketiga) menghasilkan batas margin yang melengkung dan beberapa kontur lokal. Judul gambar mencatat $\text{SV}=317/800$, sedangkan naskah sebelumnya menyebut $307/800$. Selisih jumlah tersebut belum diverifikasi melalui eksekusi ulang sel visualisasi. Model dua dimensi ini menggunakan $\gamma=\texttt{"scale"}$, bukan $\texttt{"scale*0.4"}$ seperti salah satu konfigurasi eksperimen utama. Oleh karena itu, gambar tidak menjadi bukti pemilihan $\gamma$ pada model akhir.
 \end{enumerate}
 
-\subsection{Bayesian Network Graf Antarfitur}
+\subsection{Graf Bayesian Network Antarfitur}
+
+Gambar~\ref{fig:nb-kdb-network} menampilkan struktur graf berarah yang
+dipelajari oleh KDB final. Setiap fitur mempunyai sisi dari simpul kelas
+\texttt{C}. Sisi berwarna lainnya menunjukkan ketergantungan fitur-ke-fitur.
+Urutan simpul mengikuti urutan topologis berdasarkan MI dengan kelas.
+Garis kelas-ke-fitur dibuat putus-putus, sedangkan panah dependensi fitur
+mengarah dari induk ke anak dan memakai warna simpul asal. Graf memuat 23
+simpul yang terdiri atas satu simpul kelas dan 22 fitur. Dari 100 sisi,
+22 menghubungkan kelas dengan fitur, sedangkan 78 lainnya menghubungkan
+fitur dengan fitur. Sebagian sisi berdekatan karena banyaknya hubungan
+yang ditampilkan sekaligus.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{public/04-hasil-eksperimen-dan-analisis/naive_bayes_bayesian_network.png}
+    \caption{Graf Bayesian Network berarah pada KDB final. Simpul kelas menjadi induk seluruh fitur. Panah antarf fitur menunjukkan dependensi yang dipelajari model.}
+    \label{fig:nb-kdb-network}
+\end{figure}
+
+Panah antarf fitur pada Gambar~\ref{fig:nb-kdb-network} memperlihatkan
+bagaimana KDB melonggarkan asumsi independensi Naive Bayes. Arah panah
+ditetapkan oleh urutan fitur dan pemilihan induk berdasarkan MI serta
+CMI. Karena itu, panah menyatakan faktor yang dipakai saat menghitung
+probabilitas kondisional, bukan hubungan sebab akibat antaratribut
+reservasi. Graf juga tidak memperlihatkan besar bobot likelihood setiap
+fitur. Membaca graf bersama Tabel~\ref{tab:nb-feature-weights} memberi
+dua informasi yang berbeda, yaitu struktur dependensi dan kontribusi
+fitur dalam skor prediksi.
 
 \newpage
 \subsection{Algoritma Optimasi Model}
@@ -393,5 +572,35 @@ Gambar~\ref{fig:svm_2d_boundary} memperlihatkan perbedaan geometri pemisahan kel
 \subsubsection{SVM}
 
 \subsubsection{Naive Bayes}
+
+Perbedaan utama pipeline KDB dari Naive Bayes kategorikal terletak pada
+cara membentuk likelihood. Model kategorikal menghitung peluang fitur
+secara terpisah setelah kelas diketahui. Pada KDB, sebuah fitur dapat
+memiliki hingga $k=4$ induk fitur lain, seperti diperlihatkan dalam
+Gambar~\ref{fig:nb-kdb-network}. Struktur ini memberi ruang bagi
+dependensi antarf fitur yang tidak dimodelkan oleh Naive Bayes
+independen. Peluang pada kombinasi induk yang jarang diamati disusutkan
+ke estimasi dengan lebih sedikit induk menggunakan $m=100$.
+Laplace $\alpha=1$ tetap digunakan pada estimasi dasarnya.
+
+Pipeline akhir menggunakan 25 bin kuantil dan lima fitur turunan,
+sehingga representasi masukan juga berbeda dari model kategorikal.
+Bobot likelihood tidak seragam, sebagaimana terlihat pada
+Tabel~\ref{tab:nb-feature-weights}. Ambang posterior $0{,}405$ dipilih
+dari prediksi OOF untuk mengoptimalkan Macro F1. Ambang ini lebih rendah
+daripada $0{,}5$ pada model kategorikal, tetapi matriks kebingungan
+menunjukkan bahwa KDB sekaligus menurunkan FN dan FP. Penurunan kedua
+jenis kesalahan tidak dapat dijelaskan hanya oleh pergeseran ambang
+karena struktur, fitur, dan bobot turut berubah.
+
+Gabungan perubahan tersebut menghasilkan Macro F1 holdout $0{,}821914$,
+dibandingkan $0{,}753704$ pada Naive Bayes kategorikal. Hasil CV tiga
+seed juga lebih tinggi pada KDB, yaitu $0{,}817709$ dibandingkan
+$0{,}746560$. Kedua perbandingan mendukung perbaikan pada pipeline yang
+diuji, tetapi belum mengukur sumbangan masing-masing komponen.
+Pengukuran tersebut memerlukan ablasi yang menahan representasi dan
+prosedur evaluasi tetap sama ketika struktur, penghalusan, bobot, atau
+ambang diubah satu per satu. Dasar metode KDB dan pembobotan dijelaskan
+pada Bagian~\ref{sec:implementasi-nb-optimasi}.
 
 \subsection{Cost-Sensitive Classification}
