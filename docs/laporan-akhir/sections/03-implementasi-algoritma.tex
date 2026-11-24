@@ -14,19 +14,19 @@ Implementasi k-NN untuk klasifikasi \texttt{is\_canceled} dibangun \textit{from 
 
 Jarak antara vektor fitur $x$ dan data latih $x_i$ dihitung dengan salah satu bentuk berikut.
 \begin{align}
-    d_E(x,x_i) &= \sqrt{\sum_{j=1}^{p}(x_j-x_{ij})^2}, \\
-    d_M(x,x_i) &= \sum_{j=1}^{p}|x_j-x_{ij}|.
+    d_E(x,x_i) & = \sqrt{\sum_{j=1}^{p}(x_j-x_{ij})^2}, \\
+    d_M(x,x_i) & = \sum_{j=1}^{p}|x_j-x_{ij}|.
     \label{eq:knn-distance}
 \end{align}
 Sebanyak $k$ data dengan jarak terkecil membentuk himpunan tetangga $\mathcal{N}_k(x)$. Skor kelas batal merupakan proporsi label positif berbobot pada himpunan tersebut.
 \begin{equation}
     s_1(x)=
     \frac{\sum_{i\in\mathcal{N}_k(x)} w_i\,\mathbb{1}(y_i=1)}
-         {\sum_{i\in\mathcal{N}_k(x)} w_i},
+    {\sum_{i\in\mathcal{N}_k(x)} w_i},
     \qquad
     \widehat{y}(x)=
     \begin{cases}
-        1, & s_1(x)>\tau,\\
+        1, & s_1(x)>\tau,    \\
         0, & s_1(x)\leq\tau.
     \end{cases}
     \label{eq:knn-vote}
@@ -601,7 +601,7 @@ bukan korelasi yang dihitung terpisah atau hubungan sebab akibat.
 \subsubsection{DTL}
 
 Pohon CART ditumbuhkan terlebih dahulu, lalu \textit{cost-complexity
-post-pruning} membandingkan galat mengganti suatu subpohon dengan satu daun
+    post-pruning} membandingkan galat mengganti suatu subpohon dengan satu daun
 dengan galat mempertahankan seluruh daun keturunannya. Penalti
 $\alpha$ dikenakan untuk setiap daun yang dipertahankan. Jika mengganti
 subpohon tidak meningkatkan objektif, cabang anak dihapus.
@@ -651,7 +651,7 @@ Cholesky teratur pada matriks kernel titik acuan
 \subsubsection{Naive Bayes}
 
 Naive Bayes final diperluas menjadi \textit{K-Dependence Bayesian
-Classifier} (KDB). Urutan fitur dipilih dari \textit{mutual information}
+    Classifier} (KDB). Urutan fitur dipilih dari \textit{mutual information}
 (MI) terhadap kelas, lalu maksimal $k$ induk untuk setiap fitur dipilih
 berdasarkan \textit{conditional mutual information} (CMI). Struktur ini
 mengizinkan dependensi terbatas yang tidak ada pada Naive Bayes biasa
@@ -703,37 +703,10 @@ $C_{FP}/(C_{FP}+C_{FN})=2/3$. Keluaran berupa skor atau margin yang belum terkal
 
 \subsection{Video Kontur Log-Loss Regresi Logistik}
 
-Notebook final Logistic Regression memuat video yang memperlihatkan lintasan parameter $\theta_0$ dan $\theta_1$ pada kontur \textit{log-loss}. Sel demonstrasi melatih model dua parameter dengan \textit{stochastic gradient descent} pada satu fitur dan menyimpan lintasannya setiap \textit{epoch}. Model dua parameter ini dibuat khusus untuk visualisasi. Model tersebut tidak menggantikan model multivariat yang digunakan pada evaluasi dan submission.
+Notebook final Logistic Regression menyediakan sel untuk menghasilkan video lintasan parameter $\theta_0$ dan $\theta_1$ pada kontur \textit{log-loss}. Sel demonstrasi melatih model dua parameter dengan \textit{stochastic gradient descent} pada satu fitur dan menyimpan lintasannya setiap \textit{epoch}. Model dua parameter ini dibuat khusus untuk visualisasi. Model tersebut tidak menggantikan model multivariat yang digunakan pada evaluasi dan submission. Berkas MP4 hasilnya belum tersedia di repositori.
 
 \begin{lstlisting}[caption={Penyimpanan lintasan parameter sebagai video},label={lst-lr-contour-video}]
 animation = FuncAnimation(fig, draw, frames=len(trajectory),
                           interval=180, blit=True)
 animation.save(video_path, writer=FFMpegWriter(fps=6))
 \end{lstlisting}
-
-\subsection{Status Implementasi Spesifikasi Bonus}
-
-Tabel~\ref{tab:bonus-specification-status} mencatat bonus dalam spesifikasi tugas dan bukti implementasi pada repositori. Kotak bertanda \texttt{[x]} berarti artefak yang diminta tersedia. Kotak \texttt{[ ]} menunjukkan bahwa pencapaian bonus belum dapat dikonfirmasi dari artefak lokal.
-
-\begin{table}[H]
-    \centering
-    \small
-    \caption{Checklist spesifikasi bonus dan implementasinya pada repositori}
-    \label{tab:bonus-specification-status}
-        \begin{tabular}{p{0.20\textwidth}p{0.53\textwidth}p{0.12\textwidth}}
-        \toprule
-        Spesifikasi & Bukti implementasi & Status \\
-        \midrule
-        Bonus Kaggle & Notebook menyediakan submission yang dapat direproduksi. Peringkat leaderboard tidak tercatat dalam artefak laporan. & \texttt{[ ]} \\
-        Visualisasi DTL & Gambar percabangan CART dengan parameter top-$N$ dan traversal \textit{breadth-first}. & \texttt{[x]} \\
-        Video Logistic Regression & Video kontur \textit{log-loss} dan lintasan parameter $\theta_0,\theta_1$ di notebook final. & \texttt{[x]} \\
-        Visualisasi SVM & Gambar batas keputusan, margin, dan \textit{support vector} untuk kernel Linear, Polynomial, dan Gaussian. & \texttt{[x]} \\
-        Graf Bayesian Network & Gambar graf KDB yang memuat hubungan kelas-ke-fitur dan dependensi fitur-ke-fitur. & \texttt{[x]} \\
-        Algoritma optimasi DTL & CART memakai \textit{cost-complexity post-pruning} dengan pemilihan konfigurasi melalui CV. & \texttt{[x]} \\
-        Algoritma optimasi Logistic Regression & Pipeline final memakai SGA yang dibahas di kelas. Belum ada algoritma optimasi tambahan yang dapat diklaim. & \texttt{[ ]} \\
-        Algoritma optimasi SVM & \textit{Active-Set Modified Finite Newton} dan aproksimasi kernel Nystr\"om. & \texttt{[x]} \\
-        Algoritma optimasi Naive Bayes & Struktur KDB, penghalusan $m$-estimate, dan pembelajaran bobot likelihood dengan Adam. & \texttt{[x]} \\
-        Cost-sensitive classification & Eksperimen 2:1 tersedia untuk k-NN. Eksperimen lintas model memakai 3:1 dan dilaporkan terpisah. & \texttt{[x]} \\
-        \bottomrule
-    \end{tabular}
-\end{table}

@@ -2,6 +2,8 @@
 
 import json
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -32,6 +34,18 @@ BONUSES = {
 
 
 class NotebookStructureTest(unittest.TestCase):
+    def test_naive_bayes_settings_imports_from_notebooks_directory(self):
+        notebook = json.loads((ROOT / "Naive_Bayes_Final-Pipeline.ipynb").read_text(encoding="utf-8"))
+        cells = {cell["id"]: "".join(cell["source"]) for cell in notebook["cells"]}
+        code = "\n".join(cells[cell_id] for cell_id in ("template-imports", "template-settings"))
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_sections_follow_template_and_bonus_follows_cost(self):
         for name in MODELS:
             with self.subTest(name=name):
