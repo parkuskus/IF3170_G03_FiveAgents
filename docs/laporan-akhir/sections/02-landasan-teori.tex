@@ -136,7 +136,7 @@ Pada Persamaan~\ref{eq:id3-entropy}, $K=|\mathcal{C}|$ menyatakan banyaknya kela
     \label{eq:id3-gain}
 \end{equation}
 
-Misalkan $\mathcal{V}(A)$ adalah himpunan nilai atribut $A$. Partisi pada Persamaan~\ref{eq:id3-gain} didefinisikan sebagai $D_v=\{(x_i,y_i)\in D:x_{i,A}=v\}$. Rasio $|D_v|/|D|$ mengestimasi peluang cabang $v$. ID3 memilih atribut $A^*=\arg\max_{A\in\mathcal{A}}IG(D,A)$, lalu menerapkan kriteria yang sama secara rekursif pada setiap $D_v$ dengan kandidat $\mathcal{A}\setminus\{A^*\}$. Rekursi berhenti ketika $H(D)=0$ atau $\mathcal{A}=\varnothing$. Jika tidak ada atribut tersisa, daun memprediksi kelas mayoritas $\hat{c}(D)=\arg\max_{c\in\mathcal{C}}|\{(x_i,y_i)\in D:y_i=c\}|$. Bentuk dasar ID3 menggunakan atribut kategorikal dan tidak memangkas pohon setelah pembentukan. Selain itu, $IG$ cenderung menguntungkan atribut dengan banyak nilai berbeda karena atribut tersebut dapat menghasilkan partisi lebih rinci \cite{quinlan1986id3}.
+Misalkan $\mathcal{V}(A)$ adalah himpunan nilai atribut $A$. Partisi pada Persamaan~\ref{eq:id3-gain} didefinisikan sebagai $D_v=\{(x_i,y_i)\in D:x_{i,A}=v\}$. Rasio $|D_v|/|D|$ mengestimasi peluang cabang $v$. ID3 memilih atribut $A^*=\arg\max_{A\in\mathcal{A}}IG(D,A)$, lalu menerapkan kriteria yang sama secara rekursif pada setiap $D_v$ dengan kandidat $\mathcal{A}\setminus\{A^*\}$. Rekursi berhenti ketika $H(D)=0$ atau $\mathcal{A}=\varnothing$. Jika tidak ada atribut tersisa, daun memprediksi kelas mayoritas $\hat{c}(D)=\arg\max_{c\in\mathcal{C}}|\{(x_i,y_i)\in D:y_i=c\}|$. Bentuk dasar ID3 menggunakan atribut kategorikal dan tidak memangkas pohon setelah pembentukan. Information gain cenderung mengutamakan atribut dengan banyak nilai berbeda karena atribut tersebut dapat menghasilkan partisi lebih rinci \cite{quinlan1986id3}.
 
 Pada pemanggilan awal, $c_0=\hat{c}(D)$ untuk data latih $D$. Pemanggilan rekursif meneruskan kelas mayoritas simpul induk sebagai $c_0$ agar cabang kosong tetap memiliki prediksi.
 
@@ -439,13 +439,13 @@ Formulasi klasik pada Persamaan~\eqref{eq:svm-soft-margin} memakai penalti kesal
 \end{equation}
 Bobot per sampel $c_i > 0$ memungkinkan penerapan \textit{class weighting} untuk data tidak seimbang. Pada skema seimbang (\textit{balanced}), bobot kelas $y \in \{0, 1\}$ ditetapkan berbanding terbalik dengan frekuensinya sebagai $c_y = \frac{n}{2\,n_y}$ sehingga kelas minoritas memperoleh penalti kesalahan lebih besar.
 
-\subsubsection{Algoritma Optimasi SVM: SMO, \textit{Dual Coordinate Descent}, dan \textit{Modified Finite Newton}}
+\subsubsection{Algoritma Optimasi SVM dengan SMO, \textit{Dual Coordinate Descent}, dan \textit{Modified Finite Newton}}
 
-Penyelesaian masalah kuadratik SVM dengan pemecah umum (\textit{general-purpose QP solver}) memakan memori dan waktu yang tinggi ketika $n$ mencapai puluhan ribu. Oleh karena itu, dikembangkan tiga metode optimasi khusus.
+Pemecah umum (\textit{general-purpose QP solver}) memerlukan banyak memori dan waktu saat $n$ mencapai puluhan ribu. Untuk mengatasi beban tersebut, dikembangkan tiga metode optimasi khusus.
 \begin{enumerate}
     \item \textit{Sequential Minimal Optimization} (SMO) memecah masalah dual pada Persamaan~\eqref{eq:svm-dual} menjadi rangkaian submasalah analitik berukuran dua variabel $(\alpha_i, \alpha_j)$ secara berulang sambil mempertahankan kendala kesetaraan $\sum_{k=1}^n \alpha_k y_k = 0$ serta kendala kotak $0 \le \alpha_k \le C$ tanpa memerlukan pustaka optimasi eksternal \cite{platt1998smo}.
     \item \textit{Dual Coordinate Descent} (DCD) menyelesaikan masalah dual secara primal-dual dengan memperbarui satu pengali $\alpha_i$ per langkah di sepanjang arah gradien koordinat terproyeksi, sehingga sangat efisien untuk pemetaan berdimensi tetap berukuran besar \cite{hsieh2008dcd}.
-    \item \textit{Active-Set Modified Finite Newton} menyelesaikan langsung bentuk primal \textit{L2-hinge loss} pada Persamaan~\eqref{eq:svm-l2-hinge} \cite{keerthi2005newton}. Pada tiap iterasi, himpunan titik aktif yang masih melanggar margin didefinisikan sebagai $I = \{i : y_i (\mathbf{w}^{\mathsf{T}}\mathbf{z}_i + b) < 1\}$. Dengan membentuk matriks augmen $\tilde{\mathbf{z}}_i = [\mathbf{z}_i^{\mathsf{T}}, 1]^{\mathsf{T}}$ dan bobot diagonal $\mathbf{D}_I$, langkah Newton eksak diperoleh melalui sistem persamaan linear tereduksi berikut.
+    \item \textit{Active-Set Modified Finite Newton} menyelesaikan bentuk primal \textit{L2-hinge loss} pada Persamaan~\eqref{eq:svm-l2-hinge} \cite{keerthi2005newton}. Pada setiap iterasi, himpunan titik aktif berisi sampel yang melanggar margin, yaitu $I = \{i : y_i (\mathbf{w}^{\mathsf{T}}\mathbf{z}_i + b) < 1\}$. Dengan matriks augmentasi $\tilde{\mathbf{z}}_i = [\mathbf{z}_i^{\mathsf{T}}, 1]^{\mathsf{T}}$ dan bobot diagonal $\mathbf{D}_I$, langkah Newton diperoleh melalui sistem persamaan linear tereduksi berikut.
     \begin{equation}
         \left(\mathbf{I}_{d+1}' + 2 \tilde{\mathbf{Z}}_I^{\mathsf{T}} \mathbf{D}_I \tilde{\mathbf{Z}}_I\right) \tilde{\mathbf{w}} = 2 \tilde{\mathbf{Z}}_I^{\mathsf{T}} \mathbf{D}_I \mathbf{y}_I,
         \label{eq:svm-newton-step}
