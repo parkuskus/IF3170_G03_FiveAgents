@@ -7,9 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from src.experiments.knn.run_experiments import make_split, metrics
-from src.experiments.knn.knn import KNNClassifier
-from src.experiments.knn.preprocessing import KNNPreprocessor
+from src.experiments.knn.run_experiments import metrics
 
 
 def evaluate_cost_sensitive(y_valid, scores, output_dir):
@@ -51,21 +49,8 @@ def evaluate_cost_sensitive(y_valid, scores, output_dir):
 
 
 def main():
-    root = Path(__file__).resolve().parents[3]
-    train = pd.read_csv(root / "data/train.csv", dtype={"id": str})
-    y = train.is_canceled.to_numpy()
-    X = train.drop(columns=["id", "is_canceled"])
-    train_idx, valid_idx = make_split(y)
-    pre = KNNPreprocessor().fit(X.iloc[train_idx])
-    model = KNNClassifier(21, "distance", "manhattan").fit(
-        pre.transform(X.iloc[train_idx]), y[train_idx]
-    )
-    print("Menghitung skor validasi bonus...", flush=True)
-    scores = model.decision_scores(pre.transform(X.iloc[valid_idx]), batch_size=256)
-    _, comparison = evaluate_cost_sensitive(
-        y[valid_idx], scores, root / "output" / "knn"
-    )
-    print(comparison.to_string(index=False), flush=True)
+    from src.experiments.cost_sensitive_runner import run
+    run("knn")
 
 
 if __name__ == "__main__":

@@ -9,12 +9,12 @@ Evaluasi menggunakan pemisahan terstratifikasi dengan \textit{seed} 42 yang terd
     \label{tab-knn-selection}
     \begin{tabular}{lrrrrl}
         \hline
-        Tahap                 & Skor acuan & Skor kandidat & Selisih  & Kandidat terpilih & Keputusan \\
+        Tahap             & Skor acuan & Skor kandidat & Selisih  & Kandidat terpilih & Keputusan       \\
         \hline
-        Grid $k$              & 0,831783   & 0,831783      & 0,000000 & $k=21$            & Pertahankan \\
-        Ambang                & 0,831783   & 0,831783      & 0,000000 & 0,50              & Pertahankan \\
-        Metrik jarak          & 0,831783   & 0,841689      & 0,009906 & Manhattan         & Adopsi \\
-        Bobot kategorikal     & 0,841689   & 0,843450      & 0,001761 & 0,5               & Pertahankan 1,0 \\
+        Grid $k$          & 0,831783   & 0,831783      & 0,000000 & $k=21$            & Pertahankan     \\
+        Ambang            & 0,831783   & 0,831783      & 0,000000 & 0,50              & Pertahankan     \\
+        Metrik jarak      & 0,831783   & 0,841689      & 0,009906 & Manhattan         & Adopsi          \\
+        Bobot kategorikal & 0,841689   & 0,843450      & 0,001761 & 0,5               & Pertahankan 1,0 \\
         \hline
     \end{tabular}
 \end{table}
@@ -31,47 +31,47 @@ Konfigurasi final menggunakan $k=21$, metrik Manhattan, pembobotan berdasarkan j
     \label{tab-knn-final}
     \begin{tabular}{lrrrr}
         \hline
-        Kelas                & Support & Precision & Recall & F1     \\
+        Kelas                        & Support  & Precision & Recall & F1             \\
         \hline
-        Tidak batal (0)      & 3.681   & 0,8817    & 0,9212 & 0,9010 \\
-        Batal (1)            & 1.794   & 0,8220    & 0,7464 & 0,7824 \\
+        Tidak batal (0)              & 3.681    & 0,8817    & 0,9212 & 0,9010         \\
+        Batal (1)                    & 1.794    & 0,8220    & 0,7464 & 0,7824         \\
         \hline
-        \multicolumn{4}{l}{Macro F1} & 0,841689 \\
+        \multicolumn{4}{l}{Macro F1} & 0,841689                                       \\
         \hline
         \multicolumn{5}{c}{TN = 3.391,\quad FP = 290,\quad FN = 455,\quad TP = 1.339} \\
         \hline
     \end{tabular}
 \end{table}
 
-Macro F1 validasi sebesar 0,841689 merangkum perbedaan kinerja kedua kelas. Recall kelas batal sebesar 0,7464 lebih rendah daripada recall kelas tidak batal sebesar 0,9212. Matriks kebingungan mencatat 455 pembatalan yang tidak terdeteksi dan 290 reservasi tidak batal yang keliru ditandai sebagai batal. Dengan demikian, model lebih sering melewatkan pembatalan daripada menghasilkan alarm palsu pada pemisahan ini.
+Macro F1 validasi sebesar 0,841689 merangkum perbedaan kinerja kedua kelas. Recall kelas batal sebesar 0,7464 lebih rendah daripada recall kelas tidak batal sebesar 0,9212. Matriks kebingungan mencatat 455 pembatalan yang tidak terdeteksi dan 290 reservasi tidak batal yang keliru ditandai sebagai batal. Model lebih sering melewatkan pembatalan daripada menghasilkan alarm palsu pada pemisahan ini.
 
-Setelah konfigurasi dipilih, model dan prapemroses di-\textit{fit} ulang pada seluruh 27.373 baris data latih. Submission memuat 6.844 baris sesuai urutan \texttt{id} pada \texttt{test.csv}; prediksinya terdiri atas 4.837 kelas 0 dan 2.007 kelas 1. Jumlah prediksi pada data uji tanpa label ini merupakan keluaran submission, bukan ukuran kinerja. Karena rangkaian eksperimen menggunakan satu holdout untuk membandingkan kandidat, skor validasi perlu dibaca sebagai hasil pada split tersebut dan bukan estimasi independen atas generalisasi.
+Setelah konfigurasi dipilih, model dan prapemroses di-\textit{fit} ulang pada seluruh 27.373 baris data latih. Submission memuat 6.844 baris sesuai urutan \texttt{id} pada \texttt{test.csv}. Prediksinya terdiri atas 4.837 kelas 0 dan 2.007 kelas 1. Jumlah prediksi pada data uji tanpa label ini merupakan keluaran submission, bukan ukuran kinerja. Karena rangkaian eksperimen menggunakan satu holdout untuk membandingkan kandidat, skor validasi perlu dibaca sebagai hasil pada split tersebut dan bukan estimasi independen atas generalisasi.
 
 \subsection{Komparasi dengan \texttt{scikit-learn}}
 
-Implementasi dari nol dibandingkan dengan \texttt{KNeighborsClassifier} menggunakan split, fitur hasil prapemrosesan, jumlah tetangga, bobot jarak, metrik Manhattan, dan ambang yang sama. Tabel~\ref{tab-knn-sklearn} merangkum hasil kedua implementasi pada validasi.
+Implementasi \textit{from scratch} dibandingkan dengan \texttt{KNeighborsClassifier} menggunakan split, fitur hasil prapemrosesan, jumlah tetangga, bobot jarak, metrik Manhattan, dan ambang yang sama. Tabel~\ref{tab-knn-sklearn} merangkum hasil kedua implementasi pada validasi.
 
 \begin{table}[H]
     \centering
-    \caption{Perbandingan k-NN dari nol dan scikit-learn pada data validasi}
+    \caption{Perbandingan k-NN \textit{from scratch} dan scikit-learn pada data validasi}
     \label{tab-knn-sklearn}
     \begin{tabular}{lrr}
         \hline
-        Implementasi       & Macro F1 & Beda prediksi \\
+        Implementasi          & Macro F1 & Beda prediksi \\
         \hline
-        k-NN dari nol        & 0,841689 & 0                                \\
-        \texttt{scikit-learn} & 0,841689 & 0                               \\
+        k-NN \textit{from scratch} & 0,841689 & 0             \\
+        \texttt{scikit-learn} & 0,841689 & 0             \\
         \hline
     \end{tabular}
 \end{table}
 
-Kedua implementasi menghasilkan Macro F1 dan prediksi kelas yang sama pada validasi. Kesesuaian tersebut menunjukkan bahwa implementasi k-NN dari nol mereproduksi hasil pembanding pada konfigurasi dan representasi yang diuji. Hasil ini terbatas pada satu split dan tidak menyatakan bahwa kedua implementasi selalu identik pada data atau aturan pemutusan seri yang berbeda.
+Kedua implementasi menghasilkan Macro F1 dan prediksi kelas yang sama pada validasi. Kesesuaian tersebut menunjukkan bahwa implementasi k-NN \textit{from scratch} mereproduksi hasil pembanding pada konfigurasi dan representasi yang diuji. Hasil ini terbatas pada satu split dan tidak menyatakan bahwa kedua implementasi selalu identik pada data atau aturan pemutusan seri yang berbeda.
 
 \subsection{\textit{Error Analysis}}
 
 Analisis kesalahan konfigurasi final menggunakan 5.475 baris validasi yang sama. Sebanyak 4.730 prediksi benar, sementara 745 prediksi salah terdiri atas 455 \textit{false negative} dan 290 \textit{false positive}. Dari 1.794 reservasi yang benar-benar batal, 25,36\% tidak terdeteksi. Dari 3.681 reservasi yang tidak batal, 7,88\% keliru diprediksi batal. Perbedaan ini selaras dengan recall kelas batal yang lebih rendah pada Tabel~\ref{tab-knn-final}.
 
-Jumlah FN yang lebih besar daripada FP menunjukkan bahwa konfigurasi utama lebih banyak melewatkan reservasi batal pada split ini. Namun, angka agregat tersebut tidak menjelaskan karakteristik reservasi yang salah diklasifikasikan dan tidak cukup untuk menyimpulkan penyebab kesalahan. Analisis berdasarkan kanal pemesanan atau waktu sebelum kedatangan memerlukan tabulasi per kelompok dengan penyebut yang sesuai untuk masing-masing kelas. Selain itu, hasil analisis pada holdout yang sama tidak digunakan untuk mengubah konfigurasi final. Eksperimen biaya kesalahan dengan asumsi biaya FP dua kali FN disajikan terpisah pada bagian bonus.
+Jumlah FN yang lebih besar daripada FP menunjukkan bahwa konfigurasi utama lebih banyak melewatkan reservasi batal pada split ini. Angka agregat tersebut belum menjelaskan karakteristik reservasi yang salah diklasifikasikan atau penyebab kesalahan. Analisis kanal pemesanan dan waktu sebelum kedatangan memerlukan tabulasi per kelompok dengan penyebut yang sesuai untuk tiap kelas. Hasil analisis holdout ini tidak digunakan untuk mengubah konfigurasi final. Eksperimen biaya kesalahan disajikan pada bagian analisis tambahan.
 
 \section{DTL}
 \subsection{Hasil Pengujian}
@@ -253,7 +253,7 @@ Pada model dasar, L2 memberikan Macro F1 tertinggi sebesar $0{,}742172$. Seluruh
 Elastic Net dipilih untuk submisi utama karena memiliki Macro F1 validasi tertinggi. Namun, selisihnya terhadap L2 hanya sekitar $0{,}000240$, sehingga hasil ini belum menunjukkan keunggulan yang kuat untuk satu jenis regularisasi. Pada validasi silang internal tiga \textit{fold}, Macro F1 dari gabungan prediksi \textit{out-of-fold} adalah $0{,}797905$ untuk L1, $0{,}798069$ untuk L2, dan $0{,}798426$ untuk Elastic Net. Urutannya sama dengan hasil validasi, dengan selisih yang juga kecil.
 
 \textbf{Analisis kesalahan.}
-Gambar~\ref{fig:lr-confusion} membandingkan varian terbaik pada model dasar dan pipeline akhir. Jumlah pembatalan yang berhasil terdeteksi naik dari 965 menjadi 1.289. Dengan demikian, FN berkurang sebanyak 324 kasus. Di sisi lain, FP bertambah dari 310 menjadi 405 kasus. Total kesalahan tetap turun dari 1.139 menjadi 910 kasus. Perubahan ini menunjukkan peningkatan deteksi kelas batal dengan konsekuensi lebih banyak reservasi tidak batal yang diberi peringatan pembatalan.
+Gambar~\ref{fig:lr-confusion} membandingkan varian terbaik pada model dasar dan pipeline akhir. Jumlah pembatalan yang berhasil terdeteksi naik dari 965 menjadi 1.289, sehingga FN berkurang sebanyak 324 kasus. FP bertambah dari 310 menjadi 405 kasus, sedangkan total kesalahan turun dari 1.139 menjadi 910 kasus. Model akhir lebih banyak mendeteksi pembatalan dengan konsekuensi bertambahnya reservasi tidak batal yang diberi peringatan pembatalan.
 
 \begin{figure}[htbp]
     \centering
@@ -266,7 +266,7 @@ Pada Elastic Net akhir, F1 kelas tidak batal adalah $0{,}878049$, sedangkan F1 k
 
 Pemeriksaan menurut kanal pemesanan menunjukkan 643 kesalahan dari 3.475 reservasi \textit{Online Travel Agent} ($18{,}50\%$), dibandingkan 237 dari 1.603 reservasi \textit{Offline Agent} ($14{,}78\%$). Jadi, jumlah kesalahan pada kanal daring yang lebih besar juga disertai tingkat kesalahan yang lebih tinggi. Untuk jarak pemesanan lebih dari 90 sampai 180 hari, tingkat kesalahannya mencapai $23{,}08\%$, sedangkan pada lebih dari 7 sampai 30 hari sebesar $12{,}42\%$. Perhitungan per kelompok jarak pemesanan hanya mencakup baris dengan nilai jarak yang tersedia. Temuan ini menunjukkan kelompok yang masih sulit diprediksi. Penyebab kesalahan individual tidak dapat dipastikan hanya dari pengelompokan tersebut.
 
-Hasil ini memiliki batasan. Set validasi sudah digunakan selama rangkaian eksperimen, sehingga hasil akhirnya bukan estimasi dari satu set uji baru yang sama sekali belum pernah dilihat. Selain itu, pembagian per baris menghasilkan 25 baris validasi dengan kombinasi fitur awal yang juga muncul pada data latih. Pembagian dipertahankan agar perbandingan konsisten, tetapi belum mengukur generalisasi pada kelompok fitur yang sepenuhnya terpisah atau pada periode kedatangan yang baru.
+Set validasi telah digunakan selama rangkaian eksperimen, sehingga hasil akhir bukan estimasi dari data uji baru. Pembagian per baris juga menghasilkan 25 baris validasi dengan kombinasi fitur awal yang muncul pada data latih. Split ini dipertahankan untuk menjaga konsistensi perbandingan, tetapi belum mengukur generalisasi pada kelompok fitur yang sepenuhnya terpisah atau periode kedatangan yang baru.
 
 \subsection{Komparasi dengan \texttt{scikit-learn}}
 
@@ -295,7 +295,7 @@ Pemetaan ini menyesuaikan koefisien penalti pada objektif rata-rata \textit{log-
     \end{tabular}
 \end{table}
 
-Pada model dasar, pembanding menggunakan \texttt{liblinear} untuk L1 dan L2, serta \texttt{saga} untuk Elastic Net, dengan batas 300 iterasi. Seluruh skor pembanding lebih tinggi daripada implementasi dasar. Perbedaan penyelesaian optimasi dapat menjelaskan sebagian selisih tersebut. Model dasar hanya menjalankan 250 langkah gradien batch dengan \textit{learning rate} tetap, sedangkan pustaka memakai solver dengan kriteria konvergensi. Selain itu, \texttt{liblinear} ikut meregularisasi intersep, sementara implementasi dasar tidak. Jadi, penyamaan nilai $C$ belum membuat kedua masalah optimasi tersebut sepenuhnya identik \cite{scikitlearn_logistic_api}.
+Pada model dasar, pembanding menggunakan \texttt{liblinear} untuk L1 dan L2 serta \texttt{saga} untuk Elastic Net, dengan batas 300 iterasi. Seluruh skor pembanding lebih tinggi daripada implementasi dasar. Perbedaan penyelesaian optimasi dapat menjelaskan sebagian selisih tersebut. Model dasar hanya menjalankan 250 langkah gradien batch dengan \textit{learning rate} tetap, sedangkan pustaka memakai solver dengan kriteria konvergensi. \texttt{liblinear} juga meregularisasi intersep, sementara implementasi dasar tidak. Penyamaan nilai $C$ belum membuat kedua masalah optimasi sepenuhnya identik \cite{scikitlearn_logistic_api}.
 
 Pada pipeline akhir, pembanding menggunakan \texttt{lbfgs} untuk L2 dan \texttt{saga} untuk L1 serta Elastic Net. Ketiganya dibatasi hingga 10.000 iterasi. Toleransi L1 adalah $10^{-4}$, sedangkan L2 dan Elastic Net menggunakan $10^{-7}$. Pemilihan solver menyesuaikan dukungan terhadap masing-masing penalti \cite{scikitlearn_logistic_api}. Implementasi SGA menggunakan 200 \textit{epoch} dengan langkah tetap dan subgradien untuk L1. Akibatnya, bobot akhirnya dapat berbeda dari hasil solver pustaka meskipun bentuk objektif dan preprocessing sudah disamakan.
 
@@ -305,7 +305,7 @@ Perbedaan skor pipeline akhir jauh lebih kecil daripada pada model dasar. Pada L
 
 \subsection{Hasil Pengujian}
 
-Seluruh eksperimen SVM menggunakan pembagian data sesuai kontrak kelompok (\texttt{seed=42}, terstratifikasi dengan rasio $80:20$). Data latih (\texttt{train\_idx}) terdiri atas $21.898$ baris, yakni $14.723$ kelas $0$ dan $7.175$ kelas $1$. Data validasi (\texttt{valid\_idx}) terdiri atas $5.475$ baris, yakni $3.681$ kelas $0$ dan $1.794$ kelas $1$. Pengembangan berlangsung dalam tiga iterasi besar yang tercatat dalam riwayat repositori Git. Perubahan skor Macro F1 validasi setelah setiap iterasi prapemrosesan dan optimasi dirangkum pada Tabel~\ref{tab:svm_iter_progression}.
+Seluruh eksperimen SVM menggunakan pembagian data yang sama dengan \texttt{seed=42}, terstratifikasi dengan proporsi $80\%$ latih dan $20\%$ validasi. Data latih (\texttt{train\_idx}) terdiri atas $21.898$ baris, yakni $14.723$ kelas $0$ dan $7.175$ kelas $1$. Data validasi (\texttt{valid\_idx}) terdiri atas $5.475$ baris, yakni $3.681$ kelas $0$ dan $1.794$ kelas $1$. Pengembangan berlangsung dalam tiga iterasi besar yang tercatat dalam riwayat repositori Git. Perubahan skor Macro F1 validasi setelah setiap iterasi prapemrosesan dan optimasi dirangkum pada Tabel~\ref{tab:svm_iter_progression}.
 
 \begin{table}[H]
     \centering
@@ -329,7 +329,7 @@ Perkembangan setiap iterasi pada Tabel~\ref{tab:svm_iter_progression} dijelaskan
 \begin{enumerate}
     \item Pada Iterasi 1 ($51$ fitur dasar dan solver \textit{Dual Coordinate Descent} dengan $m=1200$ komponen Nystr\"om), kernel Linear mencatat Macro F1 sebesar $0{,}7653$ (pada $C=0{,}1$), kernel Gaussian RBF sebesar $0{,}8048$ ($C=2{,}0$, \texttt{class\_weight="balanced"}), dan kernel Polynomial derajat $3$ sebesar $0{,}8102$ ($C=2{,}0$, \texttt{coef0=1,0}, \texttt{class\_weight="balanced"}). Perbedaan skor ini mengindikasikan bahwa representasi pada iterasi awal belum cukup menangkap hubungan nonlinear antara fitur reservasi dan pembatalan. Interaksi waktu tunggu (\texttt{days\_before\_arrival}), pemesanan melalui \textit{Online Travel Agent} (OTA), dan ketiadaan permintaan khusus (\texttt{special\_requests = 0}) menjadi contoh hubungan fitur yang perlu dipertimbangkan, bukan bukti kausalitas.
     \item Pada Iterasi 2 ($90$ fitur), ditambahkan pembagian waktu tunggu ke dalam delapan rentang non-linear, pemisahan indikator jumlah permintaan khusus (\texttt{sr\_0}, \texttt{sr\_1}, \texttt{sr\_2}, \texttt{sr\_ge3}), rasio tarif terhadap rata-rata kamar dan kanal, fitur siklikal bulan dan hari, \textit{target encoding} pada kombinasi kategori, satu fitur ringkasan probabilitas interaksi pohon, serta pencarian ambang batas keputusan (\texttt{tune\_threshold}). Seluruh tiga kernel berhasil melampaui target $0{,}85$, dengan Gaussian RBF mencapai $0{,}8573$ ($C=1{,}0$, $\gamma=\texttt{"scale"}$), Linear melonjak tajam ke $0{,}8568$ ($C=0{,}5$), dan Polynomial derajat $2$ mencapai $0{,}8557$ (skor Kaggle Public Leaderboard mencapai $0{,}85471$ lalu $0{,}86356$).
-    \item Audit Iterasi 2 menemukan dua keterbatasan. Pemanggilan \texttt{prep.transform(df\_train)} menghitung fitur berbasis target secara \textit{in-sample} pada data latih sehingga menghasilkan perbedaan representasi terhadap data baru. Selain itu, kemiripan baris dengan nilai kosong (\texttt{NaN}) belum dimanfaatkan. Sebanyak $9{,}0\%$ baris data validasi ($494$ dari $5.475$ baris) memiliki pasangan yang identik pada seluruh kolom bernilai lengkap di data latih, dengan kesepakatan label $92{,}31\%$.
+    \item Audit Iterasi 2 menemukan dua keterbatasan. Pemanggilan \texttt{prep.transform(df\_train)} menghitung fitur berbasis target secara \textit{in-sample} pada data latih sehingga menghasilkan perbedaan representasi terhadap data baru. Kemiripan baris dengan nilai kosong (\texttt{NaN}) juga belum dimanfaatkan. Sebanyak $9{,}0\%$ baris data validasi ($494$ dari $5.475$ baris) memiliki pasangan yang identik pada seluruh kolom bernilai lengkap di data latih, dengan kesepakatan label $92{,}31\%$.
     \item Pada Iterasi 3 ($135$ fitur), seluruh pembuatan fitur berbasis label di data latih dikunci agar murni menggunakan prediksi \textit{out-of-fold} (5-fold CV), dilengkapi imputasi regresi terawasi (\texttt{imp\_*}), kepadatan lingkungan lokal KNN dan Parzen KDE pada tiga subruang fitur, pencocokan duplikat toleran nilai kosong (\textit{Masked Exact Match}), serta algoritma pelatihan \textit{Active-Set Modified Finite Newton} dengan basis Cholesky-Nystr\"om $m=2000$ dan kalibrasi ambang batas \textit{out-of-fold} (\texttt{tune\_threshold\_oof}). Hasil lengkap pengujian $18$ kandidat pada pipeline final ini disajikan pada Tabel~\ref{tab:svm_all_18_candidates}.
 \end{enumerate}
 
@@ -369,12 +369,12 @@ Skor pada tabel merupakan hasil pencarian konfigurasi dan ambang keputusan denga
 
 Tabel~\ref{tab:svm_all_18_candidates} menunjukkan pola berikut pada hiperparameter SVM.
 \begin{enumerate}
-    \item Pergeseran nilai regularisasi $C$ ke angka kecil ($C \in [0{,}005; 0{,}20]$) memberikan hasil terbaik setelah sinyal non-linear dan kemiripan lokal terwakili secara bebas bocor di dalam ke-$135$ fitur masukan. Nilai $C$ yang kecil memperlebar margin pemisah dan mencegah SVM memberikan bobot berlebihan pada titik-titik pencilan (\textit{noisy labels}) di sekitar perbatasan kelas.
+    \item Nilai regularisasi $C$ yang kecil ($0{,}005 \le C \le 0{,}20$) menghasilkan skor terbaik setelah sinyal nonlinear dan kemiripan lokal direpresentasikan dalam $135$ fitur masukan tanpa kebocoran label. Nilai $C$ yang kecil memperlebar margin pemisah dan membatasi pengaruh titik pencilan (\textit{noisy labels}) di sekitar batas kelas.
     \item Pada $C=0{,}1$, penggunaan $\gamma$ sebesar $0{,}4$ kali skala standar (\texttt{"scale*0.4"}) berkaitan dengan perubahan Macro F1 dari $0{,}8736$ (\texttt{rbf\_c0.1\_scale}) menjadi $0{,}8750$ (\texttt{rbf\_c0.1\_g0.4}). Skor $0{,}8753$ pada \texttt{rbf\_c0.2\_g0.4} juga melibatkan perubahan $C$ menjadi $0{,}2$, sehingga tidak dapat dikaitkan hanya dengan $\gamma$. Nilai $\gamma$ yang lebih kecil memperlebar jangkauan kernel RBF, tetapi penyebab perbedaan skor belum diuji terpisah.
     \item Interaksi antara \texttt{class\_weight="balanced"} dan kalibrasi ambang OOF memengaruhi skor yang tercatat. Pada ambang standar ($0{,}0$), bobot kelas seimbang menurunkan skor awal karena menghasilkan lebih banyak \textit{false positive}. Setelah \texttt{tune\_threshold\_oof} menggeser ambang ke sekitar $+0{,}21$ hingga $+0{,}23$, skor OOF pada \texttt{linear\_c0.005\_bal} mencapai $0{,}8764$, tertinggi dalam pencarian ini.
 \end{enumerate}
 
-Rangkuman perbandingan konfigurasi terbaik dari masing-masing ketiga kernel disajikan pada Tabel~\ref{tab:svm_best_kernels}.
+Tabel~\ref{tab:svm_best_kernels} merangkum konfigurasi terbaik untuk setiap kernel.
 
 \begin{table}[H]
     \centering
@@ -397,7 +397,7 @@ Berdasarkan pencarian pada data validasi, varian \texttt{linear\_c0.01\_none} di
 
 \subsection{Komparasi dengan \texttt{scikit-learn}}
 
-Sebagai pembanding empiris, ketiga konfigurasi kernel dibandingkan dengan \texttt{sklearn.svm.SVC} pada matriks fitur $135$ dimensi dan \texttt{valid\_idx} yang sama. Kedua implementasi memiliki fungsi kerugian dan metode optimasi yang berbeda. Ambang keputusan untuk \texttt{SVC} dicari langsung pada label validasi, sebagaimana ambang model dari nol dalam eksperimen kandidat. Perbandingan pada Tabel~\ref{tab:svm_vs_sklearn} bersifat eksploratif dan tidak membuktikan kesetaraan formulasi ataupun perbedaan kinerja pada data yang belum dilihat.
+Sebagai pembanding empiris, ketiga konfigurasi kernel dibandingkan dengan \texttt{sklearn.svm.SVC} pada matriks fitur $135$ dimensi dan \texttt{valid\_idx} yang sama. Kedua implementasi memiliki fungsi kerugian dan metode optimasi yang berbeda. Ambang keputusan untuk \texttt{SVC} dicari langsung pada label validasi, seperti ambang model \textit{from scratch} dalam eksperimen kandidat. Perbandingan pada Tabel~\ref{tab:svm_vs_sklearn} bersifat eksploratif dan tidak membuktikan kesetaraan formulasi ataupun perbedaan kinerja pada data yang belum dilihat.
 
 \begin{table}[H]
     \centering
@@ -421,10 +421,10 @@ Sebagai pembanding empiris, ketiga konfigurasi kernel dibandingkan dengan \textt
     }
 \end{table}
 
-Tabel~\ref{tab:svm_vs_sklearn} menunjukkan tiga hal dalam perbandingan implementasi dari nol dengan \texttt{scikit-learn}.
+Tabel~\ref{tab:svm_vs_sklearn} merangkum tiga aspek perbandingan implementasi \textit{from scratch} dengan \texttt{scikit-learn}.
 \begin{enumerate}
-    \item Pada validasi yang digunakan untuk memilih ambang, selisih Macro F1 yang tercatat berkisar antara $+0{,}0007$ dan $+0{,}0018$ untuk model dari nol. Selisih kecil ini tidak dapat diatribusikan secara khusus kepada kerugian \textit{L2-hinge} atau aproksimasi Nystr\"om tanpa uji yang mengisolasi masing-masing faktor. Jumlah \textit{support vector} pada \texttt{SVC} dan jumlah titik bermargin aktif pada solver primal juga mengikuti definisi pencatatan yang berbeda sehingga tidak dapat dibandingkan sebagai ukuran yang identik.
-    \item Dalam pengukuran runner, waktu pelatihan Linear untuk \texttt{SVMFromScratch} adalah $0{,}28\text{ detik}$ dan untuk \texttt{SVC} $34{,}46\text{ detik}$, sedangkan waktu prediksinya masing-masing $0{,}001\text{ detik}$ dan $4{,}492\text{ detik}$. Pada RBF dan Polynomial, waktu pelatihan model dari nol masing-masing $21{,}95\text{ detik}$ dan $26{,}34\text{ detik}$, dibanding $35{,}55\text{ detik}$ dan $36{,}80\text{ detik}$ untuk \texttt{SVC}. Angka tersebut berasal dari satu rangkaian pengukuran pada perangkat dan implementasi yang digunakan, tanpa biaya pelatihan prapemrosesan. Perbedaan waktu tidak dapat digeneralisasi ke semua lingkungan.
+    \item Pada validasi yang digunakan untuk memilih ambang, selisih Macro F1 yang tercatat berkisar antara $+0{,}0007$ dan $+0{,}0018$ untuk model \textit{from scratch}. Selisih kecil ini tidak dapat diatribusikan secara khusus kepada kerugian \textit{L2-hinge} atau aproksimasi Nystr\"om tanpa uji yang mengisolasi masing-masing faktor. Jumlah \textit{support vector} pada \texttt{SVC} dan jumlah titik bermargin aktif pada solver primal juga mengikuti definisi pencatatan yang berbeda sehingga tidak dapat dibandingkan sebagai ukuran yang identik.
+    \item Dalam pengukuran runner, waktu pelatihan Linear untuk \texttt{SVMFromScratch} adalah $0{,}28\text{ detik}$ dan untuk \texttt{SVC} $34{,}46\text{ detik}$, sedangkan waktu prediksinya masing-masing $0{,}001\text{ detik}$ dan $4{,}492\text{ detik}$. Pada RBF dan Polynomial, waktu pelatihan model \textit{from scratch} masing-masing $21{,}95\text{ detik}$ dan $26{,}34\text{ detik}$, dibandingkan dengan $35{,}55\text{ detik}$ dan $36{,}80\text{ detik}$ untuk \texttt{SVC}. Angka tersebut berasal dari satu rangkaian pengukuran pada perangkat dan implementasi yang digunakan, tanpa biaya pelatihan prapemrosesan. Perbedaan waktu tidak dapat digeneralisasi ke semua lingkungan.
     \item Stabilitas numerik pada ketiga kernel sangat bergantung pada standardisasi \texttt{StandardScaler} sebelum fitur masuk ke dalam SVM. Tanpa standardisasi, kolom \texttt{nightly\_rate\_idr} yang bernilai sekitar $1{,}5 \times 10^6$ menghasilkan produk dalam $\mathbf{x}_i^\top \mathbf{x}_j \approx 2{,}25 \times 10^{12}$ yang langsung meluap (\textit{overflow}) pada kernel Polynomial, sementara pada kernel Gaussian RBF jarak kuadrat $\|\mathbf{x}_i - \mathbf{x}_j\|_2^2 \approx 10^{12}$ membuat nilai $\exp(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|_2^2)$ anjlok menjadi nol sehingga matriks kernel kolaps menjadi matriks identitas. Dengan standardisasi \textit{z-score} yang dipelajari hanya dari data latih disertai regularisasi diagonal $10^{-5}\mathbf{I}$ pada faktorisasi Cholesky, seluruh perhitungan matriks berjalan stabil tanpa nilai \texttt{NaN} ataupun \texttt{Inf}.
 \end{enumerate}
 
@@ -493,9 +493,8 @@ dari 3.219 menjadi 3.319.
 
 Kesalahan total berkurang dari 1.148 menjadi 844 reservasi pada
 \textit{holdout} yang sama. Penurunan 304 kesalahan ini terdiri atas 204
-FN dan 100 FP. FN tetap lebih banyak daripada FP pada kedua model.
-Dengan demikian, meskipun kemampuan mendeteksi pembatalan meningkat,
-KDB masih melewatkan 482 dari 1.794 pembatalan aktual. Tabel agregat
+FN dan 100 FP. KDB masih melewatkan 482 dari 1.794 pembatalan aktual,
+meskipun kemampuan deteksinya meningkat. Tabel agregat
 tidak menunjukkan apakah kesalahan tersebut terkonsentrasi pada kanal
 pemesanan atau rentang waktu tertentu. Penjelasan tentang karakteristik
 reservasi yang sulit diprediksi memerlukan analisis per kelompok.
@@ -543,8 +542,8 @@ Skor CV pada Tabel~\ref{tab:nb-results} bergerak searah dengan hasil
 holdout. Namun, rata-rata CV KDB sebesar $0{,}817709$ lebih rendah
 $0{,}004205$ daripada skor holdout $0{,}821914$. Selisih ini tidak
 menunjukkan bahwa satu prosedur evaluasi lebih benar karena pembagian
-datanya berbeda. Selain itu, CV digunakan dalam pencarian konfigurasi,
-sehingga nilainya bukan pengujian independen atas konfigurasi terpilih.
+datanya berbeda. CV juga digunakan dalam pencarian konfigurasi, sehingga
+nilainya bukan pengujian independen atas konfigurasi terpilih.
 Holdout tidak dipakai untuk memilih parameter, tetapi telah menjadi
 bagian dari rangkaian analisis eksperimen. Estimasi generalisasi setelah
 peninjauan hasil tersebut memerlukan data uji baru.
@@ -561,13 +560,13 @@ algoritma yang sama.
 
 \begin{table}[H]
     \centering
-    \caption{Perbandingan Macro F1 Naive Bayes dari nol dan estimator scikit-learn}
+    \caption{Perbandingan Macro F1 Naive Bayes \textit{from scratch} dan estimator scikit-learn}
     \label{tab:nb-sklearn}
     \begin{tabular}{lrl}
         \hline
         Estimator              & Macro F1          & Representasi masukan                  \\
         \hline
-        KDB dari nol (final)   & \textbf{0,821914} & 22 fitur kategorikal, KDB             \\
+        KDB \textit{from scratch} (final) & \textbf{0,821914} & 22 fitur kategorikal, KDB             \\
         \texttt{CategoricalNB} & 0,794346          & Kategori/binned                       \\
         \texttt{GaussianNB}    & 0,701035          & Numerik dan \textit{one-hot} kategori \\
         \hline
@@ -578,7 +577,7 @@ Pada pengujian ini KDB mencatat Macro F1 lebih tinggi daripada kedua
 pembanding. Selisih terhadap \texttt{CategoricalNB} adalah $0{,}027568$,
 sedangkan terhadap \texttt{GaussianNB} adalah $0{,}120879$. Perbandingan
 dengan \texttt{CategoricalNB} lebih dekat dari segi penggunaan kategori,
-tetapi KDB mengizinkan dependensi antarf fitur dan memakai representasi
+tetapi KDB mengizinkan dependensi antarfitur dan memakai representasi
 serta ambang hasil pencarian. \texttt{GaussianNB} menerima masukan numerik
 dan kategori hasil \textit{one-hot}, dengan asumsi likelihood numerik
 yang berbeda. Karena representasi dan konfigurasi tidak disetarakan,
@@ -588,6 +587,55 @@ diperlukan untuk mengukur generalisasi setelah seluruh keputusan eksperimen.
 \section{Hasil Spesifikasi Bonus}
 
 \subsection{Bonus DTL Gambar Percabangan Tree}
+
+Gambar~\ref{fig:dtl-tree} memperlihatkan sepuluh simpul pemisah pertama
+model CART akhir. Pohon dilatih ulang pada seluruh 27.373 baris data latih
+dengan kriteria Gini dan pemangkasan $\alpha=0{,}0001$. Penelusuran
+\textit{breadth-first} hanya membatasi bagian yang digambar, bukan kedalaman
+model yang digunakan untuk prediksi. Angka $n$ menunjukkan jumlah baris
+latih yang mencapai simpul, sedangkan $p_1$ menunjukkan proporsi pembatalan
+di simpul tersebut. Label \texttt{cut (more splits)} menandai cabang model
+yang masih berlanjut. Label \texttt{leaf} menandai daun yang sesungguhnya.
+Gambar vektor yang dapat diperbesar tersedia di
+\path{output/dtl_tree_top_10.svg}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{../../output/dtl_tree_top_10.pdf}
+    \caption{Sepuluh pemisahan awal pohon CART akhir pada seluruh data latih. Nilai pada bagian atas setiap kotak menunjukkan syarat dari simpul induk.}
+    \label{fig:dtl-tree}
+\end{figure}
+
+Pemisahan akar memakai \texttt{days\_before\_arrival} pada 147,5 hari.
+Sebanyak 21.921 pemesanan dengan waktu tunggu paling banyak 147,5 hari
+memiliki proporsi batal $0{,}233$, sedangkan 5.452 pemesanan dengan waktu
+tunggu lebih panjang memiliki proporsi batal $0{,}708$. Selisih ini
+menunjukkan pemisahan kelas yang kuat pada data latih, tetapi tidak
+menunjukkan bahwa waktu tunggu menyebabkan pembatalan.
+
+Pada cabang waktu tunggu yang lebih pendek, \texttt{special\_requests}
+memisahkan 11.693 baris dengan nilai paling banyak 0,5 dan proporsi batal
+$0{,}331$ dari 10.228 baris dengan nilai lebih besar dari 0,5 dan proporsi
+batal $0{,}121$. Di kelompok tanpa permintaan khusus, pemisahan
+\texttt{booking\_channel} membentuk dua kelompok dengan proporsi batal
+$0{,}153$ dan $0{,}509$. Pada kelompok kedua, pemisahan ulang menurut
+\texttt{days\_before\_arrival} pada 16,5 hari menghasilkan proporsi
+$0{,}254$ dan $0{,}616$. Artinya, satu fitur dapat kembali dipakai setelah
+pohon terlebih dahulu membatasi konteks melalui fitur lain.
+
+Pada kelompok dengan permintaan khusus, cabang
+\texttt{booking\_channel} yang bernilai lebih dari 1,5 mencapai daun
+sebanyak 3.287 baris dengan proporsi batal $0{,}048$. Pada sisi waktu
+tunggu panjang, batas \texttt{nightly\_rate\_idr} sekitar Rp1.676.000
+memisahkan 3.357 baris dengan proporsi batal $0{,}568$ dari 2.095 baris
+dengan proporsi batal $0{,}931$. Pemisahan berikutnya pada
+\texttt{arrival\_month} menghasilkan cabang 2.020 baris dengan proporsi
+$0{,}956$ dan cabang 75 baris dengan proporsi $0{,}253$. Perbedaan pada
+cabang kecil perlu dibaca berhati-hati karena jumlah pengamatan lebih
+sedikit. Proporsi pada simpul merupakan statistik data latih dan bukan
+akurasi pada data baru. Ambang keputusan akhir $0{,}62$
+diterapkan pada keluaran daun lengkap, bukan pada proporsi di cabang
+yang pemisahannya disembunyikan oleh gambar.
 
 \subsection{Bonus SVM Visualisasi Bidang Pemisah}
 
@@ -604,7 +652,7 @@ Gambar~\ref{fig:svm_2d_boundary} memperlihatkan perbedaan geometri pemisahan kel
 \begin{enumerate}
     \item Kernel Linear (panel pertama, $\text{SV}=301/800$) menghasilkan bidang pemisah lurus antara area prediksi tidak batal dan batal, dengan dua garis margin sejajar. Judul panel mencatat $301$ titik bermargin aktif dari $800$ sampel. Kode hanya menandai paling banyak $150$ titik pertama dengan lingkaran hitam.
     \item Kernel Polynomial derajat dua (panel kedua, $d=2$, $\text{SV}=274/800$) menghasilkan batas keputusan melengkung. Judul panel mencatat $274$ titik bermargin aktif dari $800$ sampel, paling sedikit di antara ketiga panel. Gambar ini sendiri tidak membuktikan bahwa lengkungan tersebut meningkatkan kemampuan prediksi pada data baru.
-    \item Kernel Gaussian RBF (panel ketiga) menghasilkan batas margin yang melengkung dan beberapa kontur lokal. Judul gambar mencatat $\text{SV}=317/800$, sedangkan naskah sebelumnya menyebut $307/800$. Selisih jumlah tersebut belum diverifikasi melalui eksekusi ulang sel visualisasi. Model dua dimensi ini menggunakan $\gamma=\texttt{"scale"}$, bukan $\texttt{"scale*0.4"}$ seperti salah satu konfigurasi eksperimen utama. Oleh karena itu, gambar tidak menjadi bukti pemilihan $\gamma$ pada model akhir.
+    \item Kernel Gaussian RBF (panel ketiga) menghasilkan batas margin yang melengkung dan beberapa kontur lokal. Judul gambar mencatat $\text{SV}=317/800$, sedangkan naskah sebelumnya menyebut $307/800$. Selisih jumlah tersebut belum diverifikasi melalui eksekusi ulang sel visualisasi. Model dua dimensi ini menggunakan $\gamma=\texttt{"scale"}$, bukan $\texttt{"scale*0.4"}$ seperti salah satu konfigurasi eksperimen utama. Gambar ini tidak menjadi bukti pemilihan $\gamma$ pada model akhir.
 \end{enumerate}
 
 \subsection{Graf Bayesian Network Antarfitur}
@@ -623,11 +671,11 @@ yang ditampilkan sekaligus.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{public/04-hasil-eksperimen-dan-analisis/naive_bayes_bayesian_network.png}
-    \caption{Graf Bayesian Network berarah pada KDB final. Simpul kelas menjadi induk seluruh fitur. Panah antarf fitur menunjukkan dependensi yang dipelajari model.}
+    \caption{Graf Bayesian Network berarah pada KDB final. Simpul kelas menjadi induk seluruh fitur. Panah antarfitur menunjukkan dependensi yang dipelajari model.}
     \label{fig:nb-kdb-network}
 \end{figure}
 
-Panah antarf fitur pada Gambar~\ref{fig:nb-kdb-network} memperlihatkan
+Panah antarfitur pada Gambar~\ref{fig:nb-kdb-network} memperlihatkan
 bagaimana KDB melonggarkan asumsi independensi Naive Bayes. Arah panah
 ditetapkan oleh urutan fitur dan pemilihan induk berdasarkan MI serta
 CMI. Karena itu, panah menyatakan faktor yang dipakai saat menghitung
@@ -637,91 +685,90 @@ fitur. Membaca graf bersama Tabel~\ref{tab:nb-feature-weights} memberi
 dua informasi yang berbeda, yaitu struktur dependensi dan kontribusi
 fitur dalam skor prediksi.
 
-\newpage
-\subsection{Algoritma Optimasi Model}
-
-\subsubsection{DTL}
-
-\subsubsection{SVM}
-
-\subsubsection{Naive Bayes}
-
-Perbedaan utama pipeline KDB dari Naive Bayes kategorikal terletak pada
-cara membentuk likelihood. Model kategorikal menghitung peluang fitur
-secara terpisah setelah kelas diketahui. Pada KDB, sebuah fitur dapat
-memiliki hingga $k=4$ induk fitur lain, seperti diperlihatkan dalam
-Gambar~\ref{fig:nb-kdb-network}. Struktur ini memberi ruang bagi
-dependensi antarf fitur yang tidak dimodelkan oleh Naive Bayes
-independen. Peluang pada kombinasi induk yang jarang diamati disusutkan
-ke estimasi dengan lebih sedikit induk menggunakan $m=100$.
-Laplace $\alpha=1$ tetap digunakan pada estimasi dasarnya.
-
-Pipeline akhir menggunakan 25 bin kuantil dan lima fitur turunan,
-sehingga representasi masukan juga berbeda dari model kategorikal.
-Bobot likelihood tidak seragam, sebagaimana terlihat pada
-Tabel~\ref{tab:nb-feature-weights}. Ambang posterior $0{,}405$ dipilih
-dari prediksi OOF untuk mengoptimalkan Macro F1. Ambang ini lebih rendah
-daripada $0{,}5$ pada model kategorikal, tetapi matriks kebingungan
-menunjukkan bahwa KDB sekaligus menurunkan FN dan FP. Penurunan kedua
-jenis kesalahan tidak dapat dijelaskan hanya oleh pergeseran ambang
-karena struktur, fitur, dan bobot turut berubah.
-
-Gabungan perubahan tersebut menghasilkan Macro F1 holdout $0{,}821914$,
-dibandingkan $0{,}753704$ pada Naive Bayes kategorikal. Hasil CV tiga
-seed juga lebih tinggi pada KDB, yaitu $0{,}817709$ dibandingkan
-$0{,}746560$. Kedua perbandingan mendukung perbaikan pada pipeline yang
-diuji, tetapi belum mengukur sumbangan masing-masing komponen.
-Pengukuran tersebut memerlukan ablasi yang menahan representasi dan
-prosedur evaluasi tetap sama ketika struktur, penghalusan, bobot, atau
-ambang diubah satu per satu. Dasar metode KDB dan pembobotan dijelaskan
-pada Bagian~\ref{sec:implementasi-nb-optimasi}.
-
 \subsection{Cost-Sensitive Classification}
 
-\subsection{Bonus KNN: Cost-sensitive Classification}
-Kelas positif menunjukkan pemesanan batal. False positive (FP) berarti pemesanan
-diprediksi batal, tetapi tamu tetap datang. Penjualan ulang kamar tersebut dapat
-menimbulkan overbooking. Sesuai spesifikasi bonus, biaya relatif ditetapkan
-$C_{FP}=2$ dan $C_{FN}=1$, sehingga objektif evaluasi adalah
-$L=2FP+FN$.
+Pada rasio lintas model $C_{FP}=3$ dan $C_{FN}=1$, biaya yang lebih rendah
+disertai penurunan FP dan kenaikan FN pada seluruh model. Tabel~\ref{tab:cost-sensitive-models}
+membandingkan kebijakan utama dengan ambang biaya terpilih pada
+\textit{holdout}. Metode pemilihan ambang dan keterbatasan nilai biayanya
+dijelaskan pada Bagian~\ref{sec:implementasi-cost-sensitive}.
 
-KNN menggunakan $k=21$, Manhattan, distance weighting, dan bobot kategori 1.
-Split validasi mengikuti kelompok (seed 42; 5.475 baris). Preprocessing dipelajari
-hanya dari subset train. Skor validasi dihitung sekali, lalu threshold diuji dari
-0 sampai 1 dengan langkah 0,01, ditambah 0,5 dan $2/3$. Prediksi batal
-diberikan jika skor lebih besar daripada threshold. Biaya seri dipecahkan
-dengan macro F1 terbesar, lalu threshold terkecil.
-
-Jika $p$ adalah probabilitas batal terkalibrasi, biaya prediksi batal adalah
-$2(1-p)$ dan biaya prediksi tidak batal adalah $p$. Maka batas teoritisnya
-$p>2/3$. Skor voting KNN belum tentu terkalibrasi, sehingga batas ini digunakan
-sebagai pembanding terhadap pemilihan empiris.
-
-\begin{center}
-    \begin{tabular}{lrrrrr}
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Perbandingan hasil \textit{holdout} pada biaya $3FP+FN$. Ambang terpilih berasal dari prediksi OOF data latih.}
+    \label{tab:cost-sensitive-models}
+    \begin{tabular}{llrrrrr}
         \hline
-        Strategi         & Threshold & FP  & FN  & Biaya & Macro F1 \\
+        Model & Kebijakan & Ambang & FP & FN & Biaya & Macro F1 \\
         \hline
-        Baseline         & 0.50      & 290 & 455 & 1035  & 0.841689 \\
-        Teoretis         & $2/3$     & 108 & 746 & 962   & 0.801879 \\
-        Minimum validasi & 0.60      & 158 & 623 & 939   & 0.825069 \\
+        DTL & Utama & $0{,}620$ & 271 & 489 & 1.302 & $0{,}837108$ \\
+            & Biaya & $0{,}875$ & 52 & 1.011 & 1.167 & $0{,}733957$ \\
+        Regresi logistik & Utama & $0{,}470$ & 405 & 505 & 1.720 & $0{,}808577$ \\
+            & Biaya & $0{,}727456$ & 90 & 1.075 & 1.345 & $0{,}706434$ \\
+        SVM & Utama & $-0{,}027$ & 251 & 338 & 1.091 & $0{,}876346$ \\
+            & Biaya & $0{,}330910$ & 91 & 597 & 870 & $0{,}844663$ \\
+        KDB & Utama & $0{,}405$ & 362 & 482 & 1.568 & $0{,}821914$ \\
+            & Biaya & $0{,}885309$ & 94 & 895 & 1.177 & $0{,}761991$ \\
+        k-NN & Utama & $0{,}500$ & 290 & 455 & 1.325 & $0{,}841689$ \\
+            & Biaya & $0{,}693585$ & 86 & 797 & 1.055 & $0{,}791853$ \\
         \hline
     \end{tabular}
-\end{center}
+\end{table}
 
-Threshold 0.60 menurunkan biaya dari 1035 menjadi 939,
-atau 9.28\%. FP berkurang tetapi FN bertambah, dan macro F1 turun.
-Keputusan ini menunjukkan trade-off ketika FP lebih mahal. Threshold bonus
-dipilih untuk objektif biaya, sedangkan konfigurasi submission utama tetap
-mengikuti eksperimen macro F1.
+Pada DTL, ambang OOF $0{,}875$ menurunkan biaya \textit{holdout} dari
+1.302 menjadi 1.167, atau sekitar $10{,}37\%$. FP turun dari 271 menjadi
+52, tetapi FN meningkat dari 489 menjadi 1.011 dan Macro F1 turun dari
+$0{,}837108$ menjadi $0{,}733957$. KDB memperoleh penurunan biaya dari
+1.568 menjadi 1.177, atau sekitar $24{,}94\%$, dengan ambang
+$0{,}885309$. FP turun dari 362 menjadi 94, sedangkan FN naik dari
+482 menjadi 895 dan Macro F1 turun dari $0{,}821914$ menjadi
+$0{,}761991$. Kedua kasus memperlihatkan bahwa kebijakan yang
+meminimalkan biaya asumtif tidak sama dengan kebijakan yang
+memaksimalkan keseimbangan F1 kedua kelas.
 
-\begin{center}
-    \includegraphics[width=0.95\textwidth]{../../output/knn/knn_cost_sensitive.png}
-\end{center}
+Pada k-NN, ambang OOF $0{,}693585$ menghasilkan biaya 1.055 pada
+\textit{holdout}, dibandingkan 1.325 pada ambang utama $0{,}5$.
+Pengurangan sebesar $20{,}38\%$ berasal dari penurunan FP dari 290
+menjadi 86, bersamaan dengan kenaikan FN dari 455 menjadi 797.
+Macro F1 berubah dari $0{,}841689$ menjadi $0{,}791853$. Semua
+persentase tersebut merupakan hasil satu pembagian data dan satu
+rasio biaya hipotetis. Pemilihan model utama sebelumnya juga
+melibatkan evaluasi kandidat pada data yang sama, sehingga hasil
+\textit{holdout} ini tidak boleh dinyatakan sebagai estimasi
+generalisasi yang sepenuhnya independen.
 
-Pemilihan dan pelaporan threshold dilakukan pada validasi yang sama, sehingga
-penurunan biaya dapat optimistis. Angka tersebut merupakan minimum di antara
-kandidat pada split ini. Evaluasi independen diperlukan untuk mengukur
-generalisasi. Test tanpa label tidak digunakan untuk pemilihan threshold.
-Sumber asumsi biaya adalah spesifikasi Tugas Besar 2 IF3170 2026/2027,
-bagian Bonus poin 7. Batas teoritis diturunkan langsung dari biaya harapan.
+Regresi logistik dengan \textit{elastic net} menghasilkan biaya 1.720
+pada ambang utama $0{,}47$ dan 1.345 pada ambang biaya $0{,}727456$.
+Penurunan sekitar $21{,}80\%$ disertai penurunan FP dari 405 menjadi
+90 dan kenaikan FN dari 505 menjadi 1.075. Macro F1 turun dari
+$0{,}808577$ menjadi $0{,}706434$. Pergeseran ini menunjukkan bahwa
+penurunan biaya skenario terutama dicapai dengan lebih sedikit
+peringatan pembatalan, bukan peningkatan kualitas prediksi pada kedua
+kelas sekaligus.
+
+SVM linear menghasilkan biaya terendah di antara kelima pipeline pada
+kedua kebijakan yang diuji dalam Tabel~\ref{tab:cost-sensitive-models}.
+Pada ambang utama $-0{,}027$, biayanya 1.091. Ambang margin OOF
+$0{,}330910$ menurunkannya menjadi 870 atau sekitar $20{,}26\%$.
+FP turun dari 251 menjadi 91, sementara FN naik dari 338 menjadi 597
+dan Macro F1 turun dari $0{,}876346$ menjadi $0{,}844663$.
+Perbandingan angka biaya lintas model berlaku hanya untuk rasio
+asumtif, pembagian data, dan pipeline yang diuji. Selisih ini tidak
+menetapkan nilai ekonomi yang benar bagi keputusan hotel.
+
+Rasio biaya dalam eksperimen ini hanyalah alat analisis. Implementasi
+memerlukan nilai kerugian yang ditetapkan oleh pengelola sebelum kebijakan
+prediksi diterapkan. Data uji tanpa label tidak dipakai untuk memilih
+ambang.
+
+Eksperimen k-NN dengan rasio bonus $C_{FP}=2$ dan $C_{FN}=1$ menghasilkan
+biaya 1.035 pada ambang utama $0{,}5$, 962 pada ambang teoretis
+$2/3$, dan 939 pada ambang validasi $0{,}6$. Pada ambang validasi,
+FP turun dari 290 menjadi 158, sedangkan FN naik dari 455 menjadi 623.
+Macro F1 berubah dari $0{,}841689$ menjadi $0{,}825069$. Ambang $0{,}6$
+dan biayanya dipilih serta diukur pada validasi yang sama, sehingga hasil
+ini bersifat eksploratif dan tidak sebanding langsung dengan eksperimen
+lintas model yang memilih ambang dari OOF lalu mengukurnya pada
+\textit{holdout}. Hasil tersimpan di
+\path{output/knn/knn_cost_sensitive_comparison.csv}.

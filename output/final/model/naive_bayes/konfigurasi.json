@@ -160,7 +160,7 @@
     "CategoricalNB_binned": 0.794346
   },
   "library_versions": {
-    "numpy": "2.5.4",
-    "pandas": "3.1.1"
+    "numpy": "1.26.4",
+    "pandas": "2.2.2"
   }
 }

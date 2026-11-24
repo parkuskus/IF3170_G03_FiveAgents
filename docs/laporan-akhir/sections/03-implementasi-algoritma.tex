@@ -1,26 +1,32 @@
 \section{Implementasi Data Preprocessing Umum}
 
+Notebook utama tugas besar menyiapkan prapemrosesan dasar untuk membandingkan lima algoritma pada pembagian data yang sama. Kolom \texttt{id} dipertahankan untuk identitas baris, sedangkan \texttt{is\_canceled} digunakan sebagai label dan tidak dimasukkan sebagai fitur. Data latih dipisahkan secara terstratifikasi menjadi bagian pelatihan dan validasi sebelum statistik prapemrosesan dihitung. Data uji tidak digunakan untuk mempelajari transformasi atau memilih model.
+
+Pada jalur dasar k-NN, regresi logistik, SVM, dan Gaussian Naive Bayes, kolom numerik dan kategorikal diproses terpisah dengan \texttt{ColumnTransformer}. Nilai kosong numerik diisi menggunakan median bagian pelatihan sambil menambahkan indikator nilai kosong melalui \texttt{SimpleImputer(add\_indicator=True)}, lalu distandardisasi dengan \texttt{StandardScaler}. Nilai kosong kategorikal diisi menggunakan kategori tersering pada bagian pelatihan, kemudian diubah menjadi fitur biner dengan \texttt{OneHotEncoder(handle\_unknown='ignore')}. Kategori baru pada validasi diabaikan oleh encoder. Prapemroses di-\textit{fit} hanya pada bagian pelatihan, sedangkan validasi hanya ditransformasi. Seluruh nilai fitur numerik hasil transformasi diperiksa agar berhingga.
+
+Berbeda dari keempat model tersebut, CART \textit{from scratch} pada notebook utama menerima 17 kolom fitur mentah. Pohon menangani fitur numerik, kategorikal, dan nilai kosong secara langsung. Prapemrosesan umum menjadi dasar perbandingan. Setiap perubahan khusus model dijelaskan pada bagian optimasi \textit{pipeline}.
+
 \section{Implementasi \textit{Modelling}}
 
 \subsection{k-NN}
 
-Implementasi k-NN untuk klasifikasi \texttt{is\_canceled} dibangun dari nol pada kelas \texttt{KNNClassifier} di direktori \path{src/experiments/knn/}, pada berkas \texttt{knn.py}. Model menyimpan matriks fitur dan label data latih, lalu menentukan kelas suatu reservasi dari label tetangga terdekat. Dua metrik jarak tersedia, yaitu Euclidean dan Manhattan. Pustaka \texttt{scikit-learn} hanya digunakan sebagai pembanding, bukan sebagai implementasi model utama.
+Implementasi k-NN untuk klasifikasi \texttt{is\_canceled} dibangun \textit{from scratch} pada kelas \texttt{KNNClassifier} di direktori \path{src/experiments/knn/}, pada berkas \texttt{knn.py}. Model menyimpan matriks fitur dan label data latih, lalu menentukan kelas suatu reservasi dari label tetangga terdekat. Dua metrik jarak tersedia, yaitu Euclidean dan Manhattan. Pustaka \texttt{scikit-learn} hanya digunakan sebagai pembanding, bukan sebagai implementasi model utama.
 
 Jarak antara vektor fitur $x$ dan data latih $x_i$ dihitung dengan salah satu bentuk berikut.
 \begin{align}
-    d_E(x,x_i) &= \sqrt{\sum_{j=1}^{p}(x_j-x_{ij})^2}, \\
-    d_M(x,x_i) &= \sum_{j=1}^{p}|x_j-x_{ij}|.
+    d_E(x,x_i) & = \sqrt{\sum_{j=1}^{p}(x_j-x_{ij})^2}, \\
+    d_M(x,x_i) & = \sum_{j=1}^{p}|x_j-x_{ij}|.
     \label{eq:knn-distance}
 \end{align}
 Sebanyak $k$ data dengan jarak terkecil membentuk himpunan tetangga $\mathcal{N}_k(x)$. Skor kelas batal merupakan proporsi label positif berbobot pada himpunan tersebut.
 \begin{equation}
     s_1(x)=
     \frac{\sum_{i\in\mathcal{N}_k(x)} w_i\,\mathbb{1}(y_i=1)}
-         {\sum_{i\in\mathcal{N}_k(x)} w_i},
+    {\sum_{i\in\mathcal{N}_k(x)} w_i},
     \qquad
     \widehat{y}(x)=
     \begin{cases}
-        1, & s_1(x)>\tau,\\
+        1, & s_1(x)>\tau,    \\
         0, & s_1(x)\leq\tau.
     \end{cases}
     \label{eq:knn-vote}
@@ -97,7 +103,7 @@ best = max(candidates, key=lambda candidate: candidate[0], default=None)
 
 Pipeline DTL final memakai CART \textit{from scratch} dengan pemilihan \textit{growth configuration}, \textit{post-pruning}, dan \textit{prediction threshold} berdasarkan \textit{Macro F1}. Alurnya dimulai dengan \textit{train-validation split}, dilanjutkan preprocessing dan \textit{hyperparameter tuning} pada \textit{training split}, evaluasi pada \textit{holdout}, kemudian \textit{refit} menggunakan seluruh \textit{training data} untuk menghasilkan submission. Varian ID3 dan C4.5 tetap menjadi baseline, tetapi skor \textit{holdout} ketiga varian tidak digunakan untuk memilih ulang pipeline final.
 
-Data \texttt{train.csv} dibagi dengan seed 42 melalui \textit{stratified split}, dengan sekitar 20\% sampel dari setiap kelas masuk ke \textit{holdout}. Kolom \texttt{id} dan target \texttt{is\_canceled} dikeluarkan dari \textit{feature set}. Hanya \textit{training split} yang digunakan untuk \textit{hyperparameter tuning}. Dengan demikian, label pada \textit{holdout} tetap terpisah dari pemilihan \textit{growth configuration} dan hanya dipakai untuk menilai model terpilih.
+Data \texttt{train.csv} dibagi dengan seed 42 melalui \textit{stratified split}, dengan sekitar 20\% sampel dari setiap kelas masuk ke \textit{holdout}. Kolom \texttt{id} dan target \texttt{is\_canceled} dikeluarkan dari \textit{feature set}. Hanya \textit{training split} yang digunakan untuk \textit{hyperparameter tuning}. Label \textit{holdout} tidak terlibat dalam pemilihan \textit{growth configuration} dan hanya digunakan untuk menilai model terpilih.
 
 Preprocessor di-\textit{fit} sesuai \textit{training split} yang sedang digunakan. \textit{Missing values} pada \textit{numeric feature} ditangani dengan \textit{median imputation} dari \textit{training split}, atau \texttt{0.0} bila seluruh kolom kosong. \textit{Missing category} diberi marker \texttt{\_\_MISSING\_\_}, sementara \textit{unseen category} saat \textit{transform} diberi marker \texttt{\_\_UNKNOWN\_\_}. Kategori tetap berupa teks karena \textit{decision tree from scratch} memprosesnya secara langsung. Hanya pembanding \textit{scikit-learn} yang memerlukan \textit{one-hot encoding}. Kode~\ref{lst-dtl-preprocessing} menunjukkan bahwa median dan \textit{category set} disimpan saat \texttt{fit}, kemudian digunakan kembali tanpa mempelajari statistik dari \textit{validation data}. Pipeline CART tidak menambahkan \textit{feature engineering}, \textit{scaling}, \textit{dimensionality reduction}, atau \textit{class weighting}. \textit{Class weighting} diuji pada eksperimen DTL lain, bukan pada pipeline final ini.
 
@@ -198,7 +204,7 @@ Fitur yang digunakan pada pipeline akhir meliputi kelompok berikut.
 \begin{enumerate}
     \item \textbf{Karakteristik reservasi.} Ditambahkan total malam menginap, indikator adanya anak, permintaan khusus, dan malam akhir pekan. Jumlah permintaan, tamu dewasa, anak, malam akhir pekan, dan malam hari kerja juga direpresentasikan sebagai kategori, dengan batas atas masing-masing 3, 3, 2, 3, dan 7. Nilai di atas batas tersebut digabungkan agar kategorinya tidak terlalu terpecah.
     \item \textbf{Jarak pemesanan dan tarif.} Ditambahkan indikator jarak pemesanan lebih dari 7, 30, 90, dan 180 hari. Fitur \textit{hinge} berbentuk $h_k(x)=\max(x-k,0)$ digunakan pada jarak pemesanan dengan titik 3, 7, 14, 30, 60, 90, 120, 180, dan 270 hari. Untuk tarif dalam juta rupiah, titiknya adalah $0{,}75$, $1$, $1{,}25$, $1{,}5$, $1{,}75$, $2$, $2{,}5$, dan $3$.
-    \item \textbf{Interaksi kanal pemesanan.} Indikator kanal \textit{Online Travel Agent} dikalikan dengan jarak pemesanan, tarif, dan jumlah permintaan khusus. Selain itu, kategori kanal digabungkan dengan kelompok jarak pemesanan, kelompok tarif, serta kategori permintaan khusus. Kelompok jarak pemesanan memakai batas 1, 7, 14, 30, 60, 90, 120, 180, dan 270 hari. Kelompok tarif memakai batas yang sama dengan titik \textit{hinge} tarif. Kelompok jarak pemesanan juga digabungkan dengan kategori permintaan khusus.
+    \item \textbf{Interaksi kanal pemesanan.} Indikator kanal \textit{Online Travel Agent} dikalikan dengan jarak pemesanan, tarif, dan jumlah permintaan khusus. Kategori kanal juga digabungkan dengan kelompok jarak pemesanan, kelompok tarif, serta kategori permintaan khusus. Kelompok jarak pemesanan memakai batas 1, 7, 14, 30, 60, 90, 120, 180, dan 270 hari. Kelompok tarif memakai batas yang sama dengan titik \textit{hinge} tarif. Kelompok jarak pemesanan turut dipasangkan dengan kategori permintaan khusus.
     \item \textbf{Waktu kedatangan.} Bulan diperlakukan sebagai kategori dan digabungkan dengan kanal pemesanan maupun tahun kedatangan. Kolom tanggal dalam bulan, yaitu \texttt{arrival\_day}, tidak digunakan.
 \end{enumerate}
 
@@ -260,7 +266,7 @@ Seluruh keluaran ditempatkan di dalam direktori \path{output/final/model/logisti
 
 \subsection{SVM}
 
-Implementasi klasifikator Support Vector Machine (SVM) dari nol ditempatkan pada kelas \texttt{SVMFromScratch} dalam berkas \texttt{src/experiments/svm/svm\_scratch.py}. Perhitungan matriks, fungsi kernel, optimasi, dan pencarian ambang keputusan pada kelas tersebut menggunakan \texttt{numpy}, tanpa memanggil klasifikator \texttt{scikit-learn}. Sebaliknya, pembentukan fitur dalam \texttt{SVMPreprocessor} menggunakan beberapa estimator \texttt{scikit-learn}. Pada saat pelatihan SVM, label target $\{0, 1\}$ dipetakan ke $y_i \in \{-1, +1\}$.
+Implementasi klasifikator Support Vector Machine (SVM) \textit{from scratch} ditempatkan pada kelas \texttt{SVMFromScratch} dalam berkas \texttt{src/experiments/svm/svm\_scratch.py}. Perhitungan matriks, fungsi kernel, optimasi, dan pencarian ambang keputusan pada kelas tersebut menggunakan \texttt{numpy}, tanpa memanggil klasifikator \texttt{scikit-learn}. Pembentukan fitur dalam \texttt{SVMPreprocessor} menggunakan beberapa estimator \texttt{scikit-learn}. Pada saat pelatihan SVM, label target $\{0, 1\}$ dipetakan ke $y_i \in \{-1, +1\}$.
 
 Solver utama \texttt{SVMFromScratch} menggunakan formulasi \textit{soft-margin} dengan kerugian kuadratik (\textit{L2-hinge loss}) dan regularisasi $L_2$ sebagaimana dinyatakan dalam persamaan berikut.
 \begin{equation}
@@ -277,12 +283,12 @@ Metode \texttt{\_compute\_kernel} mendukung tiga jenis pemetaan ruang fitur.
     \item Kernel Gaussian atau Radial Basis Function (RBF) menghitung kemiripan berbasis jarak Euclidean kuadrat $K(\mathbf{x}_i, \mathbf{x}_j) = \exp(-\gamma \|\mathbf{x}_i - \mathbf{x}_j\|_2^2)$ dengan pemotongan jarak negatif akibat galat pembulatan ke angka nol, serta mendukung variasi skala $\gamma$ mulai dari \texttt{"scale"} ($1 / (D \cdot \mathrm{Var}(X))$), \texttt{"auto"} ($1/D$), hingga pengali khusus seperti \texttt{"scale*0.4"} dan \texttt{"scale*0.2"}.
 \end{enumerate}
 
-Kelas \texttt{SVMFromScratch} menggunakan mekanisme optimasi dan evaluasi internal berikut.
+Kelas \texttt{SVMFromScratch} menyediakan mekanisme optimasi dan evaluasi berikut.
 \begin{enumerate}
-    \item Solver utama \textit{Active-Set Modified Finite Newton} menggantikan DCD (\textit{mini-batch Dual Coordinate Descent}) dari versi awal. Konvergensi DCD melambat saat jumlah fitur bertambah. Mengikuti metode Keerthi dan DeCoste, pada setiap iterasi algoritma mengidentifikasi himpunan titik aktif yang masih melanggar margin ($y_i f(\mathbf{x}_i) < 1$), membentuk matriks Hessian tereduksi hanya dari titik-titik aktif tersebut, lalu menyelesaikan sistem persamaan linear menggunakan \texttt{np.linalg.solve} hingga konvergen dalam $3$ sampai $7$ langkah iterasi.
-    \item Pendekatan Nystr\"om berbasis faktorisasi Cholesky diterapkan khusus ketika model menjalankan kernel non-linear (\texttt{poly} dan \texttt{rbf}) pada dataset besar agar tidak perlu membentuk matriks kernel penuh berukuran $21.898 \times 21.898$ ($\sim 3{,}8\text{ GB}$ RAM). Algoritma mengambil $m = 2000$ titik acuan (\textit{landmark}) secara terstratifikasi dari data latih, menghitung matriks kernel $\mathbf{K}_{MM}$ dan $\mathbf{K}_{NM}$, lalu memproyeksikan data ke ruang fitur berdimensi $2000$ melalui $\mathbf{Z} = \mathbf{K}_{NM}(\mathbf{K}_{MM} + 10^{-5}\mathbf{I})^{-1/2}$ dengan cadangan dekomposisi nilai eigen (\texttt{np.linalg.eigh}) apabila matriks mendekati singular.
+    \item Solver utama \textit{Active-Set Modified Finite Newton} menyelesaikan objektif \textit{L2-hinge loss}. Pada setiap iterasi, algoritma mengambil titik yang melanggar margin ($y_i f(\mathbf{x}_i) < 1$), membentuk sistem linear dari titik aktif tersebut, lalu memperbarui bobot dan bias dengan \texttt{np.linalg.solve}. Pendekatan ini mengikuti metode Keerthi dan DeCoste \cite{keerthi2005newton}.
+    \item Aproksimasi Nystr\"om digunakan untuk kernel nonlinear pada data besar. Sebanyak $m=2000$ \textit{landmark} dipilih dari data latih. Matriks kernel antara data dan \textit{landmark} diproyeksikan melalui faktorisasi Cholesky teratur untuk menghindari pembentukan matriks kernel penuh berukuran $21.898 \times 21.898$. Bentuk proyeksi dan rujukan metode dijelaskan pada Persamaan~\ref{eq:nystrom-proj} \cite{williams2001nystrom}.
     \item Solver \textit{Sequential Minimal Optimization} (SMO) eksak disediakan untuk dataset berukuran kecil ($\le 1500$ baris, seperti pada visualisasi bidang pemisah 2D) yang memperbarui pasangan pengali Lagrange $(\alpha_i, \alpha_j)$ secara analitik.
-    \item Pencatatan metrik internal dan kalibrasi ambang batas dilakukan otomatis setelah pelatihan, meliputi jumlah \textit{support vector} aktif pada atribut \texttt{n\_support\_}, total pelanggaran margin pada atribut \texttt{slack\_total} $= \sum_{i=1}^{N} \max(0, 1 - y_i f(\mathbf{x}_i))$, serta metode \texttt{tune\_threshold\_oof} yang menjalankan validasi silang internal $5$-\textit{fold} di dalam data latih untuk memilih ambang batas pemaksimal Macro F1 dari $201$ titik kandidat.
+    \item Setelah pelatihan, model mencatat jumlah titik bermargin aktif dan total pelanggaran margin. Metode \texttt{tune\_threshold\_oof} memilih ambang dengan Macro F1 tertinggi melalui validasi silang internal lima \textit{fold} pada data latih.
 \end{enumerate}
 
 \subsubsection{Optimasi \textit{Pipeline} SVM}
@@ -292,15 +298,15 @@ Hasil eksperimen menunjukkan pentingnya representasi fitur bagi kinerja SVM. Kel
     \item Pembersihan dan rekayasa fitur domain perhotelan membentuk blok dasar sebanyak $64$ fitur ditambah variasi rasio interaksi. Informasi nilai kosong pada delapan kolom ($\sim 39\%$ baris) dicatat terlebih dahulu ke dalam kolom indikator biner \texttt{miss\_*} dan jumlah kolom kosong per baris (\texttt{n\_missing}), lalu diisi dengan median atau modus data latih. Selanjutnya dibuat fitur turunan domain meliputi total malam menginap, total tamu, rasio malam akhir pekan, estimasi biaya total, tarif per tamu per malam (\texttt{rate\_per\_guest\_night}), transformasi logaritmik \texttt{log1p} pada waktu tunggu dan tarif kamar, rasio riwayat pembatalan, selisih dan skor-$z$ tarif terhadap median bulan-kamar, hingga transformasi sinus dan kosinus hari dalam setahun (\texttt{arr\_doy\_sin}, \texttt{arr\_doy\_cos}).
     \item Imputasi prediktif terawasi (\texttt{imp\_*}) ditambahkan untuk memulihkan nilai kosong pada tiga fitur numerik terpenting, yakni \texttt{days\_before\_arrival}, \texttt{nightly\_rate\_idr}, dan \texttt{special\_requests}. Pada saat \texttt{fit} di data latih, model regresi \texttt{HistGradientBoostingRegressor} dilatih khusus pada baris-baris yang nilainya tidak kosong (dengan mengeluarkan kolom turunan dari fitur yang sedang diprediksi agar tidak bocor), lalu hasil taksirannya disimpan sebagai kolom fitur tambahan \texttt{imp\_days\_before\_arrival}, \texttt{imp\_nightly\_rate\_idr}, dan \texttt{imp\_special\_requests}.
     \item Skema \textit{out-of-fold} (OOF) menggunakan validasi silang terstratifikasi lima lipatan di dalam data latih untuk membatasi penggunaan label baris sendiri dalam pembentukan fitur berbasis target. Setiap lipatan menerima statistik dari empat lipatan lainnya. Matriks fitur latih hasilnya disimpan pada atribut \texttt{\_train\_oof\_cache\_}. Data validasi dan uji menggunakan transformasi dari model yang dilatih pada seluruh data latih. Skema ini mengurangi perbedaan antara fitur latih yang dihitung \textit{in-sample} dan fitur pada data baru, tetapi tidak menjamin kesamaan distribusinya.
-    \item Estimasi target encoding bertingkat dan kemiripan lingkungan lokal dibangun di atas skema OOF tersebut. Bagian ini mencakup \textit{Hierarchical Empirical Bayes Target Encoding} (\texttt{te\_*}) dengan faktor penghalus $m \in [1{,}5; 12{,}0]$, estimasi kepadatan lokal kelas pembatalan menggunakan \textit{K-Nearest Neighbors} ($k \in \{3, 9, 25\}$) dan \textit{Parzen Window Kernel Density Estimation} (KDE) pada tiga subruang fitur (profil pemesanan, tarif dan rombongan tamu, serta kalender), serta fitur \textit{Masked Exact Match} (\texttt{masked\_*}) yang mencocokkan baris identik pada seluruh kolom non-null.
-    \item Proyeksi logit interaksi nonlinear, pembobotan subruang, dan kompresi serialisasi menjadi tahap penutup di dalam \texttt{SVMPreprocessor}. Empat fitur skor logit ($\ln(p / (1-p))$) diekstraksi secara OOF dari estimator pohon \texttt{rf64}, \texttt{rfv2}, \texttt{et}, dan \texttt{hgb}. Kedalaman daunnya dibatasi dengan \texttt{min\_samples\_leaf=4..5} dan \texttt{max\_depth=24}. Seluruh blok fitur distandardisasi menggunakan \texttt{StandardScaler} yang di-\textit{fit} hanya pada data latih. Bobot subruang yang digunakan ialah \texttt{[X\_pure * 0.40, X\_manifold * 0.80, X\_emb * 2.50]}. Bundel \texttt{svm\_pipeline.pkl} berukuran $40{,}94\text{ MB}$ setelah dikompresi dengan \texttt{zlib} level $6$ pada \texttt{\_\_getstate\_\_}.
+    \item Estimasi target encoding bertingkat dan kemiripan lingkungan lokal dibangun di atas skema OOF tersebut. Bagian ini mencakup \textit{Hierarchical Empirical Bayes Target Encoding} (\texttt{te\_*}) dengan faktor penghalus $1{,}5 \le m \le 12{,}0$, estimasi kepadatan lokal kelas pembatalan menggunakan \textit{K-Nearest Neighbors} ($k \in \{3, 9, 25\}$) dan \textit{Parzen Window Kernel Density Estimation} (KDE) pada tiga subruang fitur (profil pemesanan, tarif dan rombongan tamu, serta kalender), serta fitur \textit{Masked Exact Match} (\texttt{masked\_*}) yang mencocokkan baris identik pada seluruh kolom non-null.
+    \item Proyeksi logit interaksi nonlinear, pembobotan subruang, dan kompresi serialisasi menjadi tahap penutup di dalam \texttt{SVMPreprocessor}. Empat fitur skor logit ($\ln(p / (1-p))$) diekstraksi secara OOF dari estimator pohon \texttt{rf64}, \texttt{rfv2}, \texttt{et}, dan \texttt{hgb}. Parameter \texttt{min\_samples\_leaf} bernilai 4 atau 5 dan \texttt{max\_depth} bernilai 24. Seluruh blok fitur distandardisasi menggunakan \texttt{StandardScaler} yang di-\textit{fit} hanya pada data latih. Bobot subruang yang digunakan ialah \texttt{[X\_pure * 0.40, X\_manifold * 0.80, X\_emb * 2.50]}. Bundel \texttt{svm\_pipeline.pkl} berukuran $40{,}94\text{ MB}$ setelah dikompresi dengan \texttt{zlib} level $6$ pada \texttt{\_\_getstate\_\_}.
 \end{enumerate}
 
 \subsection{Naive Bayes}
 
-Implementasi Naive Bayes kategorikal dibangun dari nol pada modul
+Implementasi Naive Bayes kategorikal dibangun \textit{from scratch} pada modul
 \texttt{naive\_bayes.py}. Model merepresentasikan kelas sebagai induk bagi
-setiap fitur dan mengasumsikan tidak ada dependensi antarf fitur
+setiap fitur dan mengasumsikan tidak ada dependensi antarfitur
 \cite{maulidevi2024bayesnet}. Fitur numerik kontinu didiskritisasi sebelum
 pelatihan, sedangkan kolom identitas \texttt{id} dan target tidak digunakan
 sebagai masukan.
@@ -421,8 +427,8 @@ induk lebih sedikit menggunakan $m$-estimate. Bentuk rekurensinya adalah
         +m\,\widehat{P}_{r-1}(x_j\mid c,\boldsymbol{u}_{1:r-1})}
     {N(\boldsymbol{u}_{1:r},c)+m}.
 \]
-Dengan demikian, ketika jumlah contoh untuk suatu konfigurasi induk kecil,
-estimasi tidak langsung bergantung pada frekuensi yang sangat jarang.
+Ketika contoh untuk suatu konfigurasi induk sedikit, estimasi tidak
+bergantung sepenuhnya pada frekuensi yang jarang.
 Penghalusan m-estimate berakar pada estimasi probabilitas berbasis
 \textit{m-estimate} \cite{cestnik1990estimating}.
 
@@ -475,7 +481,7 @@ Pipeline ini juga mempelajari bobot nonnegatif untuk kontribusi log
 likelihood tiap fitur. Bobot ditaksir dari prediksi \textit{out-of-fold}
 (OOF), dengan penalti yang menarik bobot ke nilai awal satu. Pendekatan ini
 merupakan bentuk \textit{attribute weighting} pada Naive Bayes
-\cite{zaidi2013alleviating}. Penggunaan OOF menjaga suatu sampel tidak
+\cite{zaidi2013alleviating}. Penggunaan OOF mencegah suatu sampel
 menghasilkan skor latih bagi dirinya sendiri. Bobot, nilai $k$, $m$,
 penghalusan, binning, fitur turunan, dan ambang dipilih memakai data latih.
 Holdout digunakan untuk evaluasi akhir. Fitur turunan dan interaksi
@@ -505,13 +511,13 @@ Penelusuran konfigurasi menggunakan penyaringan awal 3-fold dan menerima
 perubahan *greedy* jika kenaikan Macro F1 CV sekurang-kurangnya $0{,}0002$.
 Penilaian final memakai 5-fold stratified CV pada tiga seed. Pemilihan
 ambang mengoptimalkan Macro F1 OOF, bukan label holdout. KDB memperluas
-Naive Bayes independen dengan dependensi terbatas antarf fitur.
+Naive Bayes independen dengan dependensi terbatas antarfitur.
 \section{Implementasi Spesifikasi Bonus}
 
 \subsection{Bonus DTL Gambar Percabangan Tree}
 \label{sec-bonus-dtl-implementasi}
 
-Bonus DTL meminta gambar percabangan \textit{tree} dengan parameter untuk membatasi jumlah percabangan yang ditampilkan. Notebook final menyediakan \texttt{CFG.TREE\_TOP\_N} untuk menentukan banyaknya \textit{split} yang dibuka dari \textit{root}. Nilai 10 digunakan untuk gambar utama. Pembatasan ini hanya memengaruhi visualisasi, bukan pelatihan atau prediksi model. Kode~\ref{lst-bonus-dtl-topn} menunjukkan parameter tersebut.
+Gambar percabangan pohon menggunakan parameter untuk membatasi jumlah pemisahan yang ditampilkan. Notebook final menyediakan \texttt{CFG.TREE\_TOP\_N} untuk menentukan banyaknya \textit{split} yang dibuka dari \textit{root}. Nilai 10 digunakan untuk gambar utama. Pembatasan ini hanya memengaruhi visualisasi, bukan pelatihan atau prediksi model. Kode~\ref{lst-bonus-dtl-topn} menunjukkan parameter tersebut.
 
 \begin{lstlisting}[caption={Parameter jumlah split pada gambar DTL},label={lst-bonus-dtl-topn}]
 TREE_TOP_N = 10  # Number of split nodes to show, breadth-first from the root.
@@ -543,11 +549,29 @@ Visualisasi SVM memperlihatkan bidang pemisah (\textit{decision boundary}), bata
 
 Setelah data latih diproyeksikan ke bidang dua dimensi, diambil sampel terstratifikasi sebanyak $800$ titik ($400$ per kelas) dengan \texttt{seed=42}. Tiga model \texttt{SVMFromScratch} dilatih ulang pada sampel tersebut menggunakan solver \textit{Sequential Minimal Optimization} (\texttt{solver="smo"}, \texttt{max\_iter=60}, \texttt{class\_weight="balanced"}), masing-masing untuk kernel Linear ($C=0{,}5$), Polynomial derajat dua ($C=1{,}0, d=2, \gamma=\texttt{"scale"}, r=1{,}0$), dan Gaussian RBF ($C=1{,}0, \gamma=\texttt{"scale"}$). Kisi berukuran $200 \times 200$ titik mencakup rentang persentil ke-$1$ hingga ke-$99$ pada kedua sumbu, ditambah ruang tepi sebesar $0{,}6$. Kontur $f(\mathbf{x}) = 0$ digambar dengan garis penuh, sedangkan $f(\mathbf{x}) = \pm 1$ dengan garis putus-putus. Lingkaran hitam hanya menandai maksimal $150$ koordinat pertama pada \texttt{support\_vectors\_} setiap kernel. Jumlah totalnya tercantum pada judul panel.
 
+Kode~\ref{lst-bonus-svm-boundary} merangkum proyeksi dan pelatihan
+ulang model khusus visualisasi. Model dua dimensi tersebut tidak mengganti
+model akhir yang dilatih pada seluruh fitur.
+
+\begin{lstlisting}[caption={Proyeksi PCA dan pelatihan SVM untuk visualisasi},label={lst-bonus-svm-boundary}]
+pca = PCA(n_components=2, random_state=CFG.SEED)
+X_2d = pca.fit_transform(X_train_model)
+rng_vis = np.random.default_rng(CFG.SEED)
+idx0 = rng_vis.choice(np.flatnonzero(y_train == 0), 400, replace=False)
+idx1 = rng_vis.choice(np.flatnonzero(y_train == 1), 400, replace=False)
+sub_idx = np.sort(np.concatenate([idx0, idx1]))
+Xs, ys = X_2d[sub_idx], y_train[sub_idx]
+model = SVMFromScratch(**kernel_config, random_state=CFG.SEED)
+model.fit(Xs, ys)
+scores = model.decision_function(grid).reshape(xx.shape)
+ax.contour(xx, yy, scores, levels=[-1, 0, 1])
+\end{lstlisting}
+
 \subsection{Graf Bayesian Network Antarfitur}
 
 Graf dibuat dari struktur KDB final, bukan dari korelasi yang dihitung
 terpisah untuk keperluan gambar. Simpul \texttt{C} menyatakan kelas
-\texttt{is\_canceled} dan menjadi induk bagi seluruh fitur. Sisi antarf fitur
+\texttt{is\_canceled} dan menjadi induk bagi seluruh fitur. Sisi antarfitur
 menunjukkan induk yang dipilih berdasarkan CMI. Renderer menggunakan graf
 berarah agar arah dependensi dapat dibaca. Panah kelas-ke-fitur dibedakan
 dari panah fitur-ke-fitur. Gambar disimpan sebagai PNG di
@@ -555,25 +579,134 @@ dari panah fitur-ke-fitur. Gambar disimpan sebagai PNG di
 Visualisasi menjelaskan struktur model dan tidak menambah tahap pelatihan
 atau mengubah prediksi.
 
+Metode \texttt{plot\_structure} membangun \texttt{DiGraph} dari daftar sisi
+yang tersimpan pada \texttt{KDBClassifier}. Kelas menjadi induk setiap fitur,
+sedangkan daftar \texttt{parents\_} menentukan sisi antarfitur. Renderer
+membedakan kedua jenis sisi dengan gaya garis dan warna. Potongan berikut
+menunjukkan pembentukan graf dan pemanggilan fungsi penyimpanan.
+
+\begin{lstlisting}[caption={Pembuatan graf dan penyimpanan struktur KDB},label={lst-bonus-bn-graph}]
+model.plot_structure(
+    output_path=CFG.OUTPUT_DIR / "naive_bayes_bayesian_network.png",
+    feature_names=feature_names,
+)
+\end{lstlisting}
+
+Sisi yang ditampilkan berasal dari struktur KDB hasil pelatihan. Gambar
+karena itu menggambarkan dependensi probabilistik yang digunakan model,
+bukan korelasi yang dihitung terpisah atau hubungan sebab akibat.
+
 \subsection{Algoritma Optimasi Model}
 
 \subsubsection{DTL}
 
+Pohon CART ditumbuhkan terlebih dahulu, lalu \textit{cost-complexity
+    post-pruning} membandingkan galat mengganti suatu subpohon dengan satu daun
+dengan galat mempertahankan seluruh daun keturunannya. Penalti
+$\alpha$ dikenakan untuk setiap daun yang dipertahankan. Jika mengganti
+subpohon tidak meningkatkan objektif, cabang anak dihapus.
+Nilai $\alpha$, konfigurasi pertumbuhan, dan ambang dipilih dengan
+\textit{stratified cross-validation} pada data latih. Pemilihan ini
+mengendalikan kompleksitas tanpa memakai label \textit{holdout}.
+Implementasi rekursif menggunakan salinan pohon agar pohon asal tidak
+berubah.
+
+\begin{lstlisting}[caption={Keputusan pemangkasan subpohon CART},label={lst-dtl-cost-complexity}]
+if leaf_error + alpha <= subtree_error + alpha * leaves:
+    node.feature = node.kind = node.threshold = node.categories = None
+    node.branches = None
+    return leaf_error, 1
+return subtree_error, leaves
+\end{lstlisting}
+
 \subsubsection{SVM}
+
+Solver \textit{Active-Set Modified Finite Newton} bekerja pada formulasi
+primal dengan kuadrat pelanggaran margin pada
+Persamaan~\ref{eq:svm-l2-hinge}.
+Pada setiap iterasi, himpunan aktif berisi sampel dengan $y_i f(x_i)<1$.
+Gradien dan Hessian dihitung dari sampel tersebut, lalu sistem linear
+diselesaikan untuk memperoleh pembaruan bobot serta bias. Solver ini
+berbeda dari SMO, yang menyelesaikan submasalah dual dua pengali. Untuk
+kernel nonlinear, proyeksi Nystr\"om menghasilkan matriks fitur berdimensi
+$m$ dari $m$ titik acuan. Kompleksitas penyimpanan matriks kernel turun dari
+$O(n^2)$ menjadi $O(nm)$ sebelum optimasi primal.
+
+\begin{lstlisting}[caption={Pembaruan primal melalui sistem Newton},label={lst-svm-active-newton}]
+active = y * (Z @ w + b) < 1.0
+Z_active = Z[active]
+y_active = y[active]
+H = regularizer + 2 * Z_active.T @ (weights[:, None] * Z_active)
+rhs = 2 * Z_active.T @ (weights * y_active)
+w = np.linalg.solve(H, rhs)
+\end{lstlisting}
+
+Dalam implementasi, matriks \texttt{Z} memuat bias sebagai kolom tambahan
+dan regularisasi bias diberi nilai kecil. Pada model linear, fitur
+terstandardisasi menjadi masukan langsung. Pada kernel nonlinear, \texttt{Z}
+berasal dari aproksimasi Nystr\"om. Aproksimasi ini menggunakan faktorisasi
+Cholesky teratur pada matriks kernel titik acuan
+\cite{keerthi2005newton,williams2001nystrom}.
 
 \subsubsection{Naive Bayes}
 
-Pipeline Naive Bayes menggunakan KDB dengan pencarian struktur dependensi
-terbatas berdasarkan MI/CMI dan pembelajaran bobot atribut pada likelihood
-OOF. KDB mengizinkan maksimal $k$ induk fitur sehingga sebagian dependensi
-yang diabaikan Naive Bayes dapat direpresentasikan. Penghalusan
-$m$-estimate menstabilkan estimasi pada konfigurasi induk yang jarang.
-Bobot fitur mengatur kekuatan kontribusi tiap likelihood. Metode ini merujuk
-Sahami \cite{sahami1996limited}, Friedman, Geiger, dan Goldszmidt
-\cite{friedman1997bayesian}, Cestnik \cite{cestnik1990estimating}, serta
-Zaidi dkk. \cite{zaidi2013alleviating}. Seluruh proses seleksi dilakukan
-pada data latih melalui validasi silang. Holdout tidak digunakan untuk
-memilih struktur atau parameter.
+Naive Bayes final diperluas menjadi \textit{K-Dependence Bayesian
+    Classifier} (KDB). Urutan fitur dipilih dari \textit{mutual information}
+(MI) terhadap kelas, lalu maksimal $k$ induk untuk setiap fitur dipilih
+berdasarkan \textit{conditional mutual information} (CMI). Struktur ini
+mengizinkan dependensi terbatas yang tidak ada pada Naive Bayes biasa
+\cite{sahami1996limited,friedman1997bayesian}. Peluang kondisional untuk
+kombinasi induk yang jarang diamati disusutkan ke estimasi dengan lebih
+sedikit induk memakai $m$-estimate \cite{cestnik1990estimating}.
+
+Bobot likelihood dipelajari dari skor OOF agar label suatu baris tidak ikut
+membentuk skor latih bagi baris yang sama. Fungsi \texttt{fit\_feature\_weights}
+meminimalkan \textit{log-loss} dengan penalti L2 terhadap bobot awal satu.
+Adam menyesuaikan laju tiap parameter berdasarkan momen gradien, sementara
+proyeksi \texttt{maximum(w, 0)} menjaga bobot tetap nonnegatif
+\cite{zaidi2013alleviating}. Bias aditif juga dipelajari.
+
+\begin{lstlisting}[caption={Pembaruan bobot likelihood KDB dengan Adam},label={lst-nb-adam}]
+gw = (D.T @ (sigmoid(dp + b + D @ w) - y)) / n
+gw += 2 * lam * (w - 1.0)
+mw = 0.9 * mw + 0.1 * gw
+vw = 0.999 * vw + 0.001 * (gw * gw)
+w = np.maximum(w - step * mw_hat / (np.sqrt(vw_hat) + 1e-8), 0.0)
+\end{lstlisting}
+
+Struktur, bobot, binning, dan ambang dipilih hanya dari data latih melalui
+validasi silang. \textit{Holdout} dipakai untuk pengukuran akhir, bukan
+untuk memilih konfigurasi.
 
 \newpage
 \subsection{Cost-Sensitive Classification}
+\label{sec:implementasi-cost-sensitive}
+
+Implementasi eksperimen biaya berada pada \path{src/experiments/cost_sensitive.py} dan dijalankan untuk tiap model melalui \path{src/experiments/cost_sensitive_runner.py}. Skenario bersama menetapkan biaya \textit{false positive} $C_{FP}=3$ dan \textit{false negative} $C_{FN}=1$. Prediksi kelas batal dibuat jika skor model $s(x)>\tau$. Skor yang sama dengan ambang diprediksi sebagai kelas tidak batal. Fungsi biaya yang diminimalkan ialah
+\begin{equation}
+    L(\tau)=3\,FP(\tau)+FN(\tau).
+\end{equation}
+Nilai biaya merupakan asumsi eksperimen, bukan estimasi kerugian finansial hotel. Keluaran SVM berupa margin. Skor model lain berada pada rentang nol hingga satu, tetapi belum tentu terkalibrasi. Karena itu, ambang dipilih dari data latih dan tidak ditetapkan langsung dari rasio biaya.
+
+Untuk mencegah penggunaan \textit{holdout} saat memilih ambang, runner melatih ulang prapemroses dan model konfigurasi akhir pada setiap lipatan dari tiga lipatan data latih. Prediksi \textit{out-of-fold} digabungkan untuk menghitung $L(\tau)$ pada kandidat ambang. Kandidat mencakup skor minimum yang digeser ke bawah agar semua prediksi positif terwakili, seluruh skor unik bila jumlahnya tidak lebih dari 101, atau 101 kuantil skor bila jumlahnya lebih banyak. Fungsi \texttt{choose\_threshold} memilih biaya terendah. Jika biaya sama, Macro F1 tertinggi dipilih, lalu ambang terkecil. Model kemudian dilatih pada seluruh bagian latih. Fungsi \texttt{compare\_holdout} mengukur ambang terpilih dan ambang utama pada \textit{holdout}. Aturan keputusan eksperimen ini tidak mengubah berkas \textit{submission} utama.
+
+\begin{lstlisting}[caption={Pemilihan ambang berdasarkan biaya dan Macro F1},label={lst-cost-sensitive-threshold}]
+return min(
+    (evaluate_threshold(y, scores, t, fp_cost, fn_cost)
+     for t in candidates),
+    key=lambda row: (row["cost"], -row["macro_f1"], row["threshold"]),
+)
+\end{lstlisting}
+
+Spesifikasi bonus menggunakan rasio $C_{FP}=2$ dan $C_{FN}=1$. Untuk probabilitas yang terkalibrasi, ambang biaya Bayes adalah
+$C_{FP}/(C_{FP}+C_{FN})=2/3$. Keluaran berupa skor atau margin yang belum terkalibrasi tidak dapat langsung memakai ambang teoretis tersebut. Implementasi k-NN menguji rasio 2:1 pada validasi yang sama dengan evaluasi biayanya, sedangkan eksperimen lintas model di atas memakai rasio 3:1 dan ambang OOF. Kedua hasil perlu dilaporkan terpisah karena prosedur pemilihannya berbeda.
+
+\subsection{Video Kontur Log-Loss Regresi Logistik}
+
+Notebook final Logistic Regression menyediakan sel untuk menghasilkan video lintasan parameter $\theta_0$ dan $\theta_1$ pada kontur \textit{log-loss}. Sel demonstrasi melatih model dua parameter dengan \textit{stochastic gradient descent} pada satu fitur dan menyimpan lintasannya setiap \textit{epoch}. Model dua parameter ini dibuat khusus untuk visualisasi. Model tersebut tidak menggantikan model multivariat yang digunakan pada evaluasi dan submission. Berkas MP4 hasilnya belum tersedia di repositori.
+
+\begin{lstlisting}[caption={Penyimpanan lintasan parameter sebagai video},label={lst-lr-contour-video}]
+animation = FuncAnimation(fig, draw, frames=len(trajectory),
+                          interval=180, blit=True)
+animation.save(video_path, writer=FFMpegWriter(fps=6))
+\end{lstlisting}
