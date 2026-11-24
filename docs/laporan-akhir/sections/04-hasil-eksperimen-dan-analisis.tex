@@ -369,12 +369,12 @@ Skor pada tabel merupakan hasil pencarian konfigurasi dan ambang keputusan denga
 
 Tabel~\ref{tab:svm_all_18_candidates} menunjukkan pola berikut pada hiperparameter SVM.
 \begin{enumerate}
-    \item Pergeseran nilai regularisasi $C$ ke angka kecil ($0{,}005 \le C \le 0{,}20$) memberikan hasil terbaik setelah sinyal non-linear dan kemiripan lokal terwakili secara bebas bocor di dalam ke-$135$ fitur masukan. Nilai $C$ yang kecil memperlebar margin pemisah dan mencegah SVM memberikan bobot berlebihan pada titik-titik pencilan (\textit{noisy labels}) di sekitar perbatasan kelas.
+    \item Nilai regularisasi $C$ yang kecil ($0{,}005 \le C \le 0{,}20$) menghasilkan skor terbaik setelah sinyal nonlinear dan kemiripan lokal direpresentasikan dalam $135$ fitur masukan tanpa kebocoran label. Nilai $C$ yang kecil memperlebar margin pemisah dan membatasi pengaruh titik pencilan (\textit{noisy labels}) di sekitar batas kelas.
     \item Pada $C=0{,}1$, penggunaan $\gamma$ sebesar $0{,}4$ kali skala standar (\texttt{"scale*0.4"}) berkaitan dengan perubahan Macro F1 dari $0{,}8736$ (\texttt{rbf\_c0.1\_scale}) menjadi $0{,}8750$ (\texttt{rbf\_c0.1\_g0.4}). Skor $0{,}8753$ pada \texttt{rbf\_c0.2\_g0.4} juga melibatkan perubahan $C$ menjadi $0{,}2$, sehingga tidak dapat dikaitkan hanya dengan $\gamma$. Nilai $\gamma$ yang lebih kecil memperlebar jangkauan kernel RBF, tetapi penyebab perbedaan skor belum diuji terpisah.
     \item Interaksi antara \texttt{class\_weight="balanced"} dan kalibrasi ambang OOF memengaruhi skor yang tercatat. Pada ambang standar ($0{,}0$), bobot kelas seimbang menurunkan skor awal karena menghasilkan lebih banyak \textit{false positive}. Setelah \texttt{tune\_threshold\_oof} menggeser ambang ke sekitar $+0{,}21$ hingga $+0{,}23$, skor OOF pada \texttt{linear\_c0.005\_bal} mencapai $0{,}8764$, tertinggi dalam pencarian ini.
 \end{enumerate}
 
-Rangkuman perbandingan konfigurasi terbaik dari masing-masing ketiga kernel disajikan pada Tabel~\ref{tab:svm_best_kernels}.
+Tabel~\ref{tab:svm_best_kernels} merangkum konfigurasi terbaik untuk setiap kernel.
 
 \begin{table}[H]
     \centering
@@ -577,7 +577,7 @@ Pada pengujian ini KDB mencatat Macro F1 lebih tinggi daripada kedua
 pembanding. Selisih terhadap \texttt{CategoricalNB} adalah $0{,}027568$,
 sedangkan terhadap \texttt{GaussianNB} adalah $0{,}120879$. Perbandingan
 dengan \texttt{CategoricalNB} lebih dekat dari segi penggunaan kategori,
-tetapi KDB mengizinkan dependensi antarf fitur dan memakai representasi
+tetapi KDB mengizinkan dependensi antarfitur dan memakai representasi
 serta ambang hasil pencarian. \texttt{GaussianNB} menerima masukan numerik
 dan kategori hasil \textit{one-hot}, dengan asumsi likelihood numerik
 yang berbeda. Karena representasi dan konfigurasi tidak disetarakan,
@@ -671,11 +671,11 @@ yang ditampilkan sekaligus.
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{public/04-hasil-eksperimen-dan-analisis/naive_bayes_bayesian_network.png}
-    \caption{Graf Bayesian Network berarah pada KDB final. Simpul kelas menjadi induk seluruh fitur. Panah antarf fitur menunjukkan dependensi yang dipelajari model.}
+    \caption{Graf Bayesian Network berarah pada KDB final. Simpul kelas menjadi induk seluruh fitur. Panah antarfitur menunjukkan dependensi yang dipelajari model.}
     \label{fig:nb-kdb-network}
 \end{figure}
 
-Panah antarf fitur pada Gambar~\ref{fig:nb-kdb-network} memperlihatkan
+Panah antarfitur pada Gambar~\ref{fig:nb-kdb-network} memperlihatkan
 bagaimana KDB melonggarkan asumsi independensi Naive Bayes. Arah panah
 ditetapkan oleh urutan fitur dan pemilihan induk berdasarkan MI serta
 CMI. Karena itu, panah menyatakan faktor yang dipakai saat menghitung
@@ -687,9 +687,9 @@ fitur dalam skor prediksi.
 
 \subsection{Cost-Sensitive Classification}
 
-Untuk rasio lintas model $C_{FP}=3$ dan $C_{FN}=1$, biaya yang lebih rendah
-disertai penurunan FP dan kenaikan FN pada seluruh model. Tabel berikut
-membandingkan hasil kebijakan utama dengan ambang biaya terpilih pada
+Pada rasio lintas model $C_{FP}=3$ dan $C_{FN}=1$, biaya yang lebih rendah
+disertai penurunan FP dan kenaikan FN pada seluruh model. Tabel~\ref{tab:cost-sensitive-models}
+membandingkan kebijakan utama dengan ambang biaya terpilih pada
 \textit{holdout}. Metode pemilihan ambang dan keterbatasan nilai biayanya
 dijelaskan pada Bagian~\ref{sec:implementasi-cost-sensitive}.
 

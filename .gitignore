@@ -241,7 +241,6 @@ __marimo__/
 *.vrb
 *.xdv
 
-docs/laporan-akhir/*.pdf
 /extra/
 
 # Local KNN development planning notes
